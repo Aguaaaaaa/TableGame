@@ -39,6 +39,7 @@ let mode = "host";
 let view = null;
 let selectedAction = null;
 let exchangeSelection = new Set();
+let exchangeDraftKey = "";
 let spectatorUi = null;
 let actionPending = false;
 
@@ -49,7 +50,7 @@ const room = createAuthoritativeRoomClient({
   sessionStore: sessions,
   onStatus(status) { renderConnectionStatus(E.connectionStatus, status, room.snapshot().roomCode); },
   handlers: {
-    onView(nextView) { actionPending = false; view = nextView; selectedAction = null; exchangeSelection = new Set(view.exchange?.originalIds || []); enterRoom(); render(); },
+    onView(nextView) { actionPending = false; view = nextView; reconcileLocalSelection(); enterRoom(); render(); },
     onKicked() { spectatorUi?.handleSessionEnded("kicked"); },
     onRoomExpired() { spectatorUi?.handleSessionEnded("room_expired"); }
   }
@@ -74,6 +75,36 @@ function submit(action, { expectedVersion } = {}) {
   });
 }
 function enterRoom() { setHidden(E.setupPanel, true); setHidden(E.roomPanel, false); setHidden(E.roomHeaderTools, false); E.hero.classList.add("in-room"); E.roomCodeDisplay.textContent = room.snapshot().roomCode; }
+
+function exchangeContextKey(current = view) {
+  if (!current?.permissions?.canExchange || !current.exchange) return "";
+  return [room.snapshot().roomCode,current.selfId,current.currentPlayerId,current.exchange.cards.map((card) => card.id).sort().join(",")].join(":");
+}
+
+function selectedActionStillLegal(current = view) {
+  if (!selectedAction || !current?.permissions?.canDeclareAction || !ACTION_META[selectedAction]?.target) return false;
+  const self = current.players.find((player) => player.id === current.selfId);
+  const cost = selectedAction === "coup" ? 7 : selectedAction === "assassinate" ? 3 : 0;
+  if (!self || self.coins < cost || (self.coins >= 10 && selectedAction !== "coup")) return false;
+  return current.players.some((player) => player.id !== current.selfId && !player.eliminated && (selectedAction !== "steal" || player.coins > 0));
+}
+
+function reconcileLocalSelection() {
+  if (!selectedActionStillLegal()) selectedAction = null;
+  const nextKey = exchangeContextKey();
+  if (!nextKey) {
+    exchangeDraftKey = "";
+    exchangeSelection = new Set();
+    return;
+  }
+  const legalIds = new Set(view.exchange.cards.map((card) => card.id));
+  if (exchangeDraftKey !== nextKey) {
+    exchangeDraftKey = nextKey;
+    exchangeSelection = new Set(view.exchange.originalIds.filter((id) => legalIds.has(id)));
+    return;
+  }
+  exchangeSelection = new Set([...exchangeSelection].filter((id) => legalIds.has(id)).slice(0,view.exchange.keepCount));
+}
 async function createGameRoom() {
   E.createRoomButton.disabled = true;
   try { await room.createRoom({ name: cleanPlayerName(E.hostNameInput.value, "房主"), capacity: Number(E.playerCountSelect.value) }); }

@@ -56,3 +56,15 @@ test("小屏幕压缩标题和指挥条，规则内容内部滚动", () => {
   assert.match(css, /@media\(max-width:500px\)[\s\S]*?\.masthead\.in-room \.masthead-title\{display:none\}/);
   assert.match(css, /\.rule-details\{[^}]*max-height:58vh;overflow:auto/);
 });
+
+test("提示和猜码编辑器按权威上下文保留并合法清理", () => {
+  const script = read("app.js");
+  assert.match(script, /let localGuessDraft = null/);
+  assert.match(script, /localGuessDraft = \{ key:editorKey, values:code\.map\(String\) \}/);
+  assert.match(script, /localGuessDraft\?\.key === editorKey/);
+  assert.match(script, /\[E\.guess1\.value, E\.guess2\.value, E\.guess3\.value\] = localGuessDraft\.values/);
+  assert.match(script, /const nextClueKey = \[room\.snapshot\(\)\.roomCode,current\.round,current\.turnTeam,current\.encryptorId/);
+  assert.match(script, /if \(clueEditorKey !== nextClueKey\)/);
+  assert.match(script, /if \(canSubmit && tiebreakEditorKey !== nextTiebreakKey\)/);
+  assert.match(script, /function resetLocalEditors\(\)/);
+});

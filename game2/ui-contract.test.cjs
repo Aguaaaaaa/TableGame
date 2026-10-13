@@ -45,3 +45,12 @@ test("game2 preserves team seats, private idiom and text action surfaces",()=>{
   assert.match(script,/guessInput/);
   assert.match(script,/renderIdiom/);
 });
+
+test("game2 preserves legal unsent text drafts across authoritative broadcasts",()=>{
+  assert.match(script,/onView\(nextView\) \{\s*captureActionDraft\(\);\s*view = nextView;\s*reconcileActionDraft\(\);/);
+  assert.match(script,/function actionContext\(current = view\)/);
+  assert.match(script,/current\.round,current\.wordNumber,current\.currentActorId,current\.selfId,kind/);
+  assert.match(script,/restoreActionDraft\(\);/);
+  assert.match(script,/input\.value = actionDraft\.value/);
+  assert.match(script,/input\.focus\(\{preventScroll:true\}\)/);
+});

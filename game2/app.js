@@ -29,6 +29,7 @@ const elements = Object.fromEntries([
 let mode = "host";
 let view = null;
 let spectatorUi = null;
+let actionDraft = null;
 const sessions = createSessionStore({gameId:"idiom"});
 const room = createAuthoritativeRoomClient({
   protocolVersion:PROTOCOL_VERSION,
@@ -38,7 +39,9 @@ const room = createAuthoritativeRoomClient({
   },
   handlers:{
     onView(nextView) {
+      captureActionDraft();
       view = nextView;
+      reconcileActionDraft();
       enterRoom();
       render();
     },
@@ -140,6 +143,49 @@ function finishGame() {
   if (view?.phase === "playing" && confirm("确定结束当前大局并结算比分吗？")) submit({type:"end"});
 }
 function returnToLobby() { submit({type:"restart"}); }
+
+function actionContext(current = view) {
+  if (!current || current.phase !== "playing" || !current.selfId) return null;
+  const kind = current.permissions?.canDescribe ? "describe" : current.permissions?.canGuess ? "guess" : "";
+  if (!kind) return null;
+  return {
+    key:[room.snapshot().roomCode,current.round,current.wordNumber,current.currentActorId,current.selfId,kind].join(":"),
+    kind
+  };
+}
+
+function captureActionDraft() {
+  const context = actionContext();
+  if (!context) return;
+  const input = $(context.kind === "describe" ? "descriptionInput" : "guessInput");
+  if (!input) return;
+  actionDraft = {
+    ...context,
+    value:input.value,
+    focused:document.activeElement === input,
+    selectionStart:input.selectionStart,
+    selectionEnd:input.selectionEnd
+  };
+}
+
+function reconcileActionDraft() {
+  const context = actionContext();
+  if (!context || actionDraft?.key !== context.key) actionDraft = null;
+}
+
+function restoreActionDraft() {
+  const context = actionContext();
+  if (!context || actionDraft?.key !== context.key) return;
+  const input = $(context.kind === "describe" ? "descriptionInput" : "guessInput");
+  if (!input) return;
+  input.value = actionDraft.value;
+  input.addEventListener("input",() => { if (actionDraft?.key === context.key) actionDraft.value = input.value; });
+  if (!actionDraft.focused) return;
+  requestAnimationFrame(() => {
+    input.focus({preventScroll:true});
+    if (Number.isInteger(actionDraft?.selectionStart)) input.setSelectionRange(actionDraft.selectionStart,actionDraft.selectionEnd);
+  });
+}
 
 function render() {
   if (!view) return;
@@ -258,10 +304,12 @@ function renderActions() {
   }
   if (view.permissions.canDescribe) {
     elements.actionArea.innerHTML = `<label>队长描述<textarea id="descriptionInput" autocomplete="off" maxlength="120" placeholder="输入给队员看的描述"></textarea></label><button class="primary" id="submitDescriptionButton" type="button">提交描述</button>`;
+    restoreActionDraft();
     $("submitDescriptionButton").addEventListener("click",() => submit({type:"describe",text:$("descriptionInput").value}));
     return;
   }
   elements.actionArea.innerHTML = `<div class="notice"><strong>当前描述：</strong>${escapeHtml(view.currentDescription)}</div><label>队员猜词<input id="guessInput" autocomplete="off" maxlength="12" placeholder="输入四字成语"></label><button class="primary" id="submitGuessButton" type="button">提交猜词</button>`;
+  restoreActionDraft();
   $("submitGuessButton").addEventListener("click",() => submit({type:"guess",text:$("guessInput").value}));
 }
 

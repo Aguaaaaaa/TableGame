@@ -24,14 +24,14 @@ const E = Object.fromEntries([
   "presentationEffects", "presentationTrail", "presentationAnnouncement", "presentationLabel", "presentationText"
 ].map((id) => [id, $(id)]));
 
-let mode = "host"; let view = null; let spectatorUi = null; let presentation = null;
+let mode = "host"; let view = null; let spectatorUi = null; let presentation = null; let actionDraft = null;
 const sessions = createSessionStore({ gameId: "stockpile" });
 const countdown = createCountdown({ onTick(value) { renderCountdown({ textElement: E.timerText, barElement: E.timerBar }, value); } });
 const room = createAuthoritativeRoomClient({
   protocolVersion: PROTOCOL_VERSION, sessionStore: sessions,
   onStatus(status) { renderConnectionStatus(E.connectionStatus, status, room.snapshot().roomCode); },
   handlers: {
-    onView(nextView) { view = nextView; enterRoom(); render(); presentation?.sync(nextView.presentationEvents); },
+    onView(nextView) { captureActionDraft(); view = nextView; reconcileActionDraft(); enterRoom(); render(); presentation?.sync(nextView.presentationEvents); },
     onKicked() { spectatorUi?.handleSessionEnded("kicked"); }, onRoomExpired() { spectatorUi?.handleSessionEnded("room_expired"); }
   }
 });
@@ -143,7 +143,52 @@ function renderPlayers() {
 }
 
 function addButton(text, handler, className = "") { const button = document.createElement("button"); button.type = "button"; button.textContent = text; button.className = className; button.onclick = handler; E.actionButtons.append(button); return button; }
-function addSelect(options, className = "") { const select = document.createElement("select"); select.className = className; select.innerHTML = options.map((option) => `<option value="${escapeHtml(String(option.value))}">${escapeHtml(option.label)}</option>`).join(""); E.actionButtons.append(select); return select; }
+function addSelect(options, className = "", draftKey = "") { const select = document.createElement("select"); select.className = className; if (draftKey) select.dataset.actionDraft = draftKey; select.innerHTML = options.map((option) => `<option value="${escapeHtml(String(option.value))}">${escapeHtml(option.label)}</option>`).join(""); E.actionButtons.append(select); return select; }
+
+function actionDraftContext(current = view) {
+  if (!current?.selfId) return null;
+  let kind = ""; let detail = "";
+  if (current.permissions?.canPlaceSupply) { kind = "supply"; detail = current.supplyBatch || 1; }
+  else if (current.permissions?.canBid) kind = "bidding";
+  else if (current.permissions?.canSell) kind = "selling";
+  else if (current.permissions?.canChooseDividend) { kind = "dividend"; detail = current.pendingDividend?.companyId || ""; }
+  if (!kind) return null;
+  return [room.snapshot().roomCode,current.round,current.currentPlayerId,current.selfId,kind,detail].join(":");
+}
+
+function captureActionDraft() {
+  const contextKey = actionDraftContext();
+  if (!contextKey) return;
+  const active = document.activeElement;
+  const fields = [...E.actionButtons.querySelectorAll("[data-action-draft]")];
+  actionDraft = {
+    contextKey,
+    values:Object.fromEntries(fields.map((field) => [field.dataset.actionDraft,field.value])),
+    focusKey:active?.dataset?.actionDraft || "",
+    selectionStart:Number.isInteger(active?.selectionStart) ? active.selectionStart : null,
+    selectionEnd:Number.isInteger(active?.selectionEnd) ? active.selectionEnd : null
+  };
+}
+
+function reconcileActionDraft() {
+  if (!actionDraft || actionDraft.contextKey !== actionDraftContext()) actionDraft = null;
+}
+
+function restoreActionDraft() {
+  if (!actionDraft || actionDraft.contextKey !== actionDraftContext()) return;
+  for (const field of E.actionButtons.querySelectorAll("[data-action-draft]")) {
+    const saved = actionDraft.values[field.dataset.actionDraft];
+    if (saved == null) continue;
+    if (field.tagName === "SELECT") {
+      if ([...field.options].some((option) => option.value === saved)) field.value = saved;
+    } else if (field.type === "number") {
+      const value = Number(saved), min = Number(field.min), max = Number(field.max);
+      if (Number.isFinite(value)) field.value = String(Math.min(Number.isFinite(max) ? max : value,Math.max(Number.isFinite(min) ? min : value,value)));
+    } else field.value = saved;
+  }
+  const focused = [...E.actionButtons.querySelectorAll("[data-action-draft]")].find((field) => field.dataset.actionDraft === actionDraft.focusKey);
+  if (focused) requestAnimationFrame(() => { focused.focus({preventScroll:true}); if (Number.isInteger(actionDraft?.selectionStart) && typeof focused.setSelectionRange === "function") focused.setSelectionRange(actionDraft.selectionStart,actionDraft.selectionEnd); });
+}
 
 function renderSupplyAction() {
   const hand = view.supplyHand;
@@ -152,13 +197,13 @@ function renderSupplyAction() {
   const cardOptions = hand.map((card) => ({ value: card.id, label: cardText(card) }));
   const pileOptions = view.stockpiles.map((pile, index) => ({ value: pile.id, label: `股票堆 ${index + 1}` }));
   const form = document.createElement("div"); form.className = "supply-form"; E.actionButtons.append(form);
-  const field = (labelText, options) => {
+  const field = (labelText, options, draftKey) => {
     const label = document.createElement("label"); label.append(document.createTextNode(labelText));
-    const select = document.createElement("select"); select.innerHTML = options.map((option) => `<option value="${escapeHtml(String(option.value))}">${escapeHtml(option.label)}</option>`).join("");
+    const select = document.createElement("select"); select.dataset.actionDraft = draftKey; select.innerHTML = options.map((option) => `<option value="${escapeHtml(String(option.value))}">${escapeHtml(option.label)}</option>`).join("");
     label.append(select); form.append(label); return select;
   };
-  const upCard = field("公开放置", cardOptions); const upPile = field("明牌放入", pileOptions);
-  const downCard = field("暗中放置", [...cardOptions].reverse()); const downPile = field("暗牌放入", pileOptions);
+  const upCard = field("公开放置", cardOptions, "supply:up-card"); const upPile = field("明牌放入", pileOptions, "supply:up-pile");
+  const downCard = field("暗中放置", [...cardOptions].reverse(), "supply:down-card"); const downPile = field("暗牌放入", pileOptions, "supply:down-pile");
   addButton("确认放入市场", () => { if (upCard.value === downCard.value) return alert("明牌和暗牌不能是同一张。"); submit({ type: "placeSupply", faceUpCardId: upCard.value, faceDownCardId: downCard.value, faceUpPileId: upPile.value, faceDownPileId: downPile.value }); }, "primary");
 }
 
@@ -171,7 +216,7 @@ function renderBidAction() {
     const top = view.bidTokens.find((token) => token.pileId === pile.id); const committed = ownOther.reduce((sum, token) => sum + token.amount, 0);
     const legal = BID_LEVELS.filter((amount) => (!top || amount > top.amount) && amount + committed <= self.cash);
     if (!legal.length) return;
-    const group = document.createElement("div"); group.className = "bid-choice"; const select = document.createElement("select"); select.innerHTML = legal.map((amount) => `<option value="${amount}">${money(amount)}</option>`).join("");
+    const group = document.createElement("div"); group.className = "bid-choice"; const select = document.createElement("select"); select.dataset.actionDraft = `bid:${pile.id}`; select.innerHTML = legal.map((amount) => `<option value="${amount}">${money(amount)}</option>`).join("");
     const button = document.createElement("button"); button.className = "primary"; button.textContent = `竞价股票堆 ${index + 1}`; button.onclick = () => submit({ type: "placeBid", pileId: pile.id, amount: Number(select.value) }); group.append(select, button); E.actionButtons.append(group);
   });
 }
@@ -188,7 +233,7 @@ function renderSellAction() {
   for (const item of COMPANIES) {
     const normal = self.portfolio.filter((card) => card.companyId === item.id).length; const split = self.splitPortfolio.filter((card) => card.companyId === item.id).length;
     if (!normal && !split) continue;
-    form.insertAdjacentHTML("beforeend", `<div class="sell-row" data-company="${item.id}"><b>${escapeHtml(item.short)} · $${view.stockPrices[item.id]}</b><label>普通股<input data-kind="normal" type="number" min="0" max="${normal}" value="0"></label><label>拆股整卖<input data-kind="splitFull" type="number" min="0" max="${split}" value="0"></label><label>拆股卖一半<input data-kind="splitHalf" type="number" min="0" max="${split}" value="0"></label></div>`);
+    form.insertAdjacentHTML("beforeend", `<div class="sell-row" data-company="${item.id}"><b>${escapeHtml(item.short)} · $${view.stockPrices[item.id]}</b><label>普通股<input data-kind="normal" data-action-draft="sell:${item.id}:normal" type="number" min="0" max="${normal}" value="0"></label><label>拆股整卖<input data-kind="splitFull" data-action-draft="sell:${item.id}:splitFull" type="number" min="0" max="${split}" value="0"></label><label>拆股卖一半<input data-kind="splitHalf" data-action-draft="sell:${item.id}:splitHalf" type="number" min="0" max="${split}" value="0"></label></div>`);
   }
   E.actionButtons.append(form);
   addButton("确认卖出 / 不卖", () => {
@@ -203,8 +248,8 @@ function renderDividendAction() {
   const self = view.players.find((player) => player.id === view.selfId); const companyId = view.pendingDividend.companyId; const item = company(companyId);
   const normal = self.portfolio.filter((card) => card.companyId === companyId).length; const split = self.splitPortfolio.filter((card) => card.companyId === companyId).length;
   E.actionTitle.textContent = `${item.name}派发分红`; E.actionHint.textContent = "每公开一股领取 $2K；拆股牌按两股。可少报或不报以隐藏持仓。";
-  const normalInput = addSelect(Array.from({ length: normal + 1 }, (_, value) => ({ value, label: `公开普通股 ${value}` })));
-  const splitInput = addSelect(Array.from({ length: split + 1 }, (_, value) => ({ value, label: `公开拆股牌 ${value}` })));
+  const normalInput = addSelect(Array.from({ length: normal + 1 }, (_, value) => ({ value, label: `公开普通股 ${value}` })), "", "dividend:normal");
+  const splitInput = addSelect(Array.from({ length: split + 1 }, (_, value) => ({ value, label: `公开拆股牌 ${value}` })), "", "dividend:split");
   addButton("确认公开并领取", () => submit({ type: "submitDividend", normal: Number(normalInput.value), split: Number(splitInput.value) }), "primary");
 }
 
@@ -241,7 +286,7 @@ function render() {
   E.startGameButton.disabled = view.players.length !== view.capacity || view.players.some((player) => !player.connected); E.restartGameButton.disabled = view.players.some((player) => !player.connected);
   E.roomPlayerCountSelect.value = String(view.capacity); E.roomPlayerCountSelect.disabled = !view.permissions.canSetCapacity; E.controlDock.dataset.role = memberRole;
   E.notice.textContent = view.phase === "lobby" ? `等待玩家加入：${view.players.length}/${view.capacity}` : view.phase === "ended" ? "交易结束，最终净资产已经公开" : `第 ${view.round}/${view.totalRounds} 轮 · 当前阶段：${view.phase} · 行动者：${nameOf(view.currentPlayerId)}`;
-  renderMarket(); renderStockpiles(); renderPlayers(); renderActions(memberRole); renderPrivate(memberRole); renderLog(); renderScores();
+  renderMarket(); renderStockpiles(); renderPlayers(); renderActions(memberRole); restoreActionDraft(); renderPrivate(memberRole); renderLog(); renderScores();
   if (view.deadline) countdown.start(view.deadline, PHASE_TIMER_MS[view.phase] || 60000); else { countdown.stop(); E.timerText.textContent = "--"; E.timerBar.style.width = "0"; }
 }
 

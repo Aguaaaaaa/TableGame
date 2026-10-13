@@ -36,3 +36,14 @@ test("页面接入共享旁观系统、私人区域和移动端吸附操作栏",
   assert.doesNotMatch(styles, /sidebar \.rule-card[^}]*display:\s*none/); assert.doesNotMatch(styles, /sidebar \.log-card[^}]*display:\s*none/);
   for (const count of [3, 4, 5]) assert.match(styles, new RegExp(`players\\[data-count="${count}"\\]`));
 });
+
+test("普通权威广播不会清空仍合法的行动与换牌选择", () => {
+  const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  assert.match(script, /onView\(nextView\) \{ actionPending = false; view = nextView; reconcileLocalSelection\(\);/);
+  assert.match(script, /function selectedActionStillLegal\(current = view\)/);
+  assert.match(script, /current\?\.permissions\?\.canDeclareAction/);
+  assert.match(script, /function exchangeContextKey\(current = view\)/);
+  assert.match(script, /if \(exchangeDraftKey !== nextKey\)/);
+  assert.match(script, /exchangeSelection = new Set\(\[\.\.\.exchangeSelection\]\.filter/);
+  assert.doesNotMatch(script, /view = nextView; selectedAction = null; exchangeSelection = new Set/);
+});

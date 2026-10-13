@@ -60,3 +60,13 @@ test("页面满足圆桌中央行动区、旁观与移动端紧凑列表契约",
   assert.match(script, /seat\.dataset\.playerId/);
   assert.equal(fs.existsSync(path.join(__dirname, "assets", "detective-case-board-v2.png")), true);
 });
+
+test("案件描述草稿只在权威操作上下文真正失效时清理", () => {
+  const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  assert.match(script, /onView\(nextView\) \{\s*captureCaseDraft\(\);\s*view = nextView;\s*reconcileCaseDraft\(\);/);
+  assert.match(script, /function caseDraftContext\(current = view\)/);
+  assert.match(script, /current\.round,current\.selfId,current\.pending\?\.actorId/);
+  assert.match(script, /input\.dataset\.caseDraft = "story"/);
+  assert.match(script, /input\.value = caseDraft\.value/);
+  assert.match(script, /caseDraft\.contextKey !== caseDraftContext\(\)/);
+});

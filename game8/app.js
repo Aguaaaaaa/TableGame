@@ -12,7 +12,7 @@ let mode="host",view=null,cards=[],byId={},selection=[],selectedCardId=null,insp
 const sessions=createSessionStore({gameId:"pokemon-splendor"});
 const room=createAuthoritativeRoomClient({protocolVersion:PROTOCOL_VERSION,sessionStore:sessions,
   onStatus(status){renderConnectionStatus(E.connectionStatus,status,room.snapshot().roomCode);},
-  handlers:{onView(nextView){view=nextView;if(nextView.roomRole==="spectator"){selection=[];selectedCardId=null;}enterRoom();render();presentation?.sync(nextView.presentationEvents);},onKicked(){spectatorUi?.handleSessionEnded("kicked");},onRoomExpired(){spectatorUi?.handleSessionEnded("room_expired");}}
+  handlers:{onView(nextView){view=nextView;reconcileLocalSelection();enterRoom();render();presentation?.sync(nextView.presentationEvents);},onKicked(){spectatorUi?.handleSessionEnded("kicked");},onRoomExpired(){spectatorUi?.handleSessionEnded("room_expired");}}
 });
 spectatorUi=createSpectatorUi({
   room,getView:()=>view,
@@ -22,7 +22,17 @@ spectatorUi=createSpectatorUi({
 const roomInfo=()=>room.snapshot();
 const currentView=()=>view;
 function enterRoom(){setHidden(E.setupPanel,true);setHidden(E.roomPanel,false);setHidden(E.roomHeaderTools,false);E.siteHeader.classList.add("in-room");E.roomCodeDisplay.textContent=roomInfo().roomCode;}
-function submit(action){selection=[];selectedCardId=null;return room.submitAction(action).catch((error)=>alert(`操作失败：${error.message}`));}
+function submit(action){return room.submitAction(action).catch((error)=>alert(`操作失败：${error.message}`));}
+
+function reconcileLocalSelection(){
+  const v=view,g=v?.game,seat=v?.players.findIndex((player)=>player.id===v.selfId)??-1;
+  const myTurn=v?.roomRole!=="spectator"&&v?.phase==="playing"&&g&&g.turn===seat&&!g.acted;
+  if(!myTurn){selection=[];selectedCardId=null;return;}
+  selection=selection.filter((color,index,list)=>COLORS.includes(color)&&g.supply[color]>0&&list.indexOf(color)===index).slice(0,3);
+  const me=g.players[seat];
+  const legalCardIds=new Set([...TIER_KEYS.flatMap((tier)=>g.field[tier]),...(me?.reserve||[]).filter((id)=>typeof id==="string")]);
+  if(!legalCardIds.has(selectedCardId))selectedCardId=null;
+}
 
 async function createGameRoom(){try{const name=cleanPlayerName(E.hostNameInput.value,"房主");await room.createRoom({name,capacity:Number(E.playerCountSelect.value)});}catch(error){alert(`创建失败：${error.message}\n请运行 node game8/signal-server.js`);}}
 async function joinGameRoom(){try{const result=await room.joinRoom({code:E.roomCodeInput.value,name:cleanPlayerName(E.guestNameInput.value,"训练家"),intent:spectatorUi.getJoinIntent()});E.connectionStatus.textContent=spectatorUi.handleJoinResult(result).statusText;}catch(error){alert(`加入失败：${error.message}`);}}

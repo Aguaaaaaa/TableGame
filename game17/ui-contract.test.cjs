@@ -29,3 +29,14 @@ test("页面包含旁观、行情、私人区和移动端吸附操作结构", ()
   assert.doesNotMatch(styles, /sidebar \.rules-card[^}]*display:\s*none/); assert.doesNotMatch(styles, /sidebar \.log-card[^}]*display:\s*none/);
   assert.match(styles, /\.presentation-effects/); assert.match(styles, /\.presentation-trail\.active/); assert.match(styles, /\.presentation-token/);
 });
+
+test("权威视图刷新时保留当前合法的市场操作草稿", () => {
+  const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  assert.match(script, /onView\(nextView\) \{ captureActionDraft\(\); view = nextView; reconcileActionDraft\(\);/);
+  assert.match(script, /function actionDraftContext\(current = view\)/);
+  for (const key of ["supply:up-card","supply:down-card","dividend:normal","dividend:split"]) assert.match(script, new RegExp(key));
+  assert.match(script, /data-action-draft="sell:\$\{item\.id\}:normal"/);
+  assert.match(script, /select\.dataset\.actionDraft = `bid:\$\{pile\.id\}`/);
+  assert.match(script, /field\.tagName === "SELECT"/);
+  assert.match(script, /restoreActionDraft\(\); renderPrivate/);
+});

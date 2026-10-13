@@ -67,3 +67,12 @@ test("game8 mounts the shared authoritative presentation layer with adaptive pla
   assert.match(styles, /pointer-events:none/);
   assert.match(styles, /@media\(prefers-reduced-motion:reduce\)/);
 });
+
+test("game8 keeps legal local choices until the server accepts or invalidates them", () => {
+  assert.match(script, /onView\(nextView\)\{view=nextView;reconcileLocalSelection\(\);/);
+  assert.match(script, /function submit\(action\)\{return room\.submitAction\(action\)\.catch/);
+  assert.doesNotMatch(script, /function submit\(action\)\{selection=\[\];selectedCardId=null/);
+  assert.match(script, /function reconcileLocalSelection\(\)/);
+  assert.match(script, /legalCardIds\.has\(selectedCardId\)/);
+  assert.match(script, /g\.supply\[color\]>0/);
+});

@@ -36,6 +36,7 @@ const E = Object.fromEntries([
 let mode = "host";
 let view = null;
 let selectedCardId = null;
+let caseDraft = null;
 let spectatorUi = null;
 let pendingInitialTargetScore = null;
 let presentation = null;
@@ -48,7 +49,9 @@ const room = createAuthoritativeRoomClient({
   onStatus(status) { renderConnectionStatus(E.connectionStatus, status, room.snapshot().roomCode); },
   handlers: {
     onView(nextView) {
+      captureCaseDraft();
       view = nextView;
+      reconcileCaseDraft();
       const ownIds = new Set(view.players.find((player) => player.id === view.selfId)?.hand.map((card) => card.id) || []);
       if (!ownIds.has(selectedCardId)) selectedCardId = null;
       enterRoom();
@@ -199,6 +202,28 @@ function addButton(text, handler, className = "") {
   return button;
 }
 
+function caseDraftContext(current = view) {
+  if (!current?.permissions?.canSubmitCase) return "";
+  return [room.snapshot().roomCode,current.round,current.selfId,current.pending?.actorId || current.currentPlayerId,"case"].join(":");
+}
+
+function captureCaseDraft() {
+  const contextKey = caseDraftContext();
+  const input = E.actionButtons.querySelector('[data-case-draft="story"]');
+  if (!contextKey || !input) return;
+  caseDraft = {
+    contextKey,
+    value:input.value,
+    focused:document.activeElement === input,
+    selectionStart:input.selectionStart,
+    selectionEnd:input.selectionEnd
+  };
+}
+
+function reconcileCaseDraft() {
+  if (!caseDraft || caseDraft.contextKey !== caseDraftContext()) caseDraft = null;
+}
+
 function renderCaseAction() {
   E.actionTitle.textContent = "你是第一发现者";
   E.actionHint.textContent = "为这一轮描述一个轻松的案件，最多100字；留空则由服务器生成。";
@@ -206,6 +231,19 @@ function renderCaseAction() {
   input.maxLength = 100;
   input.rows = 3;
   input.placeholder = "例如：冰箱里最后一块蛋糕不见了！";
+  input.dataset.caseDraft = "story";
+  if (caseDraft?.contextKey === caseDraftContext()) {
+    input.value = caseDraft.value;
+    if (caseDraft.focused) requestAnimationFrame(() => {
+      input.focus({preventScroll:true});
+      if (Number.isInteger(caseDraft?.selectionStart)) input.setSelectionRange(caseDraft.selectionStart,caseDraft.selectionEnd);
+    });
+  }
+  input.addEventListener("input",() => {
+    const contextKey = caseDraftContext();
+    if (!contextKey) return;
+    caseDraft = {...(caseDraft?.contextKey === contextKey ? caseDraft : {}),contextKey,value:input.value};
+  });
   E.actionButtons.append(input);
   addButton("公布案件并开始调查", () => submit({ type: "submitCase", text: input.value }), "primary");
 }

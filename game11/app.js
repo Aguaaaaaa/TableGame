@@ -19,6 +19,9 @@ const TEAM_NAME = { white: "白队", black: "黑队" };
 let mode = "host";
 let view = null;
 let guessEditorKey = "";
+let localGuessDraft = null;
+let clueEditorKey = "";
+let tiebreakEditorKey = "";
 let spectatorUi = null;
 const sessions = createSessionStore({ gameId: "decrypto" });
 const countdown = createCountdown({ onTick(value) { renderCountdown({ textElement:E.timerText, barElement:E.timerBar }, value); } });
@@ -27,7 +30,7 @@ const room = createAuthoritativeRoomClient({
   sessionStore: sessions,
   onStatus(status) { renderConnectionStatus(E.connectionStatus, status, room.snapshot().roomCode); },
   handlers: {
-    onView(nextView) { view = nextView; if (nextView.roomRole === "spectator") guessEditorKey = ""; enterRoom(); render(); },
+    onView(nextView) { view = nextView; if (nextView.roomRole === "spectator") resetLocalEditors(); enterRoom(); render(); },
     onKicked() { spectatorUi?.handleSessionEnded("kicked"); },
     onRoomExpired() { spectatorUi?.handleSessionEnded("room_expired"); }
   }
@@ -48,6 +51,13 @@ spectatorUi = createSpectatorUi({
 
 const currentView = () => view;
 const sortedTeam = (players, team) => players.filter((player) => player.team === team).sort((a, b) => a.seat - b.seat);
+
+function resetLocalEditors() {
+  guessEditorKey = "";
+  localGuessDraft = null;
+  clueEditorKey = "";
+  tiebreakEditorKey = "";
+}
 
 function enterRoom() {
   setHidden(E.setupPanel, true);
@@ -97,7 +107,7 @@ function endGameEarly() {
 }
 
 function renderLobby(current, memberRole) {
-  guessEditorKey = "";
+  resetLocalEditors();
   const me = current.players.find((player) => player.id === current.selfId);
   E.lobbyArea.innerHTML = ["white", "black"].map((team) => {
     const list = sortedTeam(current.players, team);
@@ -127,6 +137,13 @@ function renderGame(current, memberRole) {
   E.operationTitle.textContent = `${active}传讯`;
   E.encryptorName.textContent = encryptor ? `传讯者：${encryptor.name}` : "";
   setHidden(E.clueComposer, !current.permissions?.canSubmitClues);
+  if (current.permissions?.canSubmitClues) {
+    const nextClueKey = [room.snapshot().roomCode,current.round,current.turnTeam,current.encryptorId,current.selfId,"clues"].join(":");
+    if (clueEditorKey !== nextClueKey) {
+      clueEditorKey = nextClueKey;
+      [E.clue1.value,E.clue2.value,E.clue3.value] = ["","",""];
+    }
+  } else clueEditorKey = "";
   E.clueDisplay.innerHTML = current.clues.map((clue, index) => `<div class="clue-card"><b>${index+1}</b><span>${escapeHtml(clue)}</span></div>`).join("");
 
   const guessRole = current.permissions?.guessRole;
@@ -135,13 +152,14 @@ function renderGame(current, memberRole) {
       || (guessRole === "intercept" && !current.guessStatus.intercept));
   const editorKey = `${current.round}:${current.turnTeam}:${current.selfId}`;
   if (canGuess && guessEditorKey !== editorKey) {
-    [E.guess1.value, E.guess2.value, E.guess3.value] = ["1", "2", "3"];
     guessEditorKey = editorKey;
+    localGuessDraft = { key:editorKey, values:(current.guessDraft || [1,2,3]).map(String) };
   }
   setHidden(E.guessComposer, !canGuess);
-  if (canGuess && current.guessDraft) {
-    [E.guess1.value, E.guess2.value, E.guess3.value] = current.guessDraft.map(String);
+  if (canGuess && localGuessDraft?.key === editorKey) {
+    [E.guess1.value, E.guess2.value, E.guess3.value] = localGuessDraft.values;
   }
+  if (!canGuess && current.phase !== "tiebreak") { guessEditorKey = ""; localGuessDraft = null; }
   if (canGuess) {
     const roleText = guessRole === "decode"
       ? `你是${active}指定的提交者，请提交己方破译。`
@@ -153,11 +171,13 @@ function renderGame(current, memberRole) {
     const canSubmit = current.permissions?.canSubmitTiebreak;
     setHidden(E.guessComposer, !canSubmit);
     E.guessRoleText.textContent = "最终裁决：依次输入你认为对方 1–4 号位置的关键词。";
-    if (canSubmit && !document.querySelector(".tie-word")) {
+    const nextTiebreakKey = [room.snapshot().roomCode,current.round,current.selfId,"tiebreak"].join(":");
+    if (canSubmit && tiebreakEditorKey !== nextTiebreakKey) {
+      tiebreakEditorKey = nextTiebreakKey;
       document.querySelector(".code-inputs").innerHTML = [1,2,3,4].map((number) => `<input class="tie-word" maxlength="30" placeholder="${number} 号关键词">`).join("");
       E.submitGuessButton.textContent = "提交关键词猜测";
     }
-  }
+  } else tiebreakEditorKey = "";
 
   E.waitingText.innerHTML = `${escapeHtml(statusText(current))}${memberRole === "spectator" ? '<p class="spectator-action-note">旁观模式仅显示公开提示、提交状态和已揭晓记录；双方关键词、当前密码、猜码草稿与最终裁决答案不会提前显示。</p>' : ""}`;
   E.whiteScore.innerHTML = scoreHtml(current, "white");
@@ -259,6 +279,8 @@ function saveGuessDraft() {
   const current = currentView();
   if (current?.phase !== "guess" || !current.permissions?.guessRole) return;
   const code = [E.guess1.value,E.guess2.value,E.guess3.value].map(Number);
+  const editorKey = `${current.round}:${current.turnTeam}:${current.selfId}`;
+  localGuessDraft = { key:editorKey, values:code.map(String) };
   if (!isValidCode(code)) {
     E.guessRoleText.textContent = "当前组合包含重复数字，尚未保存；超时仍会采用上一次合法选择。";
     return;

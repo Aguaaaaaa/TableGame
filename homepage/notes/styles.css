@@ -6,7 +6,8 @@
   --orange: #c86d2c;
   --line: rgba(126, 85, 53, 0.18);
   --shadow: 0 18px 52px rgba(104, 66, 35, 0.17);
-  --rounded: "幼圆", "YouYuan", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  --serif: "STKaiti", "KaiTi", "Kaiti SC", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --sans: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -24,7 +25,7 @@ body {
   background-size: cover;
   background-attachment: fixed;
   background-repeat: no-repeat;
-  font-family: var(--rounded);
+  font-family: var(--sans);
 }
 
 a { color: inherit; }
@@ -129,6 +130,7 @@ button, input { font: inherit; }
 
 .notes-intro h1 {
   margin: 0;
+  font-family: var(--serif);
   font-size: clamp(34px, 6vw, 55px);
   font-weight: 700;
 }
@@ -276,15 +278,15 @@ button, input { font: inherit; }
 .back-to-notes { color: #a15b34; font-size: 12px; text-decoration: none; }
 .article-header { margin-top: 30px; padding-bottom: 28px; border-bottom: 1px dashed #d5b690; }
 .article-mood { margin: 0 0 10px; color: #ad6840; font-size: 12px; letter-spacing: 0.12em; }
-.article-header h1 { margin: 0; font-size: clamp(34px, 7vw, 55px); line-height: 1.25; }
+.article-header h1 { margin: 0; font-family: var(--serif); font-size: clamp(34px, 7vw, 55px); line-height: 1.25; }
 .article-summary { margin: 15px 0 0; color: var(--muted); font-size: 15px; line-height: 1.75; }
 .article-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 20px; color: #8a7567; font-size: 11px; }
 .article-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
 .article-tags a { padding: 5px 9px; border-radius: 999px; color: #8b603f; background: #f2e2c5; font-size: 11px; text-decoration: none; }
 
 .article-content { margin-top: 36px; font-size: 16px; line-height: 2; }
-.article-content h1 { margin: 2.2em 0 0.75em; font-size: 32px; line-height: 1.35; }
-.article-content h2 { margin: 2.1em 0 0.7em; font-size: 28px; line-height: 1.4; }
+.article-content h1 { margin: 2.2em 0 0.75em; font-family: var(--serif); font-size: 32px; line-height: 1.35; }
+.article-content h2 { margin: 2.1em 0 0.7em; font-family: var(--serif); font-size: 28px; line-height: 1.4; }
 .article-content h3 { margin: 1.8em 0 0.6em; font-size: 22px; }
 .article-content h4 { margin: 1.6em 0 0.5em; font-size: 18px; }
 .article-content h5 { margin: 1.45em 0 0.45em; color: #6f5545; font-size: 16px; }

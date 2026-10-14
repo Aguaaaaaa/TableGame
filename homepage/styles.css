@@ -8,8 +8,8 @@
   --orange-dark: #9f4f1f;
   --line: rgba(126, 85, 53, 0.18);
   --shadow: 0 18px 52px rgba(104, 66, 35, 0.17);
-  --serif: "幼圆", "YouYuan", "方正姚体", "FZYaoti", "华文楷体", "STKaiti", serif;
-  --sans: "幼圆", "YouYuan", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  --serif: "STKaiti", "KaiTi", "Kaiti SC", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --sans: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", system-ui, sans-serif;
 }
 
 * {
@@ -42,6 +42,13 @@ a {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--sans);
 }
 
 .sr-only,
@@ -141,7 +148,7 @@ a {
 
 .brand strong {
   display: block;
-  font: 700 clamp(18px, 1.6vw, 24px) var(--serif);
+  font: 700 clamp(18px, 1.6vw, 24px) var(--sans);
   letter-spacing: 0.04em;
 }
 
@@ -202,7 +209,7 @@ a {
   padding: 9px 13px;
   border-bottom: 1px solid rgba(168, 112, 67, 0.25);
   color: #9b765e;
-  font: 14px var(--serif);
+  font: 14px var(--sans);
   white-space: nowrap;
 }
 
@@ -378,7 +385,7 @@ main {
 .note-kicker {
   margin: 0;
   color: #a45d31;
-  font: 700 16px var(--serif);
+  font: 700 16px var(--sans);
 }
 
 .quote-date {
@@ -394,7 +401,7 @@ main {
 
 .quote-note blockquote {
   margin: 22px 0 0;
-  font: 700 clamp(18px, 1.45vw, 21px)/1.8 var(--serif);
+  font: 700 clamp(18px, 1.45vw, 21px)/1.8 var(--sans);
 }
 
 .quote-source {
@@ -533,7 +540,7 @@ main {
   color: white;
   background: linear-gradient(100deg, #d77431, #e8954c);
   box-shadow: 0 6px 13px rgba(162, 78, 27, 0.24);
-  font: 700 16px var(--serif);
+  font: 700 16px var(--sans);
   transform: rotate(-2deg);
 }
 
@@ -619,11 +626,11 @@ main {
 .module-icon {
   margin-bottom: 8px;
   color: #7b674e;
-  font: 24px var(--serif);
+  font: 24px var(--sans);
 }
 
 .module-card > strong {
-  font: 700 clamp(20px, 1.65vw, 24px) var(--serif);
+  font: 700 clamp(20px, 1.65vw, 24px) var(--sans);
 }
 
 .module-description {
@@ -866,7 +873,7 @@ main {
 .calendar-wish {
   margin: 8px 0 0;
   color: #997967;
-  font: 12px var(--serif);
+  font: 12px var(--sans);
   text-align: center;
 }
 
@@ -922,7 +929,7 @@ footer {
 
 footer p {
   margin: 0 0 9px;
-  font: 16px var(--serif);
+  font: 16px var(--sans);
 }
 
 footer small {

@@ -49,7 +49,7 @@
       {url:"https://bang.zillionx.xyz",name:"BANG!",icon:"✦",description:"隐藏身份、选择角色，在距离、枪火与装备博弈中完成自己的阵营目标。",kind:"authority",color:"#9a4f32"},
       {url: "https://jnr.zillionx.xyz",name: "局内人 INSIDER",icon: "?",description: "围绕隐藏答案展开提问，找出在人群中暗中引导讨论的局内人。",kind: "authority",color: "#b85f52"},
       {url: "https://jdwj.zillionx.xyz",name: "间谍危机 SPYFALL",icon: "⌖",description: "所有人都知道秘密地点，除了一名潜伏间谍；通过问答找出彼此的破绽。",kind: "authority",color: "#3f6673"},
-      {url:"https://avalon.zillionx.xyz",name:"阿瓦隆 AVALON",icon:"♜",description:"隐藏忠诚与邪恶身份，组建远征队伍，在誓约、投票与背叛中决定卡美洛的命运。",kind:"authority",color:"#b3914f"}
+      {url:"https://awl.zillionx.xyz",name:"阿瓦隆 AVALON",icon:"♜",description:"隐藏忠诚与邪恶身份，组建远征队伍，在誓约、投票与背叛中决定卡美洛的命运。",kind:"authority",color:"#b3914f"}
     ];
     const container=document.querySelector("#games"),statusText={authority:"服务器权威",preview:"测试与开发中"},gameProtocol=location.protocol==="https:"?"http:":location.protocol;
     games.forEach((game,index)=>{const link=document.createElement("a");link.className="game";link.dataset.kind=game.kind;link.style.setProperty("--card-accent",game.color);link.href=game.url;link.setAttribute("aria-label",`进入${game.name}`);link.innerHTML=`<span class="game-top"><span class="game-number">GAME ${String(index+1).padStart(2,"0")}</span><span class="status">${statusText[game.kind]}</span></span><span class="game-icon" aria-hidden="true">${game.icon}</span><h3></h3><p></p><span class="game-action">进入游戏 <span aria-hidden="true">→</span></span>`;link.querySelector("h3").textContent=game.name;link.querySelector("p").textContent=game.description;container.append(link)});

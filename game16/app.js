@@ -14,7 +14,7 @@ const E = Object.fromEntries([
   "hostNameInput", "guestNameInput", "playerCountSelect", "createRoomButton", "joinRoomButton", "roomCodeInput", "joinIntentField",
   "roomCodeDisplay", "hostTools", "roomPlayerCountSelect", "spectatorSettingButton",
   "seatActionButton", "spectatorPanel", "spectatorCountBadge", "spectatorList", "startGameButton", "restartGameButton", "endGameButton",
-  "notice", "courtPanel", "courtCenter", "courtEffects", "momentTrail", "momentAnnouncement", "momentLabel", "momentText", "deckCount", "players", "controlDock", "actionTitle", "actionHint", "actionButtons", "timerText", "timerBar",
+  "notice", "courtPanel", "courtCenter", "courtEffects", "momentTrail", "momentAnnouncement", "momentLabel", "momentText", "deckCount", "seatBoundary", "players", "controlDock", "actionTitle", "actionHint", "actionButtons", "timerText", "timerBar",
   "privateZone", "coinCount", "myInfluences", "toggleLogButton", "logList"
 ].map((id) => [id, $(id)]));
 
@@ -42,6 +42,9 @@ let exchangeSelection = new Set();
 let exchangeDraftKey = "";
 let spectatorUi = null;
 let actionPending = false;
+let seatLayoutFrame = 0;
+
+const wideSeatLayout = window.matchMedia("(min-width: 761px)");
 
 const sessions = createSessionStore({ gameId: "coup" });
 const countdown = createCountdown({ onTick(value) { renderCountdown({ textElement: E.timerText, barElement: E.timerBar }, value); } });
@@ -134,11 +137,112 @@ function roleCard(card, { own = false, selectable = false, selected = false, dat
   </button>`;
 }
 
+function playersFromViewerSeat() {
+  const players = [...view.players];
+  const selfIndex = players.findIndex((player) => player.id === view.selfId);
+  if (selfIndex <= 0) return players;
+  return players.slice(selfIndex).concat(players.slice(0, selfIndex));
+}
+
+function ellipseAngles(count, radiusX, radiusY) {
+  if (count <= 1) return [Math.PI / 2];
+  const start = Math.PI / 2;
+  const samples = 720;
+  const points = [];
+  const lengths = [0];
+  let total = 0;
+  let previous = { x: radiusX * Math.cos(start), y: radiusY * Math.sin(start) };
+  points.push({ angle: start, ...previous });
+  for (let index = 1; index <= samples; index += 1) {
+    const angle = start + (Math.PI * 2 * index) / samples;
+    const point = { angle, x: radiusX * Math.cos(angle), y: radiusY * Math.sin(angle) };
+    total += Math.hypot(point.x - previous.x, point.y - previous.y);
+    lengths.push(total);
+    points.push(point);
+    previous = point;
+  }
+  return Array.from({ length: count }, (_, seatIndex) => {
+    const target = (total * seatIndex) / count;
+    const high = lengths.findIndex((length) => length >= target);
+    if (high <= 0) return start;
+    const low = high - 1;
+    const segment = lengths[high] - lengths[low] || 1;
+    const ratio = (target - lengths[low]) / segment;
+    return points[low].angle + (points[high].angle - points[low].angle) * ratio;
+  });
+}
+
+function clearSeatCoordinates(seats) {
+  E.players.classList.remove("ellipse-layout", "layout-fallback");
+  seats.forEach((seat) => {
+    seat.style.removeProperty("--seat-x");
+    seat.style.removeProperty("--seat-y");
+  });
+}
+
+function seatsOverlap(placements, gap = 8) {
+  return placements.some((seat, index) => placements.slice(index + 1).some((other) => (
+    Math.abs(seat.x - other.x) < (seat.width + other.width) / 2 + gap
+    && Math.abs(seat.y - other.y) < (seat.height + other.height) / 2 + gap
+  )));
+}
+
+function layoutPlayerSeats() {
+  seatLayoutFrame = 0;
+  const seats = [...E.players.querySelectorAll(".player-seat")];
+  if (!wideSeatLayout.matches || !seats.length) {
+    clearSeatCoordinates(seats);
+    return;
+  }
+
+  E.players.classList.remove("layout-fallback");
+  E.players.classList.add("ellipse-layout");
+  const boundary = E.seatBoundary.getBoundingClientRect();
+  if (!boundary.width || !boundary.height) return;
+
+  const sizes = seats.map((seat) => {
+    const rect = seat.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
+  const widest = Math.max(...sizes.map((size) => size.width));
+  const tallest = Math.max(...sizes.map((size) => size.height));
+  const edgeGap = 8;
+  const radiusX = Math.max(0, boundary.width / 2 - widest / 2 - edgeGap);
+  const radiusY = Math.max(0, boundary.height / 2 - tallest / 2 - edgeGap);
+  const angles = ellipseAngles(seats.length, radiusX, radiusY);
+  const placements = seats.map((seat, index) => ({
+    x: boundary.width / 2 + radiusX * Math.cos(angles[index]),
+    y: boundary.height / 2 + radiusY * Math.sin(angles[index]),
+    ...sizes[index]
+  }));
+
+  if (radiusX < widest * 0.55 || radiusY < tallest * 0.65 || seatsOverlap(placements)) {
+    E.players.classList.remove("ellipse-layout");
+    E.players.classList.add("layout-fallback");
+    seats.forEach((seat) => {
+      seat.style.removeProperty("--seat-x");
+      seat.style.removeProperty("--seat-y");
+    });
+    return;
+  }
+
+  seats.forEach((seat, index) => {
+    seat.style.setProperty("--seat-x", `${placements[index].x}px`);
+    seat.style.setProperty("--seat-y", `${placements[index].y}px`);
+  });
+}
+
+function scheduleSeatLayout() {
+  if (seatLayoutFrame) cancelAnimationFrame(seatLayoutFrame);
+  seatLayoutFrame = requestAnimationFrame(layoutPlayerSeats);
+}
+
 function renderPlayers() {
+  const orderedPlayers = playersFromViewerSeat();
   E.players.dataset.count = String(view.players.length);
-  E.players.innerHTML = view.players.map((player) => {
+  E.players.innerHTML = orderedPlayers.map((player, seatIndex) => {
     const active = player.influences.filter((card) => !card.revealed).length;
-    return `<article data-player-id="${escapeHtml(player.id)}" class="player-seat ${player.id === view.selfId ? "self" : ""} ${player.id === view.currentPlayerId && view.phase !== "lobby" ? "current" : ""} ${player.eliminated ? "eliminated" : ""} ${!player.connected ? "offline" : ""}">
+    return `<article data-player-id="${escapeHtml(player.id)}" data-seat-order="${seatIndex}" class="player-seat ${player.id === view.selfId ? "self" : ""} ${player.id === view.currentPlayerId && view.phase !== "lobby" ? "current" : ""} ${player.eliminated ? "eliminated" : ""} ${!player.connected ? "offline" : ""}">
       <header><div><b>${escapeHtml(player.name)}${player.id === view.selfId ? " · 你" : ""}</b><small>${player.isHost ? "房主 · " : ""}${player.connected ? "在线" : "离线"}</small></div>
       ${view.permissions.canKick && !player.isHost ? `<button class="kick" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}</header>
       <div class="wealth"><span>● ${player.coins} 金币</span><span>${player.eliminated ? "已出局" : `${active} 点影响力`}</span></div>
@@ -146,6 +250,8 @@ function renderPlayers() {
     </article>`;
   }).join("");
   E.players.querySelectorAll("[data-kick]").forEach((button) => button.onclick = () => kickPlayer(button.dataset.kick));
+  // Presentation effects resolve seat positions immediately after render.
+  layoutPlayerSeats();
 }
 
 function addButton(text, handler, className = "") {
@@ -314,6 +420,8 @@ async function init() {
   E.startGameButton.onclick = () => submit({ type: "start" }); E.restartGameButton.onclick = () => submit({ type: "restart" });
   E.endGameButton.onclick = () => { if (confirm("确定结束当前牌局并返回大厅吗？")) submit({ type: "end" }); };
   E.toggleLogButton.onclick = () => { const collapsed = E.logList.classList.toggle("collapsed"); E.toggleLogButton.textContent = collapsed ? "展开" : "收起"; };
+  new ResizeObserver(scheduleSeatLayout).observe(E.seatBoundary);
+  wideSeatLayout.addEventListener("change", scheduleSeatLayout);
   selectMode("host"); try { spectatorUi.applyConfig(await room.checkServer()); } catch { /* create/join will report */ }
 }
 init();

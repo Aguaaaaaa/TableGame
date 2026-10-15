@@ -15,6 +15,7 @@ test("页面接入共享旁观系统、私人区域和移动端吸附操作栏",
   const spectatorAt = html.indexOf('id="spectatorPanel"');
   assert.match(html, /name="joinIntent" value="spectate"/);
   assert.match(html, /id="courtEffects"/); assert.match(html, /id="momentAnnouncement"/); assert.match(html, /id="momentTrail"/);
+  assert.match(html, /id="seatBoundary"[\s\S]*id="players"/);
   assert.doesNotMatch(html, /id="roomRoleBanner"/); assert.match(html, /id="spectatorList"/); assert.match(html, /id="privateZone"/);
   assert.ok(roomToolsAt >= 0 && roomToolsAt < heroEnd, "房间管理必须位于标题栏内");
   assert.match(html, /<details class="panel rule-card">/); assert.doesNotMatch(html, /<details class="panel rule-card" open>/);
@@ -22,12 +23,17 @@ test("页面接入共享旁观系统、私人区域和移动端吸附操作栏",
   assert.match(script, /createSpectatorUi/); assert.match(script, /setHidden\(E\.privateZone, memberRole === "spectator"\)/);
   assert.match(script, /reactionId: view\.reaction\?\.id/); assert.match(script, /expectedVersion: renderedVersion/);
   assert.match(script, /createPresentationTimeline/); assert.match(script, /presentation\.sync\(view\.moments\)/); assert.match(script, /data-influence-slot/); assert.match(script, /moment\.actorId === view\.selfId/);
+  assert.match(script, /function playersFromViewerSeat\(\)/); assert.match(script, /Math\.PI \/ 2/);
+  assert.match(script, /function ellipseAngles\(/); assert.match(script, /function seatsOverlap\(/);
+  assert.match(script, /new ResizeObserver\(scheduleSeatLayout\)/); assert.match(script, /data-seat-order/);
   assert.match(script, /sceneKey: \(moment\) => moment\.sceneId \|\| moment\.id/);
   assert.match(script, /catchUpThreshold: 2/); assert.match(script, /severeBacklogThreshold: 4/);
   assert.match(script, /urgentPriority: 4/); assert.match(script, /retainPriority: 4/);
   assert.match(script, /setHidden\(E\.roomHeaderTools, false\)/);
   assert.match(styles, /\.control-dock \{ position: sticky/); assert.match(styles, /control-dock\[data-role="spectator"\]/);
   assert.match(styles, /@media \(min-width: 761px\)/);
+  assert.match(styles, /\.seat-boundary \{ position: absolute/); assert.match(styles, /left: var\(--seat-x\)/); assert.match(styles, /top: var\(--seat-y\)/);
+  assert.doesNotMatch(styles, /\.player-seat:nth-child\(1\) \{ left: 50%; bottom: 22px/);
   assert.match(styles, /@media \(max-width: 520px\)/);
   assert.match(styles, /players\[data-count\] > \.player-seat:nth-child\(n\)/);
   assert.match(styles, /grid-template-columns: minmax\(0, 1fr\) auto/);

@@ -47,3 +47,15 @@ test("Manila client maps ships onto route and destination coordinates",()=>{
  assert.doesNotMatch(script,/class="waves"/);
 });
 
+test("mobile map gestures coalesce rendering and suspend costly effects",()=>{
+ assert.match(script,/function renderMapView\(/);
+ assert.match(script,/mapView\.renderFrame=requestAnimationFrame\(renderMapView\)/);
+ assert.match(script,/function setMapGesturing\(/);
+ assert.match(script,/dataset\.mapGesturing="true"/);
+ assert.match(styles,/data-map-gesturing="true"/);
+ assert.match(styles,/animation-play-state:paused!important/);
+ assert.match(styles,/backdrop-filter:none!important/);
+ assert.match(styles,/backface-visibility:hidden/);
+ assert.match(styles,/contain:layout paint style/);
+});
+

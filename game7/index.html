@@ -66,26 +66,38 @@
       </aside>
 
       <section class="board-column">
-        <div class="market panel">
-          <div class="section-head"><div><p class="eyebrow">BLACK MARKET</p><h2>黑市行情</h2></div><span>股票库存公开</span></div>
-          <div id="marketGrid" class="market-grid"></div>
-        </div>
-
         <div class="play-stage">
-          <div class="sea-board panel">
-            <canvas id="diceCanvas" class="dice-canvas" aria-label="三维物理货船骰子投掷区域"></canvas>
-            <div class="board-sky"><span class="board-sun">☀</span><span>马尼拉港 MANILA</span><span>☁</span></div>
-            <div class="skyline">▥ ▦ ▤　<b>MANILA</b>　▤ ▦ ▥</div>
-            <div class="board-map">
-              <div class="map-zone pilot-zone"><span class="zone-art">🏝️</span><h3>🧭 领航员岛</h3><div id="pilotSlots" class="special-slots"></div></div>
-              <div class="map-zone pirate-zone"><span class="zone-art">🏴‍☠️</span><h3>海盗船</h3><div id="pirateSlots" class="special-slots"></div></div>
-              <div class="map-zone port-zone"><span class="zone-art">🏯⚓</span><h3>马尼拉港口</h3><div id="portSlots" class="bet-slots"></div></div>
-              <div class="route-zone"><div class="sea-life">🐟　〰️　🐠　〰️　🐚</div><div id="routes" class="routes"></div></div>
-              <div class="map-zone insurance-zone"><span class="zone-art">🏦</span><h3>🛡️ 保险公司</h3><div id="insuranceSlot" class="special-slots"></div></div>
-              <div class="map-zone yard-zone"><span class="zone-art">🏗️🔧</span><h3>修船厂</h3><div id="yardSlots" class="bet-slots"></div></div>
+          <section id="harborViewport" class="harbor-viewport" aria-label="可缩放的马尼拉港湾版图">
+            <div id="harborWorld" class="harbor-world">
+              <div class="harbor-atmosphere" aria-hidden="true"></div>
+              <div id="portSlots" class="world-layer destination-layer port-layer" aria-label="成功港口"></div>
+              <div id="yardSlots" class="world-layer destination-layer yard-layer" aria-label="修船厂"></div>
+              <div id="routes" class="world-layer route-layer" aria-label="三条航道"></div>
+              <div id="pirateSlots" class="world-layer special-slots pirate-slots" aria-label="海盗船"></div>
+              <div id="pilotSlots" class="world-layer special-slots pilot-slots" aria-label="领航员"></div>
+              <div id="insuranceSlot" class="world-layer special-slots insurance-slot" aria-label="保险公司"></div>
+              <div id="marketGrid" class="world-layer market-grid" aria-label="四种货品价格轨道"></div>
+              <div id="worldEffects" class="world-layer world-effects" aria-hidden="true"></div>
             </div>
-            <div class="board-legend"><span>🌴 吕宋海岸</span><span>助手费用标记为 ₱</span><span>终点：航线第 13 格</span></div>
-          </div>
+            <section id="diceStage" class="dice-stage hidden" aria-live="polite" aria-label="货船骰子控制台">
+              <div class="dice-stage-heading">
+                <small>HARBOR MASTER · CARGO DICE</small>
+                <strong id="diceStageTitle">货物骰待命</strong>
+                <span id="diceStageHint">等待港务长开始</span>
+              </div>
+              <div id="diceRow" class="dice-row"></div>
+              <button id="diceStageButton" class="dice-stage-button hidden" type="button"></button>
+            </section>
+            <div id="mapAnnouncement" class="map-announcement" aria-live="polite">
+              <small>MANILA HARBOR</small><strong>航路、风险与财富</strong>
+            </div>
+            <nav id="mapControls" class="map-controls" aria-label="地图缩放控制">
+              <button id="mapZoomOutButton" type="button" aria-label="缩小地图">−</button>
+              <button id="mapResetButton" type="button" aria-label="显示完整地图"><span id="mapZoomText">100%</span><small>完整港湾</small></button>
+              <button id="mapZoomInButton" type="button" aria-label="放大地图">＋</button>
+            </nav>
+            <p class="map-gesture-hint">双指缩放 · 放大后拖动 · 双击聚焦</p>
+          </section>
 
           <div class="panel action-panel">
             <div class="section-head"><div><p class="eyebrow">CURRENT ACTION</p><h2 id="actionTitle">等待开始</h2></div><div class="timer"><b id="timerText">--</b><i><span id="timerBar"></span></i></div></div>

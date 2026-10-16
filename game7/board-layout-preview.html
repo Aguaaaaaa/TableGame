@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>马尼拉新版港湾 · 坐标预览</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;color:#fff;font:14px/1.4 "Microsoft YaHei UI",sans-serif;background:#152026}
+    header{position:sticky;z-index:10;top:0;display:flex;justify-content:space-between;gap:16px;padding:10px 16px;background:#152026e8;backdrop-filter:blur(10px)}
+    header h1,header p{margin:0}header p{color:#bad1d5}.viewport{padding:12px;overflow:auto}
+    .world{position:relative;width:min(1586px,96vw);aspect-ratio:1586/992;margin:auto;background:url("assets/manila-harbor-board-v1.png") center/100% 100% no-repeat;box-shadow:0 16px 45px #0009}
+    .zone{position:absolute;display:grid;place-items:center;border:2px solid var(--color,#ffe071);border-radius:8px;color:#fff;background:color-mix(in srgb,var(--color,#ffe071) 24%,transparent);box-shadow:inset 0 0 0 1px #0008;text-align:center;text-shadow:0 2px 3px #000;font-weight:900;transform:rotate(var(--rotation,0deg))}
+    .route-field{border-style:dashed;pointer-events:none}.route-point{position:absolute;display:grid;place-items:center;width:1.7%;aspect-ratio:1;border:1px solid #fff;border-radius:50%;color:#14242a;background:#fff9;font-size:clamp(5px,.7vw,11px);font-weight:900;transform:translate(-50%,-50%)}
+    .route-line{position:absolute;height:2px;background:var(--color);transform-origin:0 50%;opacity:.75}.legend{display:flex;flex-wrap:wrap;gap:9px;padding:10px 16px;color:#cadde0}.legend span{padding:4px 8px;border-left:5px solid var(--color);background:#ffffff12}
+  </style>
+</head>
+<body>
+  <header><div><h1>马尼拉新版港湾坐标预览</h1><p>仅用于校准底图与HTML覆盖层，不属于正式游戏页面。</p></div><b>1586 × 992</b></header>
+  <div class="legend" id="legend"></div>
+  <main class="viewport"><div id="world" class="world"></div></main>
+  <script type="module">
+    import { MANILA_BOARD_LAYOUT, boardPercent, routePoint } from "./board-layout.mjs";
+
+    const world=document.getElementById("world");
+    const legend=document.getElementById("legend");
+    const palette={port:"#66f0ad",yard:"#ff8b69",pirate:"#e6d05b",pilot:"#8ed5ff",insurance:"#d4a6ff",market:"#ffb85c",routes:"#ffffff"};
+    const groups=[];
+    function addRect(label,zone,color,rotation=0,className=""){
+      const element=document.createElement("div");
+      element.className=`zone ${className}`;
+      element.textContent=label;
+      Object.assign(element.style,{left:boardPercent(zone.x,"x"),top:boardPercent(zone.y,"y"),width:boardPercent(zone.width,"x"),height:boardPercent(zone.height,"y"),"--color":color,"--rotation":`${rotation}deg`});
+      world.append(element);
+    }
+    MANILA_BOARD_LAYOUT.port.forEach((zone)=>addRect(`成功港 ${zone.id}`,zone.rect,palette.port,zone.rotation));
+    MANILA_BOARD_LAYOUT.yard.forEach((zone)=>addRect(`修船厂 ${zone.id}`,zone.rect,palette.yard,zone.rotation));
+    addRect("海盗船",MANILA_BOARD_LAYOUT.pirate.rect,palette.pirate);
+    addRect("海盗棋子",MANILA_BOARD_LAYOUT.pirate.slots,"#fff4a3");
+    MANILA_BOARD_LAYOUT.pilots.forEach((zone)=>addRect(zone.id==="small"?"小领航员":"大领航员",zone.rect,palette.pilot));
+    addRect("保险公司",MANILA_BOARD_LAYOUT.insurance.rect,palette.insurance);
+    addRect("四种货价",MANILA_BOARD_LAYOUT.market.rect,palette.market);
+    addRect("三条0—13航道",MANILA_BOARD_LAYOUT.routeField.rect,palette.routes,0,"route-field");
+    MANILA_BOARD_LAYOUT.routes.forEach((route,routeIndex)=>{
+      const dx=route.end.x-route.start.x,dy=route.end.y-route.start.y;
+      const line=document.createElement("i");
+      Object.assign(line.style,{left:boardPercent(route.start.x,"x"),top:boardPercent(route.start.y,"y"),width:boardPercent(Math.hypot(dx,dy),"x"),transform:`rotate(${Math.atan2(dy,dx)}rad)`,"--color":["#7ef1ff","#ffe478","#ff9a9a"][routeIndex]});
+      line.className="route-line";world.append(line);
+      for(let step=0;step<=13;step+=1){const position=routePoint(routeIndex,step),marker=document.createElement("b");marker.className="route-point";marker.textContent=String(step);marker.style.left=boardPercent(position.x,"x");marker.style.top=boardPercent(position.y,"y");world.append(marker);}
+    });
+    Object.entries(palette).forEach(([name,color])=>{const item=document.createElement("span");item.textContent=name;item.style.setProperty("--color",color);legend.append(item);});
+  </script>
+</body>
+</html>

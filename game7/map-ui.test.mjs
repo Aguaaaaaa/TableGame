@@ -8,6 +8,7 @@ const root=path.dirname(fileURLToPath(import.meta.url));
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const script=fs.readFileSync(path.join(root,"app.js"),"utf8");
 const styles=fs.readFileSync(path.join(root,"styles.css"),"utf8");
+const engine=fs.readFileSync(path.join(root,"server","game-engine.mjs"),"utf8");
 
 test("Manila page uses a fixed scalable harbor world",()=>{
  for(const id of ["harborViewport","harborWorld","portSlots","yardSlots","routes","pirateSlots","pilotSlots","insuranceSlot","marketGrid","mapControls","mapZoomOutButton","mapResetButton","mapZoomInButton","mapZoomText","diceStage","diceRow","diceStageButton"]){
@@ -24,11 +25,11 @@ test("Manila page uses a fixed scalable harbor world",()=>{
 test("cargo dice use the harbor-master start and stop flow instead of WebGL physics",()=>{
  assert.doesNotMatch(html,/id="diceCanvas"/);
  assert.doesNotMatch(script,/createDicePhysics|simulateDiceRoll|renderPhysicsDice/);
- assert.match(script,/rollStage:"ready"/);
- assert.match(script,/function startDiceRoll\(/);
- assert.match(script,/function stopDiceRoll\(/);
- assert.match(script,/rollStage="slowing"/);
- assert.match(script,/settleAt=state\.stopRequestedAt\+2200/);
+ assert.match(engine,/rollStage="ready"/);
+ assert.match(engine,/function startDice\(/);
+ assert.match(engine,/function stopDice\(/);
+ assert.match(engine,/rollStage="slowing"/);
+ assert.match(engine,/settleAt=now\+DICE_SLOWING_MS/);
  assert.match(script,/type:"startDice"/);
  assert.match(script,/type:"stopDice"/);
  assert.match(styles,/\.dice-stage\{/);
@@ -36,7 +37,7 @@ test("cargo dice use the harbor-master start and stop flow instead of WebGL phys
 });
 
 test("Manila client maps ships onto route and destination coordinates",()=>{
- assert.match(script,/from "\.\/board-layout\.mjs"/);
+ assert.match(script,/from"\.\/board-layout\.mjs"/);
  assert.match(script,/function resetMapView\(/);
  assert.match(script,/function bindMapNavigation\(/);
  assert.match(script,/function destinationPoint\(/);

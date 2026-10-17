@@ -27,30 +27,52 @@
       </div>
     </header>
 
-    <main id="setupPanel" class="setup-wrap">
-      <section class="panel intro">
-        <p class="eyebrow">TRAINER LOBBY</p>
-        <h2>成为最闪耀的训练家</h2>
-        <p>收集精灵球、捕捉宝可梦并完成进化。率先达到 18 枚奖杯，赢得训练家挑战。</p>
-        <div class="mode-grid">
-          <button id="hostModeButton" class="mode active"><b>创建房间</b><span>担任房主并主持游戏</span></button>
-          <button id="guestModeButton" class="mode"><b>加入房间</b><span>输入好友的四位房间号</span></button>
+    <main id="setupPanel" class="setup-wrap trainer-arrival">
+      <section class="trainer-briefing">
+        <p class="arrival-kicker">A NEW JOURNEY · 训练师启程</p>
+        <h2>带上精灵球，让每一次选择都成为新的相遇。</h2>
+        <p class="arrival-lead">在不断变化的宝可梦市场中收集资源、规划捕捉与进化路线，率先赢得 18 枚奖杯，成为本次挑战最闪耀的训练家。</p>
+        <ol class="trainer-route" aria-label="训练家挑战流程">
+          <li><span>01</span><div><b>整备精灵球</b><small>观察供应并组合本回合资源</small></div></li>
+          <li><span>02</span><div><b>发现与捕捉</b><small>从公开市场或保留区锁定伙伴</small></div></li>
+          <li><span>03</span><div><b>培养进化</b><small>扩展能力并积累最终奖杯</small></div></li>
+        </ol>
+        <div class="journey-status"><span aria-hidden="true"></span><b>研究站已开放</b><i></i><b>等待训练师登记</b></div>
+      </section>
+
+      <section class="trainer-terminal">
+        <header class="terminal-heading">
+          <div class="capture-emblem" aria-hidden="true"><span></span></div>
+          <p>TRAINER STATION · 出发登记站</p>
+          <h2>训练师挑战终端</h2>
+          <small>创建一支新的探险队，或使用四位房间号与伙伴会合。</small>
+        </header>
+
+        <div class="mode-grid" aria-label="选择进入挑战的方式">
+          <button id="hostModeButton" class="mode active"><b>创建房间</b><span>建立新的训练师队伍</span></button>
+          <button id="guestModeButton" class="mode"><b>加入房间</b><span>前往好友所在的队伍</span></button>
         </div>
-      </section>
-      <section id="hostSetup" class="panel setup-card">
-        <label>训练家名称<input id="hostNameInput" maxlength="12" value="小智"></label>
-        <label>游戏人数<select id="playerCountSelect"><option>2</option><option>3</option><option selected>4</option></select></label>
-        <button id="createRoomButton" class="primary wide">创建训练家房间</button>
-      </section>
-      <section id="guestSetup" class="panel setup-card hidden">
-        <label>训练家名称<input id="guestNameInput" maxlength="12" value="训练家"></label>
-        <label>房间号<input id="roomCodeInput" maxlength="4" placeholder="ABCD"></label>
-        <fieldset id="joinIntentField" class="join-intent hidden">
-          <legend>加入身份</legend>
-          <label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时进入玩家席；满员后自动旁观</small></span></label>
-          <label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>只查看公开市场和训练家信息</small></span></label>
-        </fieldset>
-        <button id="joinRoomButton" class="primary wide">加入挑战</button>
+
+        <div class="terminal-form-shell">
+          <section id="hostSetup" class="panel setup-card trainer-form">
+            <div class="form-heading"><span>EXPEDITION / NEW</span><b>登记新队伍</b></div>
+            <div class="trainer-fields"><label><span>训练家名称</span><input id="hostNameInput" maxlength="12" value="小智"></label><label><span>队伍人数</span><select id="playerCountSelect"><option>2</option><option>3</option><option selected>4</option></select></label></div>
+            <button id="createRoomButton" class="primary wide trainer-submit"><b>创建训练家房间</b><small>生成四位队伍编号</small></button>
+          </section>
+
+          <section id="guestSetup" class="panel setup-card trainer-form hidden">
+            <div class="form-heading"><span>EXPEDITION / JOIN</span><b>验证队伍编号</b></div>
+            <div class="trainer-fields"><label><span>训练家名称</span><input id="guestNameInput" maxlength="12" value="训练家"></label><label><span>四位房间号</span><input id="roomCodeInput" maxlength="4" placeholder="ABCD" inputmode="text"></label></div>
+            <fieldset id="joinIntentField" class="join-intent hidden">
+              <legend>加入身份</legend>
+              <label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时进入玩家席；满员后自动旁观</small></span></label>
+              <label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>只查看公开市场和训练家信息</small></span></label>
+            </fieldset>
+            <button id="joinRoomButton" class="primary wide trainer-submit"><b>加入训练家挑战</b><small>恢复席位或进入旁观席</small></button>
+          </section>
+        </div>
+
+        <p class="terminal-footnote"><span aria-hidden="true"></span>保留区暗牌只会向对应训练师本人显示</p>
       </section>
     </main>
 

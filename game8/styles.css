@@ -38,3 +38,234 @@ button,input,select{font:inherit}button{min-height:40px;padding:0 14px;border:1p
 @media(max-width:820px){.site-header.in-room{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}.header-meta{align-items:stretch;justify-content:flex-start}.room-header-tools{justify-content:flex-start}.table-area{order:1}.game>aside{order:2}}
 @media(max-width:760px){.site-header{align-items:stretch}.site-header .header-meta{width:100%}.site-header.in-room .header-title{display:none}.site-header.in-room .status{align-self:flex-start}.room-header-tools{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px}.room-identity{min-height:32px}.host-tools{justify-content:flex-start}.room-header-tools #seatActionButton{grid-column:1/-1;width:100%}.observer-panels{grid-template-columns:1fr}.log-panel{grid-column:auto}.rule-details{max-height:none}.site-header.in-room{margin-bottom:8px}}
 @media(max-width:480px){.shell{padding:8px}.header-meta{gap:6px}.room-header-tools{padding:5px}.host-tools label{width:62px}.host-tools button{padding:0 8px}.site-header.in-room .status{font-size:10px}.table-area{gap:8px}}
+
+/* Trainer arrival shell: the adventure begins before players reach the card market. */
+.trainer-arrival{
+  position:relative;
+  isolation:isolate;
+  display:grid;
+  grid-template-columns:minmax(0,1.16fr) minmax(380px,.84fr);
+  align-items:stretch;
+  gap:clamp(28px,5vw,74px);
+  width:min(1760px,100%);
+  max-width:none;
+  min-height:min(700px,calc(100vh - 112px));
+  margin:auto;
+  padding:clamp(28px,4.4vw,64px);
+  overflow:hidden;
+  border:1px solid #b9d9f1a8;
+  border-radius:28px;
+  background:
+    linear-gradient(90deg,#07162ddd 0%,#092044b5 32%,#0a2d5450 57%,#07152b91 100%),
+    linear-gradient(0deg,#07152bbd,transparent 58%),
+    url("assets/trainer-departure-arrival-v1.png") center/cover no-repeat;
+  box-shadow:0 28px 78px #03112c80,inset 0 0 0 7px #ffffff17,inset 0 0 80px #07152b52;
+}
+.trainer-arrival::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:12px;
+  pointer-events:none;
+  border:1px solid #ffffff35;
+  border-radius:19px;
+}
+.trainer-arrival::after{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  top:-90px;
+  left:42%;
+  width:310px;
+  height:310px;
+  border-radius:50%;
+  background:radial-gradient(circle,#ffe6823d,transparent 68%);
+  pointer-events:none;
+}
+.trainer-briefing{
+  align-self:end;
+  max-width:700px;
+  padding:clamp(18px,3vw,32px);
+  border-left:4px solid #ffd84e;
+  border-radius:0 22px 22px 0;
+  color:#fff;
+  background:linear-gradient(90deg,#071a37e8,#0d376e72,transparent);
+  text-shadow:0 2px 14px #07152b;
+}
+.arrival-kicker{margin:0 0 13px;color:#ffe36f;font-size:10px;font-weight:1000;letter-spacing:.2em}
+.trainer-briefing h2{
+  max-width:680px;
+  margin:0;
+  color:#fff;
+  font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC",sans-serif;
+  font-size:clamp(30px,3.45vw,52px);
+  line-height:1.2;
+  letter-spacing:.015em;
+}
+.arrival-lead{max-width:620px;margin:17px 0 23px;color:#dcecff;font-size:13px;line-height:1.85}
+.trainer-route{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.trainer-route li{
+  display:flex;
+  min-width:0;
+  gap:9px;
+  padding:12px 10px;
+  border:1px solid #b8ddff4a;
+  border-top-color:#ffe36f99;
+  border-radius:13px;
+  background:linear-gradient(145deg,#133c70d9,#081d3de8);
+  box-shadow:inset 0 1px #ffffff19,0 8px 18px #07152b42;
+}
+.trainer-route li>span{color:#ffe36f;font:1000 11px/1.35 monospace}
+.trainer-route div{display:grid;min-width:0;gap:4px}
+.trainer-route b{color:#fff;font-size:11px;white-space:nowrap}
+.trainer-route small{color:#b6cae3;font-size:9px;line-height:1.45}
+.journey-status{display:flex;align-items:center;gap:9px;margin-top:16px;color:#c7daf0;font-size:10px;letter-spacing:.06em}
+.journey-status>span{width:9px;height:9px;border:2px solid #fff;border-radius:50%;background:#55c87a;box-shadow:0 0 12px #55e888}
+.journey-status i{width:52px;height:2px;background:linear-gradient(90deg,#57c97b,#ffe36f,#ef5d63)}
+
+.trainer-terminal{
+  align-self:center;
+  justify-self:end;
+  width:100%;
+  max-width:490px;
+  padding:clamp(20px,2.8vw,30px);
+  border:1px solid #ffffffb5;
+  border-radius:24px;
+  color:#172341;
+  background:linear-gradient(145deg,#fffffff4,#eaf5fff0);
+  box-shadow:0 25px 70px #07152b8a,inset 0 0 0 4px #ffffff80,inset 0 -35px 75px #92c8f125;
+  backdrop-filter:blur(13px);
+}
+.terminal-heading{position:relative;margin-bottom:20px;padding-left:61px}
+.terminal-heading p{margin:0 0 5px;color:#3269d9;font-size:9px;font-weight:1000;letter-spacing:.18em}
+.terminal-heading h2{margin:0;color:#172a54;font-size:25px;letter-spacing:.045em}
+.terminal-heading small{display:block;margin-top:7px;color:#697895;font-size:11px;line-height:1.55}
+.capture-emblem{
+  position:absolute;
+  left:0;
+  top:1px;
+  display:grid;
+  place-items:center;
+  width:47px;
+  height:47px;
+  overflow:hidden;
+  border:3px solid #fff;
+  border-radius:50%;
+  background:linear-gradient(#e94f57 0 44%,#263552 44% 56%,#f7f9ff 56%);
+  box-shadow:0 5px 14px #1020403d,inset 0 0 0 1px #263552;
+}
+.capture-emblem span{width:15px;height:15px;border:4px solid #263552;border-radius:50%;background:#fff;box-shadow:0 0 0 2px #fff}
+.trainer-arrival .mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.trainer-arrival .mode{
+  display:grid;
+  gap:4px;
+  min-width:0;
+  min-height:62px;
+  padding:10px 12px;
+  border:1px solid #c9d8ec;
+  border-radius:12px;
+  color:#697895;
+  text-align:left;
+  background:linear-gradient(#fff,#edf4fc);
+  box-shadow:inset 0 -10px 18px #8bb6e51a;
+}
+.trainer-arrival .mode b{color:#24375b;font-size:12px}
+.trainer-arrival .mode span{color:#7886a0;font-size:9px;font-weight:600;white-space:nowrap}
+.trainer-arrival .mode.active{
+  color:#fff;
+  border-color:#2e65d2;
+  background:linear-gradient(135deg,#4388ed,#285bc0);
+  box-shadow:inset 4px 0 #ffe05d,0 7px 18px #3269d936;
+}
+.trainer-arrival .mode.active b,.trainer-arrival .mode.active span{color:#fff}
+.terminal-form-shell{padding:17px;border:1px solid #cadbf0;border-radius:16px;background:#f6faffd9;box-shadow:inset 0 0 28px #9fc6ed21}
+.trainer-arrival .trainer-form{
+  display:grid;
+  grid-template-columns:1fr;
+  align-content:stretch;
+  gap:15px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  backdrop-filter:none;
+}
+.form-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px dashed #b7c9e2}
+.form-heading span{color:#4572ca;font:1000 9px monospace;letter-spacing:.13em}
+.form-heading b{color:#445371;font-size:11px}
+.trainer-fields{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:10px}
+.trainer-arrival .trainer-fields label{display:grid;gap:6px;color:#667590;font-size:10px;font-weight:900}
+.trainer-arrival .trainer-fields input,.trainer-arrival .trainer-fields select{
+  width:100%;
+  min-width:0;
+  height:43px;
+  padding:8px 11px;
+  border:1px solid #b7c9e3;
+  border-radius:9px;
+  color:#182a4c;
+  outline:none;
+  background:#fff;
+  box-shadow:inset 0 2px 5px #10204012;
+}
+.trainer-arrival .trainer-fields input:focus,.trainer-arrival .trainer-fields select:focus{border-color:#3975df;box-shadow:0 0 0 3px #3975df20}
+.trainer-arrival #roomCodeInput{text-transform:uppercase;font:1000 18px monospace;letter-spacing:.16em}
+.trainer-submit{
+  display:grid;
+  gap:3px;
+  min-height:53px;
+  margin-top:0;
+  border-color:#2458be;
+  border-radius:11px;
+  text-align:left;
+  background:linear-gradient(135deg,#448bf1,#275abc);
+  box-shadow:inset 4px 0 #ffe05d,0 8px 21px #1f55b43b;
+}
+.trainer-submit b{font-size:12px;letter-spacing:.035em}
+.trainer-submit small{color:#dbeaff;font-size:9px;font-weight:600}
+.trainer-arrival .join-intent{margin:0;border-color:#bfd0e6;border-radius:12px;background:#edf5ff}
+.trainer-arrival .join-intent legend{color:#3d69bd}
+.trainer-arrival .join-intent label{color:#30405f;background:#fff}
+.trainer-arrival .join-intent small{color:#74829b}
+.terminal-footnote{display:flex;align-items:center;gap:8px;margin:13px 0 0;color:#77869e;font-size:9px}
+.terminal-footnote>span{width:8px;height:8px;border-radius:50%;background:#8a5bd0;box-shadow:0 0 9px #8a5bd0}
+
+@media(max-width:980px){
+  .trainer-arrival{grid-template-columns:minmax(0,1fr) minmax(350px,.9fr);gap:22px;padding:29px}
+  .trainer-briefing{padding:20px}
+  .trainer-route{grid-template-columns:1fr}
+  .trainer-route small{display:none}
+}
+@media(max-width:720px){
+  .site-header:not(.in-room){align-items:center;flex-direction:row;margin-bottom:10px}
+  .site-header:not(.in-room) .status{font-size:10px}
+  .trainer-arrival{
+    grid-template-columns:1fr;
+    gap:17px;
+    min-height:auto;
+    padding:20px 15px;
+    border-radius:20px;
+    background-position:53% center;
+  }
+  .trainer-briefing{align-self:start;padding:18px 14px;background:linear-gradient(90deg,#071a37ed,#0d376e75)}
+  .trainer-briefing h2{font-size:clamp(26px,8vw,37px)}
+  .arrival-lead{margin:12px 0 16px;font-size:11px}
+  .trainer-route{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .trainer-route li{display:grid;gap:4px;padding:9px 7px}
+  .trainer-route b{font-size:10px}
+  .journey-status{display:none}
+  .trainer-terminal{justify-self:stretch;max-width:none;padding:18px 15px;border-radius:18px}
+  .terminal-heading{margin-bottom:16px;padding-left:53px}
+  .terminal-heading h2{font-size:21px}
+  .capture-emblem{width:42px;height:42px}
+}
+@media(max-width:430px){
+  .site-header:not(.in-room) .header-title .eyebrow{display:none}
+  .site-header:not(.in-room) h1{font-size:26px}
+  .trainer-arrival{padding:13px 9px}
+  .trainer-briefing{padding:14px 11px}
+  .trainer-arrival .mode{min-height:54px;padding:8px}
+  .trainer-arrival .mode span{display:none}
+  .terminal-form-shell{padding:13px}
+  .trainer-fields{grid-template-columns:minmax(0,1fr) 94px}
+}

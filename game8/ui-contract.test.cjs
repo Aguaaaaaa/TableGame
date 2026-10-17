@@ -9,6 +9,29 @@ const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
 const styles = fs.readFileSync(path.join(__dirname, "styles.css"), "utf8");
 
+test("game8 entry shell presents a trainer departure while preserving room contracts", () => {
+  const setupStart = html.indexOf('id="setupPanel"');
+  const setupEnd = html.indexOf('id="roomPanel"', setupStart);
+  const setup = html.slice(setupStart, setupEnd);
+
+  assert.match(setup, /class="setup-wrap trainer-arrival"/);
+  assert.match(setup, /class="trainer-briefing"/);
+  assert.match(setup, /class="trainer-route"/);
+  assert.match(setup, /class="trainer-terminal"/);
+  assert.match(setup, /id="hostModeButton" class="mode active"/);
+  assert.match(setup, /id="guestModeButton" class="mode"/);
+  assert.match(setup, /id="hostSetup" class="panel setup-card trainer-form"/);
+  assert.match(setup, /id="guestSetup" class="panel setup-card trainer-form hidden"/);
+  assert.match(setup, /id="hostNameInput" maxlength="12"/);
+  assert.match(setup, /id="roomCodeInput" maxlength="4"/);
+  assert.match(setup, /name="joinIntent" value="play" checked/);
+  assert.match(setup, /name="joinIntent" value="spectate"/);
+  assert.match(styles, /url\("assets\/trainer-departure-arrival-v1\.png"\)/);
+  assert.match(styles, /\.trainer-arrival \.mode-grid\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(styles, /@media\(max-width:720px\)\{[\s\S]*?\.trainer-arrival\{[\s\S]*?grid-template-columns:1fr/);
+  assert.ok(fs.existsSync(path.join(__dirname, "assets", "trainer-departure-arrival-v1.png")));
+});
+
 test("game8 merges room controls into the compact title bar", () => {
   const header = html.slice(html.indexOf('<header id="siteHeader"'), html.indexOf("</header>") + 9);
   assert.match(header, /id="connectionStatus"/);

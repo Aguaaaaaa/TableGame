@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>只言片语 · 梦境画廊</title>
+  <link rel="stylesheet" href="/shared/styles/base.css">
+  <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="dream-gallery"><main class="shell">
+  <header id="hero" class="hero">
+    <div class="brand"><p class="eyebrow">THE GALLERY BETWEEN WORDS</p><h1>只言片语 <span>DREAM GALLERY</span></h1><p>一幅画可以通向许多答案，而你只需要留下一句线索。</p></div>
+    <div class="hero-meta"><div id="connectionStatus" class="connection-status">准备连接</div><section id="roomHeaderTools" class="room-tools hidden"><span>画廊印记 <b id="roomCodeDisplay">----</b></span><div id="hostTools" class="host-tools hidden"><label>旅人数<select id="roomPlayerCountSelect"></select></label><button id="spectatorSettingButton" class="small hidden" type="button">旁观：开放</button><button id="startGameButton" class="primary" type="button">开启画廊</button><button id="nextMatchButton" class="primary hidden" type="button">再入一梦</button></div><button id="seatActionButton" class="small hidden" type="button"></button></section></div>
+  </header>
+
+  <section id="setupPanel" class="arrival">
+    <div class="arrival-copy"><p class="arrival-kicker">AN INVITATION TO IMAGINE</p><h2>不要把答案说得太清楚。<br>也不要让它无人抵达。</h2><p>选一幅只属于你的梦，留下一句若即若离的话。其他旅人会带来相似的画面，直到真正的入口被重新找到。</p><ol><li><span>Ⅰ</span><b>选择梦境</b><small>从六幅私人画面中挑选一扇门</small></li><li><span>Ⅱ</span><b>留下一句话</b><small>让一些人理解，但不要让所有人猜中</small></li><li><span>Ⅲ</span><b>辨认与误导</b><small>秘密投票，兔子足迹记录共同的联想</small></li></ol></div>
+    <div class="arrival-access"><header><span class="moon-mark" aria-hidden="true">◌</span><p>DREAM REGISTRY · 梦境登记处</p><h2>进入漂浮画廊</h2><small>创建一段新的旅程，或凭四位画廊印记与朋友会合。</small></header><div class="mode-tabs"><button id="hostModeButton" class="active" type="button"><b>创建画廊</b><small>成为第一位引路人</small></button><button id="guestModeButton" type="button"><b>加入画廊</b><small>循着朋友留下的印记</small></button></div>
+      <section id="hostSetup" class="setup-card"><label><span>旅人称呼</span><input id="hostNameInput" maxlength="12" value="房主"></label><label><span>同行人数</span><select id="playerCountSelect"></select></label><button id="createRoomButton" class="primary arrival-submit" type="button">推开第一扇画门</button></section>
+      <section id="guestSetup" class="setup-card hidden"><label><span>旅人称呼</span><input id="guestNameInput" maxlength="12" value="玩家"></label><label><span>四位画廊印记</span><input id="roomCodeInput" maxlength="4" placeholder="例如 MUSE"></label><fieldset id="joinIntentField" class="join-intent hidden"><legend>进入方式</legend><label><input type="radio" name="joinIntent" value="play" checked><span><b>加入旅人席</b><small>满员或开局后自动旁观</small></span></label><label><input type="radio" name="joinIntent" value="spectate"><span><b>安静旁观</b><small>不会看见任何私人画面</small></span></label></fieldset><button id="joinRoomButton" class="primary arrival-submit" type="button">循着印记进入</button></section>
+      <p class="privacy-note">每个人的手牌、未公开选择与投票都由服务器分别保密</p>
+    </div>
+  </section>
+
+  <section id="roomPanel" class="room hidden">
+    <section class="journey-strip"><div><p class="eyebrow">CURRENT DREAM</p><h2 id="phaseTitle">等待旅人抵达</h2><small id="phaseHint">画廊尚未开启</small></div><div class="round-mark"><span>ROUND</span><b id="roundNumber">0</b></div></section>
+    <section id="players" class="travelers" aria-label="同行旅人"></section>
+    <section id="dreamStage" class="dream-stage" data-ui-role="core-table">
+      <div class="stage-shade" aria-hidden="true"></div><header class="clue-orbit"><span id="clueLabel">THE UNSPOKEN CLUE</span><strong id="clueText">等待一句线索落入画廊</strong><small id="progressText">—</small></header><div id="gallery" class="gallery"></div>
+      <div id="presentationEffects" class="presentation-effects" aria-live="polite"><svg><path id="presentationTrail" class="presentation-trail"></path></svg><div id="presentationAnnouncement" class="announcement"><small id="presentationLabel"></small><strong id="presentationText"></strong></div></div>
+    </section>
+    <section id="actionDock" class="action-dock"><div class="action-copy"><div><p class="eyebrow">YOUR NEXT THOUGHT</p><h2 id="actionTitle">等待开始</h2></div><div class="timer"><b id="timerText">--</b><i id="timerBar"></i></div><p id="actionHint">准备进入梦境。</p><div id="actionControls" class="action-controls"></div></div><div id="handPanel" class="hand-panel"><header><span>你的私人画匣</span><small id="selectionStatus">尚未选择</small></header><div id="hand" class="hand"></div></div></section>
+    <section class="low-frequency"><details class="panel rules" data-ui-role="rules-entry"><summary><b>画廊守则 · 详细规则</b><span>展开</span></summary><div><h3>目标</h3><p>叙述者给出与秘密画面有关的线索。最好让部分玩家猜中，但不能让所有人猜中，也不能无人猜中。</p><h3>选择与投票</h3><p>其他玩家秘密提交干扰画面。服务器洗混后统一展示，所有非叙述者秘密投票，不能投自己的画面。</p><h3>计分</h3><p>部分人猜中时，叙述者和猜中者各得3分；全中或全错时，其他玩家各得2分。每张干扰牌每吸引一票，其主人再得1分。有人达到30分后结束。</p><h3>三人局</h3><p>每人7张手牌，两名非叙述者各提交2张，最终展示5张；投票者不能投自己的两张牌。</p><h3>文字与语音</h3><p>线索可以直接写在画廊中央，也可以通过外部语音给出并选择“语音线索”。断线后文字线索由服务器恢复。</p><h3>超时与隐私</h3><p>超时会由服务器随机完成合法动作，避免房间永久停滞。结算前，旁观者和其他玩家不会获得手牌、牌主或投票内容。</p></div></details><section class="panel chronicle" data-ui-role="game-log"><div class="section-head"><h2>旅途回声</h2><button id="toggleLogButton" class="small" type="button">收起</button></div><div id="logList" class="log"></div></section><details id="spectatorPanel" class="panel spectator-panel hidden" data-ui-role="spectators"><summary><span>远处的旁观者</span><b id="spectatorCountBadge">0 / 10</b></summary><div id="spectatorList" class="spectator-list"></div></details></section>
+  </section>
+</main>
+<dialog id="cardPreview" class="card-preview"><button id="closePreviewButton" type="button" aria-label="关闭">×</button><div id="previewArt" class="preview-art"></div><p>梦境没有标准答案</p></dialog>
+<script type="module" src="app.js"></script></body></html>

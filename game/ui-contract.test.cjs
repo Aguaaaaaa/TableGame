@@ -27,6 +27,16 @@ test("game1 turns its room into a distinct mechanical cipher workstation",()=>{
   assert.match(styles,/\.operator-card\.active\s*\{/);
 });
 
+test("game1 gives its create and join flow a compact cipher-bureau arrival shell",()=>{
+  const setup=html.slice(html.indexOf('<section class="setup-panel cipher-arrival"'),html.indexOf('<section class="room-panel'));
+  for(const marker of["briefing-copy","briefing-route","bureau-checkpoint","checkpoint-heading","registry-form"])assert.match(setup,new RegExp(marker));
+  for(const id of["hostModeButton","guestModeButton","hostSetup","guestSetup","hostNameInput","guestNameInput","gameModeSelect","topicSelect","roomCodeInput","joinIntentField","createRoomButton","joinRoomButton"])assert.match(setup,new RegExp(`id="${id}"`));
+  assert.match(styles,/cipher-bureau-arrival-v1\.png/);
+  assert.match(styles,/\.cipher-arrival \.mode-grid\s*\{[\s\S]*?grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(styles,/@media \(max-width: 640px\)[\s\S]*?\.cipher-arrival\s*\{[\s\S]*?grid-template-columns: 1fr/);
+  assert.ok(fs.existsSync(path.join(__dirname,"assets","cipher-bureau-arrival-v1.png")));
+});
+
 test("game1 keeps rules and public records in ordered archive drawers",()=>{
   const archive=html.slice(html.indexOf('<section class="archive-strip"'),html.indexOf("</section>\n      </section>")+10);
   const rulesAt=archive.indexOf('class="panel rules-card archive-drawer"');

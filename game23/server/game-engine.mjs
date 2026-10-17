@@ -63,6 +63,7 @@ function resetRound(state) {
 function resetMatch(state) {
   state.phase = "lobby"; state.deadline = 0; state.round = 0; state.storytellerId = null;
   state.startingStorytellerId = null; state.deck = []; state.discard = []; state.result = null;
+  state.presentationEvents = [];
   state.players.forEach((player) => { player.score = 0; player.hand = []; }); resetRound(state);
 }
 function beginStorytellerTurn(state, now) {
@@ -167,6 +168,7 @@ export function applyAction(state, actorId, action, { now = Date.now(), random =
     case "submitDecoys": submitDecoys(state, actorId, action.cardIds, now, false, random); break;
     case "submitVote": submitVote(state, actorId, action.displayId, now); break;
     case "continue": requireHost(state, actorId); finishOrContinue(state, now, random); break;
+    case "end": requireHost(state, actorId); fail(state.phase === "lobby", "game_not_started", "当前没有可结束的游戏。", 409); resetMatch(state); addLog(state, "房主结束了当前梦境旅程，所有旅人返回准备大厅。", now); break;
     case "nextMatch": requireHost(state, actorId); fail(state.phase !== "ended", "wrong_phase", "当前对局尚未结束。", 409); resetMatch(state); break;
     default: throw new GameRuleError("unknown_action", "未知操作。");
   }
@@ -207,7 +209,8 @@ function buildPublicView(state, viewer = null) {
       canTell: Boolean(viewer && state.phase === "storytellerChoosing" && viewer.id === state.storytellerId),
       canSubmitDecoys: Boolean(viewer && state.phase === "playersChoosing" && viewer.id !== state.storytellerId && !state.submissions[viewer.id]),
       canVote: Boolean(viewer && state.phase === "voting" && viewer.id !== state.storytellerId && !state.votes[viewer.id]),
-      canContinue: Boolean(viewer?.isHost && state.phase === "resolution"), canNextMatch: Boolean(viewer?.isHost && state.phase === "ended")
+      canContinue: Boolean(viewer?.isHost && state.phase === "resolution"), canNextMatch: Boolean(viewer?.isHost && state.phase === "ended"),
+      canEnd: Boolean(viewer?.isHost && state.phase !== "lobby")
     }
   };
 }

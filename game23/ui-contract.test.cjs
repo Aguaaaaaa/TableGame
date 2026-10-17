@@ -6,6 +6,7 @@ test("只言片语采用独立梦境画廊外壳并保留标准联机契约",()=
   const html=read("index.html"),css=read("styles.css"),script=read("app.js");
   assert.match(html,/data-theme="dream-gallery"/);assert.match(html,/class="arrival"/);assert.match(html,/class="arrival-copy"/);assert.match(html,/class="arrival-access"/);
   assert.match(html,/id="hostModeButton" class="active"/);assert.match(html,/id="guestModeButton"/);assert.match(html,/id="hostNameInput" maxlength="12"/);assert.match(html,/id="roomCodeInput" maxlength="4"/);
+  assert.match(html,/id="endGameButton"[^>]*>结束并返回大厅</);assert.match(script,/type:"end"/);assert.match(script,/permissions\.canEnd/);
   assert.match(html,/name="joinIntent" value="play" checked/);assert.match(html,/name="joinIntent" value="spectate"/);
   assert.match(css,/dream-gallery-entry-v1\.jpg/);assert.match(css,/dream-gallery-stage-v1\.jpg/);
   assert.ok(fs.existsSync(path.join(__dirname,"assets","dream-gallery-entry-v1.jpg")));assert.ok(fs.existsSync(path.join(__dirname,"assets","dream-gallery-stage-v1.jpg")));

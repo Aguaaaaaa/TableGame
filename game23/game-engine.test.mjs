@@ -73,3 +73,25 @@ test("timeouts authoritatively keep the dream moving", () => {
   assert.equal(handleTimeout(state, { now: state.deadline + 1, random: fixedRandom }), true);
   assert.equal(state.phase, "resolution");
 });
+
+test("only the host can end an active match and return everyone to a clean lobby", () => {
+  const state = setup(4);
+  const guest = state.players.find((player) => !player.isHost);
+  assert.equal(buildView(state, "p1").permissions.canEnd, true);
+  assert.equal(buildView(state, guest.id).permissions.canEnd, false);
+  assert.throws(() => applyAction(state, guest.id, { type: "end" }, { now: 2000 }), /只有房主/);
+
+  applyAction(state, "p1", { type: "end" }, { now: 2100 });
+  assert.equal(state.phase, "lobby");
+  assert.equal(state.deadline, 0);
+  assert.equal(state.round, 0);
+  assert.equal(state.deck.length, 0);
+  assert.equal(state.discard.length, 0);
+  assert.equal(state.storytellerId, null);
+  assert.equal(state.displayCards.length, 0);
+  assert.equal(state.presentationEvents.length, 0);
+  assert.ok(state.players.every((player) => player.score === 0 && player.hand.length === 0));
+  const hostView = buildView(state, "p1");
+  assert.equal(hostView.permissions.canEnd, false);
+  assert.equal(hostView.permissions.canStart, true);
+});

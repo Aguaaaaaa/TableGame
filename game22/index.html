@@ -2,7 +2,50 @@
 <body data-theme="camelot-oath-table"><main class="shell">
 <header id="hero" class="hero"><div><p class="eyebrow">CAMELOT · SERVER AUTHORITY</p><h1>阿瓦隆 <span>AVALON</span></h1><p>五次远征，一张圆桌，以及藏在誓言里的背叛。</p></div><div class="hero-meta"><div id="connectionStatus" class="connection-status">准备连接</div><section id="roomHeaderTools" class="room-tools hidden"><span>房间 <b id="roomCodeDisplay">----</b></span><div id="hostTools" class="host-tools hidden"><label>人数<select id="roomPlayerCountSelect"></select></label><label>预设<select id="roomPresetSelect"><option value="basic">基础</option><option value="classic">经典</option><option value="advanced">进阶</option></select></label><button id="ladySettingButton" class="small" type="button">湖中仙女：关闭</button><button id="spectatorSettingButton" class="small hidden" type="button">旁观：开放</button><button id="startGameButton" class="primary" type="button">召集圆桌</button><button id="nextMatchButton" class="primary hidden" type="button">再开一局</button></div><button id="seatActionButton" class="small hidden" type="button"></button></section></div></header>
 
-<section id="setupPanel" class="setup-wrap"><div class="mode-tabs"><button id="hostModeButton" class="active" type="button">创建议会</button><button id="guestModeButton" type="button">加入议会</button></div><section id="hostSetup" class="panel setup-card"><h2>点亮卡美洛圆桌</h2><label>昵称<input id="hostNameInput" maxlength="12" value="房主"></label><label>人数<select id="playerCountSelect"></select></label><button id="createRoomButton" class="primary" type="button">创建房间</button></section><section id="guestSetup" class="panel setup-card hidden"><h2>进入密议</h2><label>昵称<input id="guestNameInput" maxlength="12" value="玩家"></label><label>房间号<input id="roomCodeInput" maxlength="4" placeholder="例如 GRA1"></label><fieldset id="joinIntentField" class="join-intent hidden"><legend>加入身份</legend><label><input type="radio" name="joinIntent" value="play" checked><span><b>加入骑士席</b><small>满员或开局后自动旁观</small></span></label><label><input type="radio" name="joinIntent" value="spectate"><span><b>进入旁观席</b><small>不会获得任何秘密</small></span></label></fieldset><button id="joinRoomButton" class="primary" type="button">进入房间</button></section></section>
+<section id="setupPanel" class="setup-wrap oath-arrival">
+  <div class="oath-briefing">
+    <p class="arrival-kicker">BEFORE THE QUEST · 出征前夜</p>
+    <h2>王座召集了所有忠诚者，也让背叛者坐进了同一场密议。</h2>
+    <p class="arrival-lead">五次远征将决定卡美洛的命运。辨认可信的同伴、守住真实身份，并在每一次誓言落定前看穿阴影。</p>
+    <ol class="oath-route" aria-label="阿瓦隆行动流程">
+      <li><span>Ⅰ</span><div><b>召集圆桌</b><small>隐藏身份，在有限情报中寻找同盟</small></div></li>
+      <li><span>Ⅱ</span><div><b>提名与表决</b><small>队长组建远征队，全员公开投票</small></div></li>
+      <li><span>Ⅲ</span><div><b>执行远征</b><small>匿名提交任务牌，成功与背叛就此显现</small></div></li>
+    </ol>
+    <div class="faction-whisper"><span>忠诚并不等于可信</span><i aria-hidden="true"></i><span>沉默也可能是一种伪装</span></div>
+  </div>
+
+  <div class="council-access">
+    <header class="council-heading">
+      <div class="oath-sigil" aria-hidden="true"><span></span><i></i></div>
+      <p>THE KING'S SUMMONS · 王室召令</p>
+      <h2>圆桌密议登记册</h2>
+      <small>点亮一场新的密议，或凭四位议会印记进入既有房间。</small>
+    </header>
+
+    <div class="mode-tabs" aria-label="选择进入议会的方式">
+      <button id="hostModeButton" class="active" type="button"><b>创建议会</b><small>召集一场新的远征</small></button>
+      <button id="guestModeButton" type="button"><b>加入议会</b><small>回应已有王室召令</small></button>
+    </div>
+
+    <div class="council-form-shell">
+      <section id="hostSetup" class="panel setup-card oath-form">
+        <div class="form-heading"><span>ROYAL COUNCIL / NEW</span><b>签署召集令</b></div>
+        <div class="oath-fields"><label><span>骑士称号</span><input id="hostNameInput" maxlength="12" value="房主"></label><label><span>议会人数</span><select id="playerCountSelect"></select></label></div>
+        <button id="createRoomButton" class="primary oath-submit" type="button"><b>点亮卡美洛圆桌</b><small>生成四位议会印记</small></button>
+      </section>
+
+      <section id="guestSetup" class="panel setup-card oath-form hidden">
+        <div class="form-heading"><span>ROYAL COUNCIL / ENTER</span><b>核验召令</b></div>
+        <div class="oath-fields"><label><span>骑士称号</span><input id="guestNameInput" maxlength="12" value="玩家"></label><label><span>四位议会印记</span><input id="roomCodeInput" maxlength="4" placeholder="例如 GRA1" inputmode="text"></label></div>
+        <fieldset id="joinIntentField" class="join-intent hidden"><legend>加入身份</legend><label><input type="radio" name="joinIntent" value="play" checked><span><b>加入骑士席</b><small>满员或开局后自动旁观</small></span></label><label><input type="radio" name="joinIntent" value="spectate"><span><b>进入旁观席</b><small>不会获得任何秘密</small></span></label></fieldset>
+        <button id="joinRoomButton" class="primary oath-submit" type="button"><b>通过城门进入密议</b><small>恢复席位或等待下一场远征</small></button>
+      </section>
+    </div>
+
+    <p class="council-footnote"><span aria-hidden="true"></span>身份与阵营信息只向对应骑士本人揭示</p>
+  </div>
+</section>
 
 <section id="roomPanel" class="room-panel hidden">
   <section class="quest-banner"><div class="phase-copy"><p class="eyebrow">THE COUNCIL CONVENES</p><h2 id="phaseTitle">等待骑士入席</h2></div><div class="rejection-council"><span>提案否决</span><div id="rejectTrack" class="reject-track" aria-label="否决轨道"></div></div></section>

@@ -83,8 +83,9 @@ button,input,select{font:inherit}button{min-height:40px;padding:0 14px;border:1p
   pointer-events:none;
 }
 .trainer-briefing{
-  align-self:end;
+  align-self:center;
   max-width:700px;
+  margin-top:clamp(-34px,-3vh,-16px);
   padding:clamp(18px,3vw,32px);
   border-left:4px solid #ffd84e;
   border-radius:0 22px 22px 0;
@@ -232,7 +233,7 @@ button,input,select{font:inherit}button{min-height:40px;padding:0 14px;border:1p
 
 @media(max-width:980px){
   .trainer-arrival{grid-template-columns:minmax(0,1fr) minmax(350px,.9fr);gap:22px;padding:29px}
-  .trainer-briefing{padding:20px}
+  .trainer-briefing{margin-top:-16px;padding:20px}
   .trainer-route{grid-template-columns:1fr}
   .trainer-route small{display:none}
 }
@@ -247,7 +248,7 @@ button,input,select{font:inherit}button{min-height:40px;padding:0 14px;border:1p
     border-radius:20px;
     background-position:53% center;
   }
-  .trainer-briefing{align-self:start;padding:18px 14px;background:linear-gradient(90deg,#071a37ed,#0d376e75)}
+  .trainer-briefing{align-self:start;margin-top:0;padding:18px 14px;background:linear-gradient(90deg,#071a37ed,#0d376e75)}
   .trainer-briefing h2{font-size:clamp(26px,8vw,37px)}
   .arrival-lead{margin:12px 0 16px;font-size:11px}
   .trainer-route{grid-template-columns:repeat(3,minmax(0,1fr))}

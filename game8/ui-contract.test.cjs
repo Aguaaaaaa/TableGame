@@ -28,7 +28,9 @@ test("game8 entry shell presents a trainer departure while preserving room contr
   assert.match(setup, /name="joinIntent" value="spectate"/);
   assert.match(styles, /url\("assets\/trainer-departure-arrival-v1\.png"\)/);
   assert.match(styles, /\.trainer-arrival \.mode-grid\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(styles, /\.trainer-briefing\{[\s\S]*?align-self:center;[\s\S]*?margin-top:clamp\(-34px,-3vh,-16px\)/);
   assert.match(styles, /@media\(max-width:720px\)\{[\s\S]*?\.trainer-arrival\{[\s\S]*?grid-template-columns:1fr/);
+  assert.match(styles, /@media\(max-width:720px\)\{[\s\S]*?\.trainer-briefing\{align-self:start;margin-top:0/);
   assert.ok(fs.existsSync(path.join(__dirname, "assets", "trainer-departure-arrival-v1.png")));
 });
 

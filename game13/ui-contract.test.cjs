@@ -53,6 +53,25 @@ test("CABO semantic power cards use illustrated faces without exposing hidden ca
   assert.ok(fs.existsSync(path.join(root, "assets", "cards", "cabo-swap-v1.jpg")));
 });
 
+test("CABO ordinary cards share illustrated environments by score band", () => {
+  const script = read("app.js");
+  const css = read("styles.css");
+
+  assert.match(script, /function ordinaryCardFamily\(value\)/);
+  assert.match(script, /if\(value===0\)return "zero"/);
+  assert.match(script, /if\(value>=1&&value<=3\)return "low"/);
+  assert.match(script, /if\(value>=4&&value<=6\)return "mid"/);
+  assert.match(script, /if\(value===13\)return "thirteen"/);
+  assert.match(script, /data-card-family="\$\{family\}"/);
+  assert.match(css, /\.card\.faceup\.ordinary\[data-card-family="zero"\][^}]*cabo-number-zero-v1\.jpg/);
+  assert.match(css, /\.card\.faceup\.ordinary\[data-card-family="low"\][^}]*cabo-number-low-v1\.jpg/);
+  assert.match(css, /\.card\.faceup\.ordinary\[data-card-family="mid"\][^}]*cabo-number-mid-v1\.jpg/);
+  assert.match(css, /\.card\.faceup\.ordinary\[data-card-family="thirteen"\][^}]*cabo-number-thirteen-v1\.jpg/);
+  for (const filename of ["cabo-number-zero-v1.jpg", "cabo-number-low-v1.jpg", "cabo-number-mid-v1.jpg", "cabo-number-thirteen-v1.jpg"]) {
+    assert.ok(fs.existsSync(path.join(root, "assets", "cards", filename)));
+  }
+});
+
 test("房间设置并入标题栏，侧栏按积分、规则、记录和旁观排序", () => {
   const html = read("index.html");
   const headerStart = html.indexOf('<header id="hero"');

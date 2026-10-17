@@ -394,6 +394,55 @@
   .fae-fields{grid-template-columns:minmax(0,1fr) 94px}
 }
 
+/* Ordinary cards share one moonlit-forest family, grouped by score/risk instead of one illustration per value. */
+.card.faceup.ordinary{
+  --ordinary-art:none;
+  --ordinary-accent:#efe0b0;
+  isolation:isolate;
+  overflow:hidden;
+  border-color:var(--ordinary-accent);
+  color:#fff;
+  background-color:#354f70;
+  background-image:linear-gradient(180deg,rgba(17,22,52,.14),transparent 38%,rgba(15,17,42,.45)),var(--ordinary-art);
+  background-position:center;
+  background-size:cover;
+  box-shadow:0 7px 17px rgba(35,31,67,.3),inset 0 0 0 1px rgba(255,255,255,.18);
+  text-shadow:0 2px 5px rgba(12,14,38,.9);
+}
+.card.faceup.ordinary[data-card-family="zero"]{--ordinary-art:url("assets/cards/cabo-number-zero-v1.jpg");--ordinary-accent:#d6f4eb}
+.card.faceup.ordinary[data-card-family="low"]{--ordinary-art:url("assets/cards/cabo-number-low-v1.jpg");--ordinary-accent:#e9efb9}
+.card.faceup.ordinary[data-card-family="mid"]{--ordinary-art:url("assets/cards/cabo-number-mid-v1.jpg");--ordinary-accent:#d9c9ff}
+.card.faceup.ordinary[data-card-family="thirteen"]{--ordinary-art:url("assets/cards/cabo-number-thirteen-v1.jpg");--ordinary-accent:#ffb5ae}
+.card.faceup.ordinary::before{
+  position:absolute;
+  z-index:1;
+  inset:0;
+  content:"";
+  pointer-events:none;
+  background:radial-gradient(circle at center,rgba(255,255,255,.09),transparent 42%),linear-gradient(155deg,rgba(255,255,255,.17),transparent 30%,rgba(14,12,37,.28));
+}
+.card.faceup.ordinary>span{
+  position:relative;
+  z-index:2;
+  display:grid;
+  place-items:center;
+  min-width:36px;
+  height:36px;
+  padding:0 5px;
+  border:1px solid rgba(255,255,255,.72);
+  border-radius:50%;
+  color:#fffdf0;
+  background:rgba(27,29,65,.62);
+  box-shadow:0 3px 10px rgba(13,14,38,.42),inset 0 0 9px rgba(255,255,255,.12);
+  font:900 28px/1 Georgia,serif;
+}
+.card.faceup.ordinary[data-card-family="zero"]>span{color:#ecfff8;background:rgba(26,73,84,.6)}
+.card.faceup.ordinary[data-card-family="low"]>span{color:#fffde2;background:rgba(35,74,77,.62)}
+.card.faceup.ordinary[data-card-family="mid"]>span{color:#fbf6ff;background:rgba(48,39,89,.66)}
+.card.faceup.ordinary[data-card-family="thirteen"]>span{color:#fff2de;background:rgba(87,27,57,.76);font-size:24px}
+.pile-card.faceup.ordinary>span,.pending-wrap .card.faceup.ordinary>span{min-width:46px;height:46px;font-size:34px}
+.pile-card.faceup.ordinary[data-card-family="thirteen"]>span,.pending-wrap .card.faceup.ordinary[data-card-family="thirteen"]>span{font-size:29px}
+
 /* Semantic power-card faces: the illustration conveys the action, while live values stay in HTML. */
 .card.faceup.power{
   --power-art:none;
@@ -459,6 +508,7 @@
 .pile-card.faceup.power>span,.pending-wrap .card.faceup.power>span{min-width:29px;height:29px;font-size:21px}
 .pile-card.faceup.power::after,.pending-wrap .card.faceup.power::after{padding:5px 2px;font-size:9px}
 @media(prefers-reduced-motion:no-preference){
+  .slot-button.faceup.ordinary:hover{transform:translateY(-3px);box-shadow:0 11px 22px rgba(35,31,67,.4),0 0 0 2px rgba(235,225,189,.45)}
   .slot-button.faceup.power:hover{transform:translateY(-3px);box-shadow:0 11px 22px rgba(39,29,77,.42),0 0 0 2px color-mix(in srgb,var(--power-accent) 58%,transparent)}
-  .slot-button.faceup.power.selected:hover{transform:translateY(-8px)}
+  .slot-button.faceup.ordinary.selected:hover,.slot-button.faceup.power.selected:hover{transform:translateY(-8px)}
 }

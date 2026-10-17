@@ -393,3 +393,72 @@
   .lodge-form-shell{padding:13px}
   .fae-fields{grid-template-columns:minmax(0,1fr) 94px}
 }
+
+/* Semantic power-card faces: the illustration conveys the action, while live values stay in HTML. */
+.card.faceup.power{
+  --power-art:none;
+  --power-accent:#fff0aa;
+  isolation:isolate;
+  overflow:hidden;
+  border-color:var(--power-accent);
+  color:#fff;
+  background-color:#40396f;
+  background-image:linear-gradient(180deg,rgba(16,18,48,.3),transparent 38%,rgba(18,15,45,.88)),var(--power-art);
+  background-position:center;
+  background-size:cover;
+  box-shadow:0 7px 17px rgba(39,29,77,.34),inset 0 0 0 1px rgba(255,255,255,.2);
+  text-shadow:0 2px 4px #1b153d;
+}
+.card.faceup.power[data-power="PEEK"]{--power-art:url("assets/cards/cabo-peek-v1.jpg");--power-accent:#b7efe2}
+.card.faceup.power[data-power="SPY"]{--power-art:url("assets/cards/cabo-spy-v1.jpg");--power-accent:#c9b7ff}
+.card.faceup.power[data-power="SWAP"]{--power-art:url("assets/cards/cabo-swap-v1.jpg");--power-accent:#ffd0bf}
+.card.faceup.power>span{
+  position:absolute;
+  z-index:2;
+  top:4px;
+  left:4px;
+  display:grid;
+  place-items:center;
+  min-width:24px;
+  height:24px;
+  padding:0 5px;
+  border:1px solid rgba(255,255,255,.7);
+  border-radius:999px;
+  color:#fff;
+  background:rgba(28,26,62,.72);
+  box-shadow:0 2px 7px rgba(18,15,45,.28);
+  font:900 18px/1 Georgia,serif;
+}
+.card.faceup.power::before{
+  position:absolute;
+  z-index:1;
+  inset:0;
+  content:"";
+  pointer-events:none;
+  background:linear-gradient(155deg,rgba(255,255,255,.2),transparent 31%,rgba(19,15,48,.08) 60%,rgba(15,12,38,.52));
+}
+.card.faceup.power::after{
+  position:absolute;
+  z-index:2;
+  right:3px;
+  bottom:3px;
+  left:3px;
+  padding:4px 2px;
+  border:1px solid rgba(255,255,255,.54);
+  border-radius:6px;
+  color:#fff;
+  background:rgba(27,24,59,.76);
+  text-align:center;
+  text-shadow:0 1px 3px #15122f;
+  font:900 7px/1 system-ui,"Microsoft YaHei",sans-serif;
+  letter-spacing:.08em;
+}
+.card.faceup.power[data-power="PEEK"]::after{content:"◉ PEEK"}
+.card.faceup.power[data-power="SPY"]::after{content:"✧ SPY"}
+.card.faceup.power[data-power="SWAP"]::after{content:"⇄ SWAP"}
+.pile-card.faceup.power>span,.pending-wrap .card.faceup.power>span{min-width:29px;height:29px;font-size:21px}
+.pile-card.faceup.power::after,.pending-wrap .card.faceup.power::after{padding:5px 2px;font-size:9px}
+@media(prefers-reduced-motion:no-preference){
+  .slot-button.faceup.power:hover{transform:translateY(-3px);box-shadow:0 11px 22px rgba(39,29,77,.42),0 0 0 2px color-mix(in srgb,var(--power-accent) 58%,transparent)}
+  .slot-button.faceup.power.selected:hover{transform:translateY(-8px)}
+}

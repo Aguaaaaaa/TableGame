@@ -34,6 +34,25 @@ test("CABO入场页采用月下精怪外壳并保留房间契约", () => {
   assert.ok(fs.existsSync(path.join(root, "assets", "moonlit-cabo-arrival-v1.png")));
 });
 
+test("CABO semantic power cards use illustrated faces without exposing hidden cards", () => {
+  const script = read("app.js");
+  const css = read("styles.css");
+
+  assert.match(script, /const POWER_CARD_COPY=\{PEEK:/);
+  assert.match(script, /const accessibility=shown\?cardAccessibility\(slot\.value\):"背面牌"/);
+  assert.match(script, /aria-label="\$\{escapeHtml\(accessibility\)\}"/);
+  assert.match(script, /const discardAccessibility=view\.discardTop\?cardAccessibility/);
+  assert.match(css, /\.card\.faceup\.power\[data-power="PEEK"\][^}]*cabo-peek-v1\.jpg/);
+  assert.match(css, /\.card\.faceup\.power\[data-power="SPY"\][^}]*cabo-spy-v1\.jpg/);
+  assert.match(css, /\.card\.faceup\.power\[data-power="SWAP"\][^}]*cabo-swap-v1\.jpg/);
+  assert.match(css, /data-power="PEEK"\]::after\{content:"◉ PEEK"\}/);
+  assert.match(css, /data-power="SPY"\]::after\{content:"✧ SPY"\}/);
+  assert.match(css, /data-power="SWAP"\]::after\{content:"⇄ SWAP"\}/);
+  assert.ok(fs.existsSync(path.join(root, "assets", "cards", "cabo-peek-v1.jpg")));
+  assert.ok(fs.existsSync(path.join(root, "assets", "cards", "cabo-spy-v1.jpg")));
+  assert.ok(fs.existsSync(path.join(root, "assets", "cards", "cabo-swap-v1.jpg")));
+});
+
 test("房间设置并入标题栏，侧栏按积分、规则、记录和旁观排序", () => {
   const html = read("index.html");
   const headerStart = html.indexOf('<header id="hero"');

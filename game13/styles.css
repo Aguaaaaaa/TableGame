@@ -165,3 +165,231 @@
 @media(max-width:1050px){.hero.in-room{align-items:flex-start}.hero.in-room .hero-meta{flex:1}.room-header-tools{justify-content:flex-end}}
 @media(max-width:850px){.hero.in-room{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px}.hero.in-room .hero-meta{min-width:0}.hero.in-room .status{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.room-header-tools{width:100%;justify-content:flex-end}.host-tools{justify-content:flex-end}.room-layout{display:flex;flex-direction:column}.game-area{order:1}.room-layout aside{order:2;grid-template-columns:1fr 1fr;margin-top:10px}.score-card{grid-column:auto}.rules-card,.sidebar-log{grid-column:1/-1}}
 @media(max-width:540px){.hero.in-room{grid-template-columns:1fr}.hero.in-room .hero-title{display:none}.hero-meta{justify-content:stretch}.hero.in-room .status{margin-left:auto}.room-header-tools{justify-content:flex-start}.room-identity{flex:1 1 auto}.host-tools{flex:1 1 100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.host-tools label{min-width:0}.host-tools select,.host-tools button{width:100%}.room-layout aside{grid-template-columns:1fr}.score-card,.rules-card,.sidebar-log{display:block;grid-column:1}}
+
+/* CABO arrival shell: a moonlit fairy path before the hidden-card table. */
+.cabo-arrival{
+  position:relative;
+  isolation:isolate;
+  display:grid;
+  grid-template-columns:minmax(0,1.16fr) minmax(380px,.84fr);
+  align-items:stretch;
+  gap:clamp(30px,5vw,76px);
+  width:100%;
+  max-width:none;
+  min-height:min(700px,calc(100vh - 156px));
+  margin:8px 0 0;
+  padding:clamp(30px,4.4vw,64px);
+  overflow:hidden;
+  border:1px solid rgba(218,204,247,.72);
+  border-radius:28px;
+  background:
+    linear-gradient(90deg,rgba(25,29,69,.91) 0%,rgba(37,44,93,.66) 34%,rgba(57,59,111,.14) 59%,rgba(37,29,69,.74) 100%),
+    linear-gradient(0deg,rgba(34,27,70,.84),transparent 57%),
+    url("assets/moonlit-cabo-arrival-v1.png") center/cover no-repeat;
+  box-shadow:0 30px 82px rgba(49,38,84,.36),inset 0 0 0 7px rgba(255,255,255,.12),inset 0 0 86px rgba(43,31,82,.24);
+}
+.cabo-arrival::before{
+  position:absolute;
+  z-index:-1;
+  inset:12px;
+  border:1px solid rgba(255,244,207,.24);
+  border-radius:20px;
+  content:"";
+  pointer-events:none;
+}
+.cabo-arrival::after{
+  position:absolute;
+  z-index:-1;
+  inset:0;
+  background-image:radial-gradient(circle,rgba(255,242,179,.65) 0 1px,transparent 1.7px),radial-gradient(circle,rgba(205,248,238,.5) 0 1.1px,transparent 1.9px);
+  background-position:13px 20px,61px 48px;
+  background-size:103px 103px,139px 139px;
+  content:"";
+  opacity:.28;
+  pointer-events:none;
+}
+.cabo-briefing{
+  align-self:center;
+  max-width:700px;
+  margin-top:clamp(-24px,-2vh,-10px);
+  padding:clamp(18px,3vw,32px);
+  border-left:2px solid #fff0aa;
+  border-radius:0 24px 24px 0;
+  color:#fffbea;
+  background:linear-gradient(90deg,rgba(37,35,87,.91),rgba(68,61,123,.35),transparent);
+  text-shadow:0 2px 15px rgba(33,25,72,.78);
+}
+.arrival-kicker{margin:0 0 13px;color:#c9f0e6;font-size:10px;font-weight:900;letter-spacing:.2em}
+.cabo-briefing h2{
+  max-width:670px;
+  margin:0;
+  color:#fff9df;
+  font:800 clamp(30px,3.4vw,51px)/1.2 Georgia,"Noto Serif SC","STSong",serif;
+  letter-spacing:.02em;
+}
+.arrival-lead{max-width:610px;margin:18px 0 23px;color:#e3def1;font-size:13px;line-height:1.85}
+.memory-route{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.memory-route li{
+  display:flex;
+  min-width:0;
+  gap:9px;
+  padding:12px 10px;
+  border:1px solid rgba(224,214,251,.33);
+  border-top-color:rgba(255,240,170,.64);
+  border-radius:15px;
+  background:linear-gradient(145deg,rgba(85,83,151,.78),rgba(44,39,99,.88));
+  box-shadow:inset 0 1px rgba(255,255,255,.1),0 8px 20px rgba(35,28,75,.24);
+}
+.memory-route li>span{color:#fff0aa;font:800 12px/1.3 Georgia,serif}
+.memory-route div{display:grid;min-width:0;gap:4px}
+.memory-route b{color:#fffbea;font-size:11px;white-space:nowrap}
+.memory-route small{color:#d0c8e4;font-size:9px;line-height:1.45}
+.forest-whisper{display:flex;align-items:center;gap:9px;margin-top:16px;color:#d5cfdf;font-size:10px;letter-spacing:.06em}
+.forest-whisper>span{color:#fff0aa;text-shadow:0 0 12px #fff0aa}
+.forest-whisper i{width:52px;height:1px;background:linear-gradient(90deg,#b7efe2,#fff0aa,#e5c1f2)}
+
+.fae-lodge-access{
+  align-self:center;
+  justify-self:end;
+  width:100%;
+  max-width:490px;
+  padding:clamp(20px,2.8vw,30px);
+  border:1px solid rgba(255,240,184,.72);
+  border-radius:24px 24px 18px 18px;
+  color:#40365e;
+  background:linear-gradient(145deg,rgba(255,251,237,.96),rgba(239,231,250,.94));
+  box-shadow:0 25px 72px rgba(39,29,77,.58),inset 0 0 0 4px rgba(255,255,255,.58),inset 0 -34px 72px rgba(193,170,225,.18);
+  backdrop-filter:blur(13px);
+}
+.lodge-heading{position:relative;margin-bottom:20px;padding-left:61px}
+.lodge-heading p{margin:0 0 5px;color:#6c6fa9;font-size:9px;font-weight:900;letter-spacing:.17em}
+.lodge-heading h2{margin:0;color:#4c3d73;font:800 25px Georgia,"Noto Serif SC","STSong",serif;letter-spacing:.045em}
+.lodge-heading small{display:block;margin-top:7px;color:#776d89;font-size:11px;line-height:1.55}
+.moon-sigil{
+  position:absolute;
+  left:0;
+  top:1px;
+  display:grid;
+  place-items:center;
+  width:47px;
+  height:52px;
+  overflow:hidden;
+  border:1px solid #b6a0cd;
+  border-radius:50% 50% 44% 44%;
+  background:radial-gradient(circle at 62% 35%,#fff8c7 0 22%,#bcb0dd 23% 31%,#655a9d 64%,#40376f);
+  box-shadow:inset 0 0 0 3px #fff5,0 5px 15px rgba(59,45,104,.25);
+}
+.moon-sigil span{position:absolute;left:9px;width:25px;height:25px;border-radius:50%;background:#534a87;box-shadow:7px -4px 0 #fff6c0}
+.moon-sigil i{position:absolute;right:5px;bottom:4px;color:#fff5ba;font-size:10px;font-style:normal;text-shadow:0 0 8px #fff}
+.cabo-arrival .mode-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 12px}
+.cabo-arrival .mode-tabs button{
+  display:grid;
+  gap:4px;
+  min-width:0;
+  min-height:62px;
+  padding:10px 12px;
+  border:1px solid #d2c6e1;
+  border-radius:13px;
+  color:#7a708d;
+  text-align:left;
+  background:linear-gradient(#fffdf6,#eee8f6);
+  box-shadow:inset 0 -10px 18px rgba(142,112,180,.08);
+}
+.cabo-arrival .mode-tabs button b{color:#55476f;font-size:12px}
+.cabo-arrival .mode-tabs button small{color:#847a94;font-size:9px;font-weight:600;white-space:nowrap}
+.cabo-arrival .mode-tabs button.active{
+  color:#fff;
+  border-color:#7779ad;
+  background:linear-gradient(135deg,#777eb9,#886da8);
+  box-shadow:inset 4px 0 #fff0aa,0 7px 19px rgba(94,78,151,.28);
+}
+.cabo-arrival .mode-tabs button.active b,.cabo-arrival .mode-tabs button.active small{color:#fff}
+.lodge-form-shell{padding:17px;border:1px solid #d8cbe4;border-radius:16px;background:rgba(255,253,246,.72);box-shadow:inset 0 0 28px rgba(128,99,162,.09)}
+.cabo-arrival .fae-form{
+  display:grid;
+  grid-template-columns:1fr;
+  align-items:stretch;
+  gap:15px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.form-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px dashed #cdbedb}
+.form-heading span{color:#7779ad;font:900 9px monospace;letter-spacing:.12em}
+.form-heading b{color:#685d79;font-size:11px}
+.fae-fields{display:grid;grid-template-columns:minmax(0,1fr) 108px;gap:10px}
+.cabo-arrival .fae-fields label{display:grid;gap:6px;color:#746a84;font-size:10px;font-weight:800}
+.cabo-arrival .fae-fields input,.cabo-arrival .fae-fields select{
+  width:100%;
+  min-width:0;
+  height:43px;
+  padding:8px 11px;
+  border:1px solid #c9bbd7;
+  border-radius:10px;
+  color:#493d63;
+  outline:none;
+  background:#fffdf8;
+  box-shadow:inset 0 2px 5px rgba(69,53,97,.08);
+}
+.cabo-arrival .fae-fields input:focus,.cabo-arrival .fae-fields select:focus{border-color:#8275ae;box-shadow:0 0 0 3px rgba(130,117,174,.16)}
+.cabo-arrival #roomCodeInput{text-transform:uppercase;font:900 18px monospace;letter-spacing:.15em}
+.fae-submit{
+  display:grid;
+  gap:3px;
+  min-height:53px;
+  border-radius:11px;
+  text-align:left;
+  background:linear-gradient(135deg,#767caf,#9a6fa2);
+  box-shadow:inset 4px 0 #fff0aa,0 8px 21px rgba(84,61,123,.3);
+}
+.fae-submit b{font-size:12px;letter-spacing:.035em}
+.fae-submit small{color:#f3eafb;font-size:9px;font-weight:600}
+.cabo-arrival .join-intent{margin:0;border-color:#d3c5df;border-radius:12px;background:#f1eafa}
+.cabo-arrival .join-intent legend{color:#71649a}
+.cabo-arrival .join-intent label{color:#594d6f;background:#fffdf8}
+.cabo-arrival .join-intent small{color:#82778e}
+.lodge-footnote{display:flex;align-items:center;gap:8px;margin:13px 0 0;color:#83788f;font-size:9px}
+.lodge-footnote>span{width:8px;height:8px;border-radius:50%;background:#7fc9b8;box-shadow:0 0 10px #7fc9b8}
+
+@media(max-width:980px){
+  .cabo-arrival{grid-template-columns:minmax(0,1fr) minmax(350px,.9fr);gap:22px;padding:29px}
+  .cabo-briefing{margin-top:-12px;padding:20px}
+  .memory-route{grid-template-columns:1fr}
+  .memory-route small{display:none}
+}
+@media(max-width:720px){
+  .hero:not(.in-room){align-items:center;margin-bottom:12px}
+  .hero:not(.in-room) .hero-title>p:last-child{display:none}
+  .cabo-arrival{
+    grid-template-columns:1fr;
+    gap:17px;
+    min-height:auto;
+    margin-top:0;
+    padding:20px 15px;
+    border-radius:20px;
+    background-position:51% center;
+  }
+  .cabo-briefing{align-self:start;margin-top:0;padding:18px 14px;background:linear-gradient(90deg,rgba(37,35,87,.94),rgba(68,61,123,.55))}
+  .cabo-briefing h2{font-size:clamp(26px,8vw,37px)}
+  .arrival-lead{margin:12px 0 16px;font-size:11px}
+  .memory-route{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .memory-route li{display:grid;gap:4px;padding:9px 7px}
+  .memory-route b{font-size:10px}
+  .forest-whisper{display:none}
+  .fae-lodge-access{justify-self:stretch;max-width:none;padding:18px 15px;border-radius:18px}
+  .lodge-heading{margin-bottom:16px;padding-left:53px}
+  .lodge-heading h2{font-size:21px}
+  .moon-sigil{width:42px;height:46px}
+}
+@media(max-width:430px){
+  .hero:not(.in-room) .eyebrow{display:none}
+  .hero:not(.in-room) h1{font-size:44px}
+  .cabo-arrival{padding:13px 9px}
+  .cabo-briefing{padding:14px 11px}
+  .cabo-arrival .mode-tabs button{min-height:54px;padding:8px}
+  .cabo-arrival .mode-tabs button small{display:none}
+  .lodge-form-shell{padding:13px}
+  .fae-fields{grid-template-columns:minmax(0,1fr) 94px}
+}

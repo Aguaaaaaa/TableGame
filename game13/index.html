@@ -27,25 +27,53 @@
     </div>
   </header>
 
-  <section id="setupPanel" class="setup-wrap">
-    <div class="mode-tabs"><button id="hostModeButton" class="active">创建房间</button><button id="guestModeButton">加入房间</button></div>
-    <div id="hostSetup" class="panel setup-card">
-      <div><p class="eyebrow">HOST A TABLE</p><h2>建立CABO牌局</h2></div>
-      <label>昵称<input id="hostNameInput" maxlength="12" value="房主"></label>
-      <label>人数<select id="playerCountSelect"><option>2</option><option>3</option><option selected>4</option></select></label>
-      <button id="createRoomButton" class="primary">创建房间</button>
-    </div>
-    <div id="guestSetup" class="panel setup-card hidden">
-      <div><p class="eyebrow">JOIN A TABLE</p><h2>进入好友牌局</h2></div>
-      <label>昵称<input id="guestNameInput" maxlength="12" value="玩家"></label>
-      <label>房间号<input id="roomCodeInput" maxlength="4" placeholder="例如 A7K2"></label>
-      <fieldset id="joinIntentField" class="join-intent hidden">
-        <legend>加入身份</legend>
-        <label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时进入玩家席；满员后自动旁观</small></span></label>
-        <label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>只查看已经公开的牌桌信息</small></span></label>
-      </fieldset>
-      <button id="joinRoomButton" class="primary">加入房间</button>
-    </div>
+  <section id="setupPanel" class="setup-wrap cabo-arrival">
+    <section class="cabo-briefing">
+      <p class="arrival-kicker">INTO THE MOONLIT WOODS · 月下寻踪</p>
+      <h2>记住雾里闪过的数字，在精怪发现你之前找到 CABO。</h2>
+      <p class="arrival-lead">四张牌藏在月色背后。窥视、交换、推断，用有限的记忆让自己的点数尽可能低，并在最恰当的时刻结束这场寻踪。</p>
+      <ol class="memory-route" aria-label="CABO月下寻踪流程">
+        <li><span>Ⅰ</span><div><b>偷看微光</b><small>记住开局短暂见到的两张牌</small></div></li>
+        <li><span>Ⅱ</span><div><b>抽牌换位</b><small>利用能力与线索修正隐藏牌阵</small></div></li>
+        <li><span>Ⅲ</span><div><b>呼唤 CABO</b><small>判断点数最低的时机结束本轮</small></div></li>
+      </ol>
+      <div class="forest-whisper"><span aria-hidden="true">✦</span><b>林间灯火已经亮起</b><i></i><b>精怪仍藏在雾中</b></div>
+    </section>
+
+    <section class="fae-lodge-access">
+      <header class="lodge-heading">
+        <div class="moon-sigil" aria-hidden="true"><span></span><i>✦</i></div>
+        <p>WAYFARER'S LODGE · 林间旅舍</p>
+        <h2>寻梦旅人登记簿</h2>
+        <small>点亮一张新的月下牌桌，或凭四位路标进入好友的寻踪故事。</small>
+      </header>
+
+      <div class="mode-tabs" aria-label="选择进入CABO牌局的方式">
+        <button id="hostModeButton" class="active"><b>创建房间</b><small>点亮新的林间牌桌</small></button>
+        <button id="guestModeButton"><b>加入房间</b><small>沿路标寻找好友</small></button>
+      </div>
+
+      <div class="lodge-form-shell">
+        <div id="hostSetup" class="panel setup-card fae-form">
+          <div class="form-heading"><span>MOON PATH / NEW</span><b>登记新的寻梦队伍</b></div>
+          <div class="fae-fields"><label><span>旅人昵称</span><input id="hostNameInput" maxlength="12" value="房主"></label><label><span>同行人数</span><select id="playerCountSelect"><option>2</option><option>3</option><option selected>4</option></select></label></div>
+          <button id="createRoomButton" class="primary fae-submit"><b>开启月下牌局</b><small>生成四位林间路标</small></button>
+        </div>
+
+        <div id="guestSetup" class="panel setup-card fae-form hidden">
+          <div class="form-heading"><span>MOON PATH / FOLLOW</span><b>核对林间路标</b></div>
+          <div class="fae-fields"><label><span>旅人昵称</span><input id="guestNameInput" maxlength="12" value="玩家"></label><label><span>四位房间号</span><input id="roomCodeInput" maxlength="4" placeholder="例如 A7K2" inputmode="text"></label></div>
+          <fieldset id="joinIntentField" class="join-intent hidden">
+            <legend>加入身份</legend>
+            <label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时进入玩家席；满员后自动旁观</small></span></label>
+            <label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>只查看已经公开的牌桌信息</small></span></label>
+          </fieldset>
+          <button id="joinRoomButton" class="primary fae-submit"><b>循着微光加入牌局</b><small>恢复席位或进入旁观席</small></button>
+        </div>
+      </div>
+
+      <p class="lodge-footnote"><span aria-hidden="true"></span>背面牌值与秘密查看结果只属于对应旅人</p>
+    </section>
   </section>
 
   <section id="roomPanel" class="room-layout hidden">

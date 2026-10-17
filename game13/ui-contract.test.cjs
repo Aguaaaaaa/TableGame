@@ -8,6 +8,32 @@ const test = require("node:test");
 const root = __dirname;
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
+test("CABO入场页采用月下精怪外壳并保留房间契约", () => {
+  const html = read("index.html");
+  const css = read("styles.css");
+  const setupStart = html.indexOf('id="setupPanel"');
+  const setupEnd = html.indexOf('id="roomPanel"', setupStart);
+  const setup = html.slice(setupStart, setupEnd);
+
+  assert.match(setup, /class="setup-wrap cabo-arrival"/);
+  assert.match(setup, /class="cabo-briefing"/);
+  assert.match(setup, /class="memory-route"/);
+  assert.match(setup, /class="fae-lodge-access"/);
+  assert.match(setup, /id="hostModeButton" class="active"/);
+  assert.match(setup, /id="guestModeButton"/);
+  assert.match(setup, /id="hostSetup" class="panel setup-card fae-form"/);
+  assert.match(setup, /id="guestSetup" class="panel setup-card fae-form hidden"/);
+  assert.match(setup, /id="hostNameInput" maxlength="12"/);
+  assert.match(setup, /id="roomCodeInput" maxlength="4"/);
+  assert.match(setup, /name="joinIntent" value="play" checked/);
+  assert.match(setup, /name="joinIntent" value="spectate"/);
+  assert.match(css, /url\("assets\/moonlit-cabo-arrival-v1\.png"\)/);
+  assert.match(css, /\.cabo-briefing\{[\s\S]*?align-self:center;[\s\S]*?margin-top:clamp\(-24px,-2vh,-10px\)/);
+  assert.match(css, /\.cabo-arrival \.mode-tabs\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /@media\(max-width:720px\)\{[\s\S]*?\.cabo-arrival\{[\s\S]*?grid-template-columns:1fr/);
+  assert.ok(fs.existsSync(path.join(root, "assets", "moonlit-cabo-arrival-v1.png")));
+});
+
 test("房间设置并入标题栏，侧栏按积分、规则、记录和旁观排序", () => {
   const html = read("index.html");
   const headerStart = html.indexOf('<header id="hero"');

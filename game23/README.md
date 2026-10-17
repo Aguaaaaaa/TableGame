@@ -8,3 +8,5 @@
 - 规则：`RULES.md`
 - 状态机：`STATE_MACHINE.md`
 - 视觉：`VISUAL_DESIGN.md`
+- 卡牌素材：`assets/cards/` 共 100 张；当前正式牌组使用 `card_00001.jpg`～`card_00084.jpg`，其余16张作为扩展储备。
+- 素材来源与授权记录：`assets/cards/SOURCE.md`

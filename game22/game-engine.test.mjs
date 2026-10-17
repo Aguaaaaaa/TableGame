@@ -20,3 +20,34 @@ test("序列化恢复保留秘密、绝对截止时间和演出序号",()=>{cons
 
 test("人数降到七人以下时自动关闭湖中仙女",()=>{const state=engine.createLobby({capacity:7,host:{id:"p1",name:"房主"}});act(state,"p1",{type:"setLadyEnabled",enabled:true});act(state,"p1",{type:"setCapacity",capacity:6});assert.equal(state.ladyEnabled,false);});
 
+test("只有房主能中止密议并清除全部秘密状态返回大厅",()=>{
+  const state=lobby();start(state);
+  const team=state.players.slice(0,questSize(state.capacity,state.questIndex)).map((player)=>player.id);
+  act(state,state.leaderId,{type:"proposeTeam",memberIds:team},2000);
+  act(state,"p1",{type:"submitTeamVote",approve:true},2100);
+  assert.equal(engine.buildView(state,"p1").permissions.canEnd,true);
+  assert.equal(engine.buildView(state,"p2").permissions.canEnd,false);
+  assert.throws(()=>act(state,"p2",{type:"end"},2200),/只有房主/);
+
+  act(state,"p1",{type:"end"},2300);
+  assert.equal(state.phase,"lobby");
+  assert.equal(state.deadline,0);
+  assert.equal(state.questIndex,0);
+  assert.equal(state.leaderId,null);
+  assert.deepEqual(state.proposedTeam,[]);
+  assert.deepEqual(state.teamVotes,{});
+  assert.deepEqual(state.questCards,{});
+  assert.deepEqual(state.questResults,[]);
+  assert.deepEqual(state.ladyFindings,[]);
+  assert.equal(state.assassinId,null);
+  assert.equal(state.merlinId,null);
+  assert.equal(state.result,null);
+  assert.equal(state.presentationEvents.length,0);
+  assert.ok(state.players.every((player)=>player.role===null&&!player.secretAcknowledged));
+  const hostView=engine.buildView(state,"p1"),spectatorView=engine.buildSpectatorView(state);
+  assert.equal(hostView.permissions.canEnd,false);
+  assert.equal(hostView.permissions.canStart,true);
+  assert.equal(hostView.selfRole,null);
+  assert.equal(spectatorView.selfRole,null);
+});
+

@@ -40,7 +40,7 @@ function resetMatchState(state) {
     leaderId: null, startingLeaderId: null, proposalNumber: 1, proposedTeam: [], teamVotes: {},
     lastTeamVoteResult: null, questCards: {}, questResults: [], goodQuests: 0, evilQuests: 0,
     ladyHolderId: null, ladyHistory: [], ladyFindings: [], assassinId: null, merlinId: null,
-    result: null
+    result: null, presentationEvents: []
   });
   state.players.forEach((player) => { player.role = null; player.secretAcknowledged = false; });
 }
@@ -217,6 +217,7 @@ export function applyAction(state, actorId, action, { now = Date.now(), random =
       finishGame(state, hit ? ALIGNMENT.EVIL : ALIGNMENT.GOOD, hit ? "刺客成功辨认并刺杀了梅林。" : "刺客未能找出梅林。", now, { assassinTargetId: target.id, merlinId: state.merlinId });
       break;
     }
+    case "end": requireHost(state, actorId); fail(state.phase === "lobby", "game_not_started", "当前没有可结束的游戏。", 409); resetMatchState(state); addLog(state, "房主结束了当前密议，所有骑士返回准备大厅。", now); break;
     case "nextMatch": requireHost(state, actorId); fail(state.phase !== "ended", "wrong_phase", "当前对局尚未结束。", 409); resetMatchState(state); break;
     default: throw new GameRuleError("unknown_action", "未知操作。");
   }
@@ -277,7 +278,8 @@ function buildPublicView(state, viewer = null) {
       canUseLady: Boolean(viewer && state.phase === "ladyInspect" && state.ladyHolderId === viewer.id),
       ladyTargetIds: viewer && state.phase === "ladyInspect" && state.ladyHolderId === viewer.id ? ladyTargets(state).map((player) => player.id) : [],
       canAssassinate: Boolean(viewer && state.phase === "assassination" && state.assassinId === viewer.id),
-      canNextMatch: Boolean(viewer?.isHost && state.phase === "ended")
+      canNextMatch: Boolean(viewer?.isHost && state.phase === "ended"),
+      canEnd: Boolean(viewer?.isHost && state.phase !== "lobby")
     }
   };
 }

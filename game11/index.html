@@ -27,11 +27,55 @@
       </div>
     </header>
 
-    <section id="setupPanel" class="panel setup-panel">
-      <div class="mode-tabs"><button id="hostModeButton" class="active">创建行动室</button><button id="guestModeButton">加入行动室</button></div>
-      <div id="hostSetup" class="setup-form"><label>代号<input id="hostNameInput" maxlength="12" value="情报主管"></label><label>总人数<select id="playerCountSelect"><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label><button id="createRoomButton" class="primary">建立加密频道</button></div>
-      <div id="guestSetup" class="setup-form hidden"><label>代号<input id="guestNameInput" maxlength="12" value="译码员"></label><label>房间号<input id="roomCodeInput" maxlength="4" autocomplete="off"></label><fieldset id="joinIntentField" class="join-intent hidden"><legend>接入身份</legend><label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时进入行动席；满员后自动旁观</small></span></label><label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>只能查看已经公开的情报</small></span></label></fieldset><button id="joinRoomButton" class="primary">接入频道</button></div>
-      <aside class="brief"><b>任务目标</b><p>保护己方四个秘密关键词，同时从公开提示中截获对方密码。两次截获即胜；两次传讯失败即败。</p></aside>
+    <section id="setupPanel" class="panel setup-panel signal-arrival">
+      <div class="signal-briefing">
+        <p class="arrival-kicker">INTERCEPT DIRECTIVE · 截获密令</p>
+        <h2>每一次发报，都是给队友的坐标，也是留给对手的破绽。</h2>
+        <p class="arrival-lead">两支情报小组共享同一段短波频率。保护己方四个秘密关键词，从不断累积的公开提示中还原敌方密码。</p>
+        <ol class="signal-route" aria-label="截码行动流程">
+          <li><span>01</span><div><b>编码发报</b><small>依照三位密码给出关联提示</small></div></li>
+          <li><span>02</span><div><b>双方破译</b><small>己方还原密码，敌方同步监听</small></div></li>
+          <li><span>03</span><div><b>争夺频道</b><small>两次截获或两次误传决定胜负</small></div></li>
+        </ol>
+        <div class="signal-objective"><span class="signal-lamp blue" aria-hidden="true"></span><b>保护密钥</b><i></i><b>监听提示</b><span class="signal-lamp red" aria-hidden="true"></span></div>
+      </div>
+
+      <div class="radio-access">
+        <header class="access-heading">
+          <div class="frequency-mark" aria-hidden="true"><span></span><i></i><span></span></div>
+          <p>SECURE FREQUENCY · 加密频段</p>
+          <h2>行动室接入台</h2>
+          <small>建立新的监听频道，或使用四位房间号调谐至已有行动。</small>
+        </header>
+
+        <div class="mode-tabs" aria-label="选择接入方式">
+          <button id="hostModeButton" class="active"><b>创建行动室</b><small>建立新的加密频道</small></button>
+          <button id="guestModeButton"><b>加入行动室</b><small>调谐至已有频道</small></button>
+        </div>
+
+        <div class="access-form-shell">
+          <div id="hostSetup" class="setup-form station-form">
+            <div class="station-form-head"><span>CHANNEL / NEW</span><b>部署监听小组</b></div>
+            <div class="station-fields">
+              <label><span>行动代号</span><input id="hostNameInput" maxlength="12" value="情报主管"></label>
+              <label><span>总人数</span><select id="playerCountSelect"><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
+            </div>
+            <button id="createRoomButton" class="primary station-submit"><b>建立加密频道</b><small>生成四位行动室代码</small></button>
+          </div>
+
+          <div id="guestSetup" class="setup-form station-form hidden">
+            <div class="station-form-head"><span>CHANNEL / TUNE</span><b>接入现有频道</b></div>
+            <div class="station-fields">
+              <label><span>行动代号</span><input id="guestNameInput" maxlength="12" value="译码员"></label>
+              <label><span>四位房间号</span><input id="roomCodeInput" maxlength="4" autocomplete="off" inputmode="text"></label>
+            </div>
+            <fieldset id="joinIntentField" class="join-intent hidden"><legend>接入身份</legend><label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时进入行动席；满员后自动旁观</small></span></label><label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>只能查看已经公开的情报</small></span></label></fieldset>
+            <button id="joinRoomButton" class="primary station-submit"><b>验证频道并接入</b><small>恢复席位或进入新行动</small></button>
+          </div>
+        </div>
+
+        <p class="access-footnote"><span aria-hidden="true"></span>频道内容仅在对应行动室内同步</p>
+      </div>
     </section>
 
     <section id="roomPanel" class="hidden">

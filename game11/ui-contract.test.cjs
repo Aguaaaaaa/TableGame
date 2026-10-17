@@ -8,6 +8,31 @@ const test = require("node:test");
 const root = __dirname;
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
+test("entry shell keeps room contracts while presenting the radio interception theme", () => {
+  const html = read("index.html");
+  const css = read("styles.css");
+  const setupStart = html.indexOf('id="setupPanel"');
+  const setupEnd = html.indexOf('id="roomPanel"', setupStart);
+  const setup = html.slice(setupStart, setupEnd);
+
+  assert.match(setup, /class="panel setup-panel signal-arrival"/);
+  assert.match(setup, /class="signal-briefing"/);
+  assert.match(setup, /class="signal-route"/);
+  assert.match(setup, /class="radio-access"/);
+  assert.match(setup, /id="hostModeButton" class="active"/);
+  assert.match(setup, /id="guestModeButton"/);
+  assert.match(setup, /id="hostSetup" class="setup-form station-form"/);
+  assert.match(setup, /id="guestSetup" class="setup-form station-form hidden"/);
+  assert.match(setup, /id="hostNameInput" maxlength="12"/);
+  assert.match(setup, /id="roomCodeInput" maxlength="4"/);
+  assert.match(setup, /name="joinIntent" value="play" checked/);
+  assert.match(setup, /name="joinIntent" value="spectate"/);
+  assert.match(css, /url\("\.\/assets\/intercept-radio-arrival-v1\.png"\)/);
+  assert.match(css, /\.signal-arrival \.mode-tabs\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /@media\(max-width:700px\)\{[\s\S]*?\.signal-arrival\{[\s\S]*?grid-template-columns:1fr/);
+  assert.ok(fs.existsSync(path.join(root, "assets", "intercept-radio-arrival-v1.png")));
+});
+
 test("房间身份与房主控制并入标题，指挥条仅保留阶段和倒计时", () => {
   const html = read("index.html");
   const headerStart = html.indexOf('<header id="masthead"');

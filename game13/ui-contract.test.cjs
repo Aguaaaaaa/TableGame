@@ -123,3 +123,16 @@ test("手机端牌桌优先且四张固定牌位继续完整展示", () => {
   assert.match(css, /\.presentation-trail\.active/);
   assert.match(css, /\.presentation-token/);
 });
+
+test("CABO权威视图按牌桌、玩家牌位、私人决策和通知分区更新", () => {
+  const script=read("app.js");
+  const partitions=read("render-partitions.mjs");
+  assert.match(script,/createGame13PartitionRenderer/);
+  assert.match(script,/createGame13RenderModel/);
+  assert.match(script,/room:renderRoom,status:renderStatus,table:renderTable/);
+  assert.match(script,/players:\(model\)=>renderPlayers\(model\.memberRole\),targetNotice:renderTargetNotice/);
+  assert.match(script,/existing=new Map\(\[\.\.\.E\.players\.querySelectorAll/);
+  assert.match(script,/const canSelect=next\.permissions\.canInitialPeek\|\|next\.permissions\.canExchange/);
+  assert.match(script,/spectatorUi\.render\(view\)/);
+  assert.match(partitions,/"room","status","table","players","targetNotice","score","decision","result","log","countdown"/);
+});

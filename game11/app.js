@@ -6,6 +6,7 @@ import {
   setModeVisibility
 } from "/shared/client/index.js";
 import { isValidCode, validateClues } from "./rules.js";
+import { createGame11PartitionRenderer, createGame11RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const CLUE_SECONDS = 150;
@@ -23,6 +24,7 @@ let localGuessDraft = null;
 let clueEditorKey = "";
 let tiebreakEditorKey = "";
 let spectatorUi = null;
+let partitionRenderer = null;
 const sessions = createSessionStore({ gameId: "decrypto" });
 const countdown = createCountdown({ onTick(value) { renderCountdown({ textElement:E.timerText, barElement:E.timerBar }, value); } });
 const room = createAuthoritativeRoomClient({
@@ -124,66 +126,72 @@ function scoreHtml(current, team) {
 
 function codeText(code) { return code?.length ? code.join(" - ") : "未提交"; }
 
-function renderGame(current, memberRole) {
-  const me = current.players.find((player) => player.id === current.selfId);
-  const active = TEAM_NAME[current.turnTeam];
-  const encryptor = current.players.find((player) => player.id === current.encryptorId);
-  const own = me?.team ? current.teams[me.team] : null;
-  E.myTeamBadge.textContent = TEAM_NAME[me?.team] || "观察员";
-  E.myTeamBadge.className = `team-badge ${me?.team || ""}`;
-  E.keywordRack.innerHTML = own?.keywords.map((word, index) => `<div class="keyword"><b>${index+1}</b><span>${escapeHtml(word)}</span></div>`).join("") || `<p>${memberRole === "spectator" ? "双方关键词在行动结束前均对旁观者保密。" : "你没有队伍关键词。"}</p>`;
-  setHidden(E.secretCode, !current.code);
-  E.secretCode.textContent = current.code ? `本轮密码：${codeText(current.code)}` : "";
-  E.operationTitle.textContent = `${active}传讯`;
-  E.encryptorName.textContent = encryptor ? `传讯者：${encryptor.name}` : "";
-  setHidden(E.clueComposer, !current.permissions?.canSubmitClues);
-  if (current.permissions?.canSubmitClues) {
-    const nextClueKey = [room.snapshot().roomCode,current.round,current.turnTeam,current.encryptorId,current.selfId,"clues"].join(":");
-    if (clueEditorKey !== nextClueKey) {
-      clueEditorKey = nextClueKey;
-      [E.clue1.value,E.clue2.value,E.clue3.value] = ["","",""];
-    }
-  } else clueEditorKey = "";
-  E.clueDisplay.innerHTML = current.clues.map((clue, index) => `<div class="clue-card"><b>${index+1}</b><span>${escapeHtml(clue)}</span></div>`).join("");
-
-  const guessRole = current.permissions?.guessRole;
-  const canGuess = current.phase === "guess"
-    && ((guessRole === "decode" && !current.guessStatus.decode)
-      || (guessRole === "intercept" && !current.guessStatus.intercept));
-  const editorKey = `${current.round}:${current.turnTeam}:${current.selfId}`;
-  if (canGuess && guessEditorKey !== editorKey) {
-    guessEditorKey = editorKey;
-    localGuessDraft = { key:editorKey, values:(current.guessDraft || [1,2,3]).map(String) };
-  }
-  setHidden(E.guessComposer, !canGuess);
-  if (canGuess && localGuessDraft?.key === editorKey) {
-    [E.guess1.value, E.guess2.value, E.guess3.value] = localGuessDraft.values;
-  }
-  if (!canGuess && current.phase !== "tiebreak") { guessEditorKey = ""; localGuessDraft = null; }
-  if (canGuess) {
-    const roleText = guessRole === "decode"
-      ? `你是${active}指定的提交者，请提交己方破译。`
-      : `你是${TEAM_NAME[me?.team]}指定的提交者，请提交拦截猜测。`;
-    E.guessRoleText.textContent = `${roleText}${current.guessDraft ? " 当前选择已保存，超时将自动锁定。" : " 修改选择后会自动保存；若不修改，请点击按钮确认当前选择。"}`;
-  }
-
-  if (current.phase === "tiebreak") {
-    const canSubmit = current.permissions?.canSubmitTiebreak;
-    setHidden(E.guessComposer, !canSubmit);
-    E.guessRoleText.textContent = "最终裁决：依次输入你认为对方 1–4 号位置的关键词。";
-    const nextTiebreakKey = [room.snapshot().roomCode,current.round,current.selfId,"tiebreak"].join(":");
-    if (canSubmit && tiebreakEditorKey !== nextTiebreakKey) {
-      tiebreakEditorKey = nextTiebreakKey;
-      document.querySelector(".code-inputs").innerHTML = [1,2,3,4].map((number) => `<input class="tie-word" maxlength="30" placeholder="${number} 号关键词">`).join("");
-      E.submitGuessButton.textContent = "提交关键词猜测";
-    }
-  } else tiebreakEditorKey = "";
-
-  E.waitingText.innerHTML = `${escapeHtml(statusText(current))}${memberRole === "spectator" ? '<p class="spectator-action-note">旁观模式仅显示公开提示、提交状态和已揭晓记录；双方关键词、当前密码、猜码草稿与最终裁决答案不会提前显示。</p>' : ""}`;
-  E.whiteScore.innerHTML = scoreHtml(current, "white");
-  E.blackScore.innerHTML = scoreHtml(current, "black");
-  renderHistory(current);
+function renderRoom(model) {
+  const current=model.view,lobby=current.phase==="lobby",ended=current.phase==="ended";
+  E.roomCodeDisplay.textContent=model.roomCode;
+  setHidden(E.hostTools,!current.permissions?.canManage);
+  setHidden(E.lobbyArea,!lobby);setHidden(E.gameArea,lobby||ended);setHidden(E.resultPanel,!ended);
+  setHidden(E.startGameButton,!current.permissions?.canStart);E.startGameButton.disabled=!canStartView(current);
+  setHidden(E.endGameButton,!current.permissions?.canEnd);
 }
+
+function renderStatus(model) {
+  const current=model.view,lobby=current.phase==="lobby";
+  E.phaseBadge.textContent={lobby:"等待部署",clue:"编写提示",guess:"猜码中",reveal:"密码公开",tiebreak:"最终裁决",ended:"行动结束"}[current.phase];
+  E.roundText.textContent=`第 ${current.round} / 8 轮`;
+  E.notice.textContent=lobby
+    ? model.memberRole==="spectator"?"你正在旁观部署阶段，可在玩家席有空位时切换身份。":`当前 ${current.players.length} / ${current.capacity} 人；所有人入座且每队至少 2 人后开始。`
+    : `${model.memberRole==="spectator"?"正在旁观 · ":""}${noticeText(current)}`;
+}
+
+function renderLobbyPartition(model) { if(model.view.phase==="lobby") renderLobby(model.view,model.memberRole); }
+
+function renderPrivateIntel(model) {
+  const current=model.view,me=model.me,own=me?.team?current.teams[me.team]:null;
+  E.myTeamBadge.textContent=TEAM_NAME[me?.team]||"观察员";E.myTeamBadge.className=`team-badge ${me?.team||""}`;
+  E.keywordRack.innerHTML=own?.keywords.map((word,index)=>`<div class="keyword"><b>${index+1}</b><span>${escapeHtml(word)}</span></div>`).join("")||`<p>${model.memberRole==="spectator"?"双方关键词在行动结束前均对旁观者保密。":"你没有队伍关键词。"}</p>`;
+  setHidden(E.secretCode,!current.code);E.secretCode.textContent=current.code?`本轮密码：${codeText(current.code)}`:"";
+}
+
+function renderTransmission(model) {
+  const current=model.view;
+  E.operationTitle.textContent=`${TEAM_NAME[current.turnTeam]}传讯`;
+  E.encryptorName.textContent=model.encryptor?`传讯者：${model.encryptor.name}`:"";
+  E.clueDisplay.innerHTML=current.clues.map((clue,index)=>`<div class="clue-card"><b>${index+1}</b><span>${escapeHtml(clue)}</span></div>`).join("");
+  E.waitingText.innerHTML=`${escapeHtml(statusText(current))}${model.memberRole==="spectator"?'<p class="spectator-action-note">旁观模式仅显示公开提示、提交状态和已揭晓记录；双方关键词、当前密码、猜码草稿与最终裁决答案不会提前显示。</p>':""}`;
+}
+
+function renderDecision(model) {
+  const current=model.view,mode=model.decisionContext.mode;
+  setHidden(E.clueComposer,mode!=="compose-clues");setHidden(E.guessComposer,!["guess:decode","guess:intercept","compose-tiebreak"].includes(mode));
+  if(mode==="compose-clues") {
+    const nextClueKey=[model.roomCode,current.round,current.turnTeam,current.encryptorId,current.selfId,"clues"].join(":");
+    if(clueEditorKey!==nextClueKey){clueEditorKey=nextClueKey;[E.clue1.value,E.clue2.value,E.clue3.value]=["","",""];}
+  } else clueEditorKey="";
+  if(mode.startsWith("guess:")) {
+    if(!E.guess1.isConnected)populateCodeSelects();
+    const editorKey=`${current.round}:${current.turnTeam}:${current.selfId}`;
+    if(guessEditorKey!==editorKey){guessEditorKey=editorKey;localGuessDraft={key:editorKey,values:(current.guessDraft||[1,2,3]).map(String)};}
+    if(localGuessDraft?.key===editorKey)[E.guess1.value,E.guess2.value,E.guess3.value]=localGuessDraft.values;
+    tiebreakEditorKey="";
+  } else if(mode==="compose-tiebreak") {
+    guessEditorKey="";localGuessDraft=null;
+    const nextTiebreakKey=[model.roomCode,current.round,current.selfId,"tiebreak"].join(":");
+    if(tiebreakEditorKey!==nextTiebreakKey){tiebreakEditorKey=nextTiebreakKey;document.querySelector(".code-inputs").innerHTML=[1,2,3,4].map((number)=>`<input class="tie-word" maxlength="30" placeholder="${number} 号关键词">`).join("");E.submitGuessButton.textContent="提交关键词猜测";}
+  } else {guessEditorKey="";localGuessDraft=null;tiebreakEditorKey="";}
+}
+
+function renderDecisionFacts(model) {
+  const current=model.view,mode=model.decisionContext.mode;
+  if(mode.startsWith("guess:")) {
+    const localCode=localGuessDraft?.values?.map(Number);
+    if(localCode?.length===3&&!isValidCode(localCode)){E.guessRoleText.textContent="当前组合包含重复数字，尚未保存；超时仍会采用上一次合法选择。";return;}
+    const roleText=current.permissions.guessRole==="decode"?`你是${TEAM_NAME[current.turnTeam]}指定的提交者，请提交己方破译。`:`你是${TEAM_NAME[model.me?.team]}指定的提交者，请提交拦截猜测。`;
+    E.guessRoleText.textContent=`${roleText}${current.guessDraft?" 当前选择已保存，超时将自动锁定。":" 修改选择后会自动保存；若不修改，请点击按钮确认当前选择。"}`;
+  } else if(mode==="compose-tiebreak") E.guessRoleText.textContent="最终裁决：依次输入你认为对方 1–4 号位置的关键词。";
+}
+
+function renderScores(model) { E.whiteScore.innerHTML=scoreHtml(model.view,"white");E.blackScore.innerHTML=scoreHtml(model.view,"black"); }
 
 function statusText(current) {
   if (current.phase === "clue") return current.permissions?.canSubmitClues ? "请按密码顺序写出三条全新提示。" : "传讯者正在编写三条提示……";
@@ -205,6 +213,14 @@ function renderResult(current) {
   E.winnerText.textContent = names.length === 2 ? "最终裁决仍然平手，双方共同获胜" : `${names[0]}完成截码任务`;
   E.finalKeywords.innerHTML = ["white","black"].map((team) => `<div><b>${TEAM_NAME[team]}</b><p>${current.teams[team].keywords.map((word,index) => `${index+1}. ${escapeHtml(word)}`).join("　")}</p></div>`).join("");
   E.finalRecords.innerHTML = `共完成 ${current.records.length} 次传讯，全部密码与提示已在上方档案公开。`;
+}
+
+function renderHistoryPartition(model) { renderHistory(model.view); }
+function renderResultPartition(model) { if(model.view.phase==="ended")renderResult(model.view); }
+function renderCountdownPartition(model) {
+  const current=model.view;
+  if(current.deadline){const duration=current.phase==="clue"?CLUE_SECONDS:current.phase==="reveal"?REVEAL_SECONDS:GUESS_SECONDS;countdown.start(current.deadline,duration*1000);setHidden(E.timerWrap,false);}
+  else{countdown.stop();setHidden(E.timerWrap,true);}
 }
 
 function canStartView(current) {
@@ -229,35 +245,9 @@ function render() {
   if (!current) return;
   const spectatorModel = spectatorUi.render(current);
   const memberRole = spectatorModel.memberRole;
-  const lobby = current.phase === "lobby";
-  const ended = current.phase === "ended";
-  if (lobby && !E.guess1.isConnected) populateCodeSelects();
-  E.roomCodeDisplay.textContent = room.snapshot().roomCode;
-  setHidden(E.hostTools, !current.permissions?.canManage);
-  E.phaseBadge.textContent = {lobby:"等待部署",clue:"编写提示",guess:"猜码中",reveal:"密码公开",tiebreak:"最终裁决",ended:"行动结束"}[current.phase];
-  E.roundText.textContent = `第 ${current.round} / 8 轮`;
-  setHidden(E.lobbyArea, !lobby);
-  setHidden(E.gameArea, lobby || ended);
-  setHidden(E.resultPanel, !ended);
-  setHidden(E.startGameButton, !current.permissions?.canStart);
-  E.startGameButton.disabled = !canStartView(current);
-  setHidden(E.endGameButton, !current.permissions?.canEnd);
-  E.notice.textContent = lobby
-    ? memberRole === "spectator"
-      ? "你正在旁观部署阶段，可在玩家席有空位时切换身份。"
-      : `当前 ${current.players.length} / ${current.capacity} 人；所有人入座且每队至少 2 人后开始。`
-    : `${memberRole === "spectator" ? "正在旁观 · " : ""}${noticeText(current)}`;
-  renderLobby(current, memberRole);
-  if (!lobby) renderGame(current, memberRole);
-  if (ended) renderResult(current);
-  if (current.deadline) {
-    const duration = current.phase === "clue" ? CLUE_SECONDS : current.phase === "reveal" ? REVEAL_SECONDS : GUESS_SECONDS;
-    countdown.start(current.deadline, duration * 1000);
-    setHidden(E.timerWrap, false);
-  } else {
-    countdown.stop();
-    setHidden(E.timerWrap, true);
-  }
+  const model=createGame11RenderModel(current,{memberRole,roomCode:room.snapshot().roomCode});
+  partitionRenderer??=createGame11PartitionRenderer({room:renderRoom,status:renderStatus,lobby:renderLobbyPartition,privateIntel:renderPrivateIntel,transmission:renderTransmission,decision:renderDecision,decisionFacts:renderDecisionFacts,scores:renderScores,history:renderHistoryPartition,result:renderResultPartition,countdown:renderCountdownPartition});
+  partitionRenderer.render(model);
 }
 
 function populateCodeSelects() {

@@ -214,7 +214,7 @@ test("game6 page consumes the shared spectator UI and hides its private hand pan
   assert.match(html,/shared\/styles\/spectator\.css/);
   assert.match(script,/createSpectatorUi/);
   assert.match(script,/spectatorUi\.render\(view\)/);
-  assert.match(script,/setHidden\(E\.turnHandPanel,memberRole === "spectator"\)/);
+  assert.match(script,/setHidden\(E\.turnHandPanel,model\.memberRole==="spectator"\)/);
   assert.match(script,/spectator-action-note/);
   assert.doesNotMatch(script,/async function changeSeat/);
   assert.match(styles,/spectator-action-note/);

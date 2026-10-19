@@ -5,6 +5,7 @@ import {
   createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus,
   renderCountdown, setHidden, setModeVisibility
 } from "/shared/client/index.js";
+import { createGame18PartitionRenderer, createGame18RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const PHASE_TIMER_MS = { caseStory: 45000, turn: 45000, chooseTarget: 30000, trade: 30000, passLeft: 30000, dogPick: 30000, privateReveal: 20000, dogReveal: 20000, roundReview: 8000 };
@@ -40,6 +41,7 @@ let caseDraft = null;
 let spectatorUi = null;
 let pendingInitialTargetScore = null;
 let presentation = null;
+let partitionRenderer = null;
 
 const sessions = createSessionStore({ gameId: "dancing-criminal" });
 const countdown = createCountdown({ onTick(value) { renderCountdown({ textElement: E.timerText, barElement: E.timerBar }, value); } });
@@ -53,7 +55,8 @@ const room = createAuthoritativeRoomClient({
       view = nextView;
       reconcileCaseDraft();
       const ownIds = new Set(view.players.find((player) => player.id === view.selfId)?.hand.map((card) => card.id) || []);
-      if (!ownIds.has(selectedCardId)) selectedCardId = null;
+      const canSelectCard = view.permissions.canPlayCard || view.permissions.canSubmitTrade || view.permissions.canSubmitPass;
+      if (!canSelectCard || !ownIds.has(selectedCardId)) selectedCardId = null;
       enterRoom();
       render();
       presentation?.sync(nextView.presentationEvents);
@@ -158,32 +161,37 @@ function renderPlayers() {
   const leftCount = Math.floor(orderedPlayers.length / 2);
   const rightCount = orderedPlayers.length - leftCount;
   const targetIds = new Set(eligibleTargetPlayers().map((player) => player.id));
-  E.players.innerHTML = orderedPlayers.map((player, index) => {
+  const existing = new Map([...E.players.querySelectorAll(":scope > [data-player-id]")]
+    .map((seat) => [seat.dataset.playerId, seat]));
+  orderedPlayers.forEach((player, index) => {
     const side = index < leftCount ? "left" : "right";
     const sideIndex = side === "left" ? index : index - leftCount;
     const sideCount = side === "left" ? leftCount : rightCount;
     const y = sideCount === 1 ? 50 : 8 + 84 * (sideIndex + .5) / sideCount;
     const targetable = targetIds.has(player.id);
-    return `<article data-seat-side="${side}" ${targetable ? `data-target-player-id="${escapeHtml(player.id)}" role="button" tabindex="0" aria-label="选择 ${escapeHtml(player.name)} 作为目标"` : ""} class="player-seat ${player.id === view.selfId ? "self" : ""} ${player.id === view.currentPlayerId && !["lobby", "roundReview", "ended"].includes(view.phase) ? "current" : ""} ${!player.connected ? "offline" : ""} ${targetable ? "targetable" : ""}" style="--seat-y:${y}%">
-      <header><div><b>${escapeHtml(player.name)}${player.id === view.selfId ? " · 你" : ""}</b><small>${player.isHost ? "房主 · " : ""}${player.connected ? "在线" : "离线"}</small></div>${view.permissions.canKick && !player.isHost ? `<button class="kick" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}</header>
-      <div class="score-line"><strong>${player.score}</strong><span>/ ${view.targetScore} 分</span>${player.accomplice ? '<em>已公开共犯</em>' : ""}</div>
-      <div class="seat-hand">${player.hand.map((card) => cardMarkup(card, { compact: true })).join("") || '<span class="empty-hand">暂无手牌</span>'}</div>
-    </article>`;
-  }).join("");
-  E.players.querySelectorAll(".player-seat").forEach((seat, index) => { seat.dataset.playerId = orderedPlayers[index]?.id || ""; });
-  E.players.querySelectorAll("[data-kick]").forEach((button) => { button.onclick = () => kickPlayer(button.dataset.kick); });
-  E.players.querySelectorAll("[data-target-player-id]").forEach((seat) => {
-    const chooseTarget = () => submit({ type: "chooseTarget", targetId: seat.dataset.targetPlayerId });
-    seat.onclick = (event) => {
-      if (event.target.closest("[data-kick]")) return;
-      chooseTarget();
-    };
-    seat.onkeydown = (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      chooseTarget();
-    };
+    const renderKey = JSON.stringify([player,index,side,y,targetable,view.selfId,view.currentPlayerId,view.phase,view.targetScore,view.permissions.canKick]);
+    let seat = existing.get(player.id);
+    if (!seat) { seat = document.createElement("article"); seat.dataset.playerId = player.id; }
+    if (seat.dataset.renderKey !== renderKey) {
+      seat.dataset.renderKey = renderKey;
+      seat.setAttribute("data-seat-side", side);
+      seat.className = `player-seat ${player.id === view.selfId ? "self" : ""} ${player.id === view.currentPlayerId && !["lobby", "roundReview", "ended"].includes(view.phase) ? "current" : ""} ${!player.connected ? "offline" : ""} ${targetable ? "targetable" : ""}`;
+      seat.style.setProperty("--seat-y", `${y}%`);
+      seat.innerHTML = `<header><div><b>${escapeHtml(player.name)}${player.id === view.selfId ? " · 你" : ""}</b><small>${player.isHost ? "房主 · " : ""}${player.connected ? "在线" : "离线"}</small></div>${view.permissions.canKick && !player.isHost ? `<button class="kick" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}</header><div class="score-line"><strong>${player.score}</strong><span>/ ${view.targetScore} 分</span>${player.accomplice ? '<em>已公开共犯</em>' : ""}</div><div class="seat-hand">${player.hand.map((card) => cardMarkup(card, { compact: true })).join("") || '<span class="empty-hand">暂无手牌</span>'}</div>`;
+      const kick = seat.querySelector("[data-kick]"); if (kick) kick.onclick = () => kickPlayer(kick.dataset.kick);
+      if (targetable) {
+        seat.setAttribute("data-target-player-id", player.id); seat.setAttribute("role", "button"); seat.tabIndex = 0; seat.setAttribute("aria-label", `选择 ${player.name} 作为目标`);
+        const chooseTarget = () => submit({ type: "chooseTarget", targetId: seat.dataset.targetPlayerId });
+        seat.onclick = (event) => { if (!event.target.closest("[data-kick]")) chooseTarget(); };
+        seat.onkeydown = (event) => { if (event.key !== "Enter" && event.key !== " ") return; event.preventDefault(); chooseTarget(); };
+      } else {
+        seat.removeAttribute("data-target-player-id"); seat.removeAttribute("role"); seat.removeAttribute("tabindex"); seat.removeAttribute("aria-label"); seat.onclick = null; seat.onkeydown = null;
+      }
+    }
+    const expected = E.players.children[index]; if (expected !== seat) E.players.insertBefore(seat, expected || null);
+    existing.delete(player.id);
   });
+  existing.forEach((seat) => seat.remove());
 }
 
 function renderDiscard() {
@@ -261,7 +269,7 @@ function renderPlayAction() {
   E.actionTitle.textContent = `准备打出：${item.label}`;
   E.actionHint.textContent = criminalLocked ? "犯人牌目前不是最后一张，不能打出。" : item.description;
   addButton(criminalLocked ? "当前不能打出犯人" : `确认打出“${item.label}”`, () => submit({ type: "playCard", cardId: card.id }), criminalLocked ? "" : "primary").disabled = criminalLocked;
-  addButton("取消选择", () => { selectedCardId = null; renderActions(view.roomRole); });
+  addButton("取消选择", () => { selectedCardId = null; render(); });
 }
 
 function renderTargetAction() {
@@ -282,7 +290,7 @@ function renderSecretSelection(kind) {
   if (!waiting && selectedCardId) {
     const actionType = kind === "trade" ? "submitTradeCard" : "submitPassCard";
     addButton(`确认选择“${meta(ownPlayer().hand.find((card) => card.id === selectedCardId)?.type).label}”`, () => submit({ type: actionType, cardId: selectedCardId }), "primary");
-    addButton("重新选择", () => { selectedCardId = null; renderActions(view.roomRole); });
+    addButton("重新选择", () => { selectedCardId = null; render(); });
   }
 }
 
@@ -375,8 +383,7 @@ function renderHand(memberRole) {
   E.myHand.querySelectorAll("[data-card-id]").forEach((button) => {
     button.onclick = () => {
       selectedCardId = button.dataset.cardId;
-      renderHand(memberRole);
-      renderActions(memberRole);
+      render();
     };
   });
 }
@@ -385,10 +392,7 @@ function renderLog() {
   E.logList.innerHTML = view.logs.map((entry) => `<div class="log-item">${escapeHtml(entry.text)}</div>`).join("") || '<p class="muted">暂无记录</p>';
 }
 
-function render() {
-  if (!view) return;
-  const spectatorModel = spectatorUi.render(view);
-  const memberRole = spectatorModel.memberRole;
+function renderRoom() {
   setHidden(E.hostTools, !view.permissions.canManage);
   setHidden(E.startGameButton, !view.permissions.canStart);
   setHidden(E.restartGameButton, !view.permissions.canRestart);
@@ -399,18 +403,41 @@ function render() {
   E.roomTargetScoreSelect.value = String(view.targetScore);
   E.roomPlayerCountSelect.disabled = !view.permissions.canSetCapacity;
   E.roomTargetScoreSelect.disabled = !view.permissions.canSetTargetScore;
+}
+
+function renderStatus(model) {
+  const { memberRole } = model;
   E.controlDock.dataset.role = memberRole;
   E.caseText.textContent = view.caseText || "尚未发生案件";
   E.roundNumber.textContent = String(view.round);
   E.targetScoreLabel.textContent = String(view.targetScore);
   E.notice.textContent = view.phase === "lobby" ? `等待玩家加入：${view.players.length}/${view.capacity}` : view.phase === "ended" ? "比赛结束，所有手牌已经公开" : `第 ${view.round} 轮 · 当前行动者：${nameOf(view.currentPlayerId)}`;
-  renderPlayers();
-  renderDiscard();
-  renderActions(memberRole);
-  renderHand(memberRole);
-  renderLog();
+}
+
+function renderCountdownPartition() {
   if (view.deadline) countdown.start(view.deadline, PHASE_TIMER_MS[view.phase] || 45000);
   else { countdown.stop(); E.timerText.textContent = "--"; E.timerBar.style.width = "0"; }
+}
+
+partitionRenderer = createGame18PartitionRenderer({
+  room: renderRoom,
+  status: renderStatus,
+  players: renderPlayers,
+  discard: renderDiscard,
+  decision: (model) => renderActions(model.memberRole),
+  hand: (model) => renderHand(model.memberRole),
+  log: renderLog,
+  countdown: renderCountdownPartition
+});
+
+function render() {
+  if (!view) return;
+  const spectatorModel = spectatorUi.render(view);
+  partitionRenderer.render(createGame18RenderModel(view, {
+    memberRole: spectatorModel.memberRole,
+    roomCode: room.snapshot().roomCode,
+    selectedCardId
+  }));
 }
 
 function seatFor(playerId) {

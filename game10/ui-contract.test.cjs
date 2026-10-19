@@ -72,3 +72,19 @@ test("权威演出层复用物理骰子并支持积压追赶", () => {
   assert.match(script, /severeBacklogThreshold:5/);
   assert.match(css, /\.presentation-effects \{[^}]*pointer-events:none/);
 });
+
+test("权威视图按房间、玩家、山道、骰子、决策和演出分区更新", () => {
+  const script = read("app.js");
+  const partitions = read("render-partitions.mjs");
+
+  assert.match(script, /createGame10PartitionRenderer/);
+  assert.match(script, /createGame10RenderModel/);
+  assert.match(script, /room:renderRoom,status:renderStatus,players:renderPlayers/);
+  assert.match(script, /board:\(model\)=>renderBoard\(model\.view\),physics:\(model\)=>renderPhysicsDice\(model\.view\)/);
+  assert.match(script, /spectatorUi\.render\(view\)/);
+  assert.doesNotMatch(script, /function renderLegacy/);
+  assert.match(script, /existing = new Map\(\[\.\.\.E\.playerList\.querySelectorAll/);
+  assert.match(script, /existing = new Map\(\[\.\.\.E\.board\.querySelectorAll/);
+  assert.match(partitions, /"room", "status", "players", "board", "physics", "dice"/);
+  assert.match(partitions, /"decision", "log", "countdown", "result"/);
+});

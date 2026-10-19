@@ -28,3 +28,13 @@ test("线索、选牌和投票草稿按房间玩家轮次阶段保存且普通�
   assert.match(script,/onView\(next\)\{captureDraft\(\);reconcileDraft\(next\);view=next/);
   assert.match(script,/clueText:draft\.clueText/);assert.match(script,/cardIds:\[\.\.\.draft\.selected\]/);assert.match(script,/displayId:draft\.voteId/);
 });
+
+test("权威视图按房间舞台画廊手牌和决策分区更新",()=>{
+  const script=read("app.js"),partitions=read("render-partitions.mjs");
+  assert.match(script,/createGame23PartitionRenderer/);assert.match(script,/createGame23RenderModel/);
+  assert.match(script,/decision:renderDecision,decisionFacts:renderDecisionFacts/);
+  assert.match(script,/existing=new Map\(\[\.\.\.E\.players\.querySelectorAll/);
+  assert.match(script,/existing=new Map\(\[\.\.\.E\.hand\.querySelectorAll/);
+  assert.match(partitions,/"room", "status", "players", "stage", "gallery", "hand"/);
+  assert.match(partitions,/"decision", "decisionFacts", "log", "countdown"/);
+});

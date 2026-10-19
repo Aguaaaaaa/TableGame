@@ -67,3 +67,17 @@ test("shared presentation layer anchors events to real farms and pigs", () => {
   assert.match(css, /\.presentation-token/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
+
+test("权威视图按农场、手牌、行动、牌堆与演出锚点分区更新", () => {
+  const script=read("app.js");
+  const partitions=read("render-partitions.mjs");
+  assert.match(script,/createGame14PartitionRenderer/);
+  assert.match(script,/createGame14RenderModel/);
+  assert.match(script,/room:renderRoom,status:renderStatus,supply:renderSupply,players:renderPlayers/);
+  assert.match(script,/decision:renderDecision,hand:renderPrivateHand,reveal:renderExchangeReveal/);
+  assert.match(script,/selectedCardId\n\s*\}\)\);/);
+  assert.match(script,/!view\.permissions\.canAct \|\| !view\.hand\.some/);
+  assert.match(script,/existing = new Map\(\[\.\.\.E\.players\.querySelectorAll/);
+  assert.match(script,/spectatorUi\.render\(view\)/);
+  assert.match(partitions,/"room","status","supply","players","decision","hand","reveal","log","countdown"/);
+});

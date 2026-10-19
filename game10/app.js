@@ -7,6 +7,7 @@ import {
 } from "/shared/client/index.js";
 import { COLUMN_LENGTHS } from "./rules.js";
 import { createDicePhysics, simulateDiceRoll } from "./dice-physics.js";
+import { createGame10PartitionRenderer, createGame10RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const ACTION_SECONDS = 30;
@@ -20,6 +21,7 @@ let dicePhysicsPromise = null;
 let activePhysicsRollId = 0;
 let spectatorUi = null;
 let presentation = null;
+let partitionRenderer = null;
 const simulationCache = new Map();
 const sessions = createSessionStore({ gameId: "cant-stop" });
 const countdown = createCountdown({ onTick(value) { renderCountdown({ textElement: E.timerText, barElement: E.timerBar }, value); } });
@@ -113,7 +115,7 @@ function renderBoard(view) {
     </svg>
     <div class="mist mist-one"></div><div class="mist mist-two"></div>
   </div>`;
-  E.board.innerHTML = scenery + Object.entries(COLUMN_LENGTHS).map(([key, length]) => {
+  const routes = Object.entries(COLUMN_LENGTHS).map(([key, length]) => {
     const column = Number(key); const owner = view.players.find((player) => player.id === view.closed[column]);
     const cells = Array.from({ length }, (_, index) => {
       const step = length - index;
@@ -124,7 +126,37 @@ function renderBoard(view) {
       ? `<span class="claim-flag" style="--flag:${owner.color}" title="${escapeHtml(owner.name)}占领"><i></i></span>`
       : '<span class="summit-peak">◆</span>';
     return `<div class="route ${owner ? "claimed" : ""}" data-column="${column}" style="--route:${length};--owner:${owner?.color || "transparent"}"><div class="summit">${summit}</div>${cells}<b><span>${column}</span></b></div>`;
-  }).join("");
+  });
+  let sceneryElement = E.board.querySelector(":scope > .mountain-scenery");
+  if (!sceneryElement) {
+    E.board.insertAdjacentHTML("afterbegin", scenery);
+    sceneryElement = E.board.querySelector(":scope > .mountain-scenery");
+  }
+  const existing = new Map([...E.board.querySelectorAll(":scope > .route")]
+    .map((element) => [Number(element.dataset.column), element]));
+  routes.forEach((markup, index) => {
+    const column = Number(Object.keys(COLUMN_LENGTHS)[index]);
+    const contentKey = JSON.stringify([
+      view.closed[column] || null,
+      view.turnProgress[column] || 0,
+      view.turnProgress[column] ? [view.players[view.currentIndex]?.id,view.players[view.currentIndex]?.name,view.players[view.currentIndex]?.color] : null,
+      view.players.map((player) => [player.id, player.name, player.color, player.progress[column] || 0])
+    ]);
+    let route = existing.get(column);
+    if (!route || route.dataset.contentKey !== contentKey) {
+      const template = document.createElement("template");
+      template.innerHTML = markup;
+      const replacement = template.content.firstElementChild;
+      replacement.dataset.contentKey = contentKey;
+      if (route) route.replaceWith(replacement);
+      else E.board.append(replacement);
+      route = replacement;
+    }
+    const expected = E.board.children[index + 1];
+    if (expected !== route) E.board.insertBefore(route, expected || null);
+    existing.delete(column);
+  });
+  existing.forEach((element) => element.remove());
 }
 function getSimulation(seed) {
   const key = String(Number(seed) >>> 0);
@@ -153,37 +185,107 @@ function renderPhysicsDice(view) {
     E.connectionStatus.title = `WebGL 骰子不可用：${error.message}`;
   });
 }
-function render() {
-  const view = currentView(); if (!view) return;
-  const spectatorModel = spectatorUi.render(view); const memberRole = spectatorModel.memberRole;
-  const current = view.players[view.currentIndex]; const myTurn = view.phase === "playing" && current?.id === view.selfId;
-  E.roomCodeDisplay.textContent = room.snapshot().roomCode; E.roomPlayerCountSelect.value = String(view.capacity); E.roomPlayerCountSelect.disabled = !view.permissions?.canManage || view.phase !== "lobby";
+function renderRoom(model) {
+  const { view, roomCode } = model;
+  E.roomCodeDisplay.textContent = roomCode;
+  E.roomPlayerCountSelect.value = String(view.capacity);
+  E.roomPlayerCountSelect.disabled = !view.permissions?.canManage || view.phase !== "lobby";
   setHidden(E.hostTools, !view.permissions?.canManage);
-  E.playerCountBadge.textContent = `${view.players.length} / ${view.capacity}`; E.startGameButton.disabled = !view.permissions?.canStart || view.players.length !== view.capacity || view.players.some((p) => !p.connected);
-  setHidden(E.startGameButton, !view.permissions?.canStart); setHidden(E.endGameButton, !view.permissions?.canEnd && !view.permissions?.canRestart); E.endGameButton.textContent = view.phase === "ended" ? "返回大厅" : "结束本局";
-  E.phaseBadge.textContent = { lobby: "准备阶段", playing: "攀登中", ended: "登顶完成" }[view.phase]; E.turnLabel.textContent = view.phase === "playing" ? `${current.name} 的回合` : view.phase === "ended" ? "游戏结束" : "等待开始";
-  E.playerList.innerHTML = view.players.map((player, index) => `<article class="player-item ${player.id === view.selfId ? "player-self" : ""} ${index === view.currentIndex && view.phase === "playing" ? "player-current" : ""} ${!player.connected ? "player-offline" : ""}" data-player-anchor="${escapeHtml(player.id)}" style="--player:${player.color}"><div><i class="player-color"></i><b>${escapeHtml(player.name)}</b>${player.isHost ? "<em>房主</em>" : ""}</div><span>已占领 ${player.claimed.length} / 3</span><small>${player.claimed.length ? player.claimed.join("、") + " 号路线" : "尚未占领路线"}</small>${view.permissions?.canKick && !player.isHost ? `<button data-kick="${escapeHtml(player.id)}">移出</button>` : ""}</article>`).join("");
-  E.playerList.querySelectorAll("[data-kick]").forEach((button) => { button.onclick = () => kickPlayer(button.dataset.kick); });
+  E.playerCountBadge.textContent = `${view.players.length} / ${view.capacity}`;
+  E.startGameButton.disabled = !view.permissions?.canStart || view.players.length !== view.capacity || view.players.some((player) => !player.connected);
+  setHidden(E.startGameButton, !view.permissions?.canStart);
+  setHidden(E.endGameButton, !view.permissions?.canEnd && !view.permissions?.canRestart);
+  E.endGameButton.textContent = view.phase === "ended" ? "返回大厅" : "结束本局";
+}
+
+function renderStatus(model) {
+  const { view, current, memberRole, decisionContext } = model;
+  E.phaseBadge.textContent = { lobby:"准备阶段", playing:"攀登中", ended:"登顶完成" }[view.phase];
+  E.turnLabel.textContent = view.phase === "playing" ? `${current?.name || "玩家"} 的回合` : view.phase === "ended" ? "游戏结束" : "等待开始";
   if (view.phase === "lobby") E.notice.textContent = memberRole === "spectator" ? "你正在旁观准备阶段，可在有空位时进入玩家席。" : `等待 ${view.capacity} 位玩家到齐后，由房主开始游戏`;
   else if (view.phase === "ended") E.notice.textContent = "三座峰顶已经被同一位玩家占领";
   else if (view.turnStage === "preparing") E.notice.textContent = `${current.name} 正在将骰子撒入投掷盘……`;
   else if (view.turnStage === "rolling") E.notice.textContent = `${current.name} 的骰子正在投掷盘中碰撞翻滚……`;
   else if (view.turnStage === "settled") E.notice.textContent = `骰子已经停稳：${view.dice.join("、")}`;
-  else if (!myTurn) E.notice.textContent = `等待 ${current.name} ${view.turnStage === "choose" ? "选择骰子组合" : view.turnStage === "decision" ? "继续攀登或扎营" : "掷骰子"}`;
-  else E.notice.textContent = { roll: "轮到你了，掷出四颗骰子开始攀登", choose: "选择一种可用的骰子组合", decision: "继续掷骰冒险，或扎营保住进度" }[view.turnStage];
-  renderBoard(view);
-  renderPhysicsDice(view);
-  const publicDice = ["preparing", "rolling"].includes(view.turnStage) ? ["?", "?", "?", "?"] : (view.dice.length ? view.dice : ["?", "?", "?", "?"]);
-  E.diceArea.innerHTML = publicDice.map((die) => `<span class="die ${die === "?" ? "empty" : ""}">${die}</span>`).join(""); E.diceTotal.textContent = view.dice.length && view.turnStage !== "rolling" ? `总和 ${view.dice.reduce((a, b) => a + b, 0)}` : "";
+  else if (!decisionContext.myTurn) E.notice.textContent = `等待 ${current.name} ${view.turnStage === "choose" ? "选择骰子组合" : view.turnStage === "decision" ? "继续攀登或扎营" : "掷骰子"}`;
+  else E.notice.textContent = { roll:"轮到你了，掷出四颗骰子开始攀登", choose:"选择一种可用的骰子组合", decision:"继续掷骰冒险，或扎营保住进度" }[view.turnStage] || "";
+}
+
+function renderPlayers(model) {
+  const { view } = model;
+  const existing = new Map([...E.playerList.querySelectorAll(":scope > [data-player-anchor]")]
+    .map((element) => [element.dataset.playerAnchor, element]));
+  view.players.forEach((player, index) => {
+    const renderKey = JSON.stringify([player.name,player.isHost,player.connected,player.color,player.claimed,index === view.currentIndex && view.phase === "playing",player.id === view.selfId,view.permissions?.canKick]);
+    let element = existing.get(player.id);
+    if (!element) {
+      element = document.createElement("article");
+      element.dataset.playerAnchor = player.id;
+    }
+    if (element.dataset.renderKey !== renderKey) {
+      element.dataset.renderKey = renderKey;
+      element.className = `player-item ${player.id === view.selfId ? "player-self" : ""} ${index === view.currentIndex && view.phase === "playing" ? "player-current" : ""} ${!player.connected ? "player-offline" : ""}`;
+      element.style.setProperty("--player", player.color);
+      element.innerHTML = `<div><i class="player-color"></i><b>${escapeHtml(player.name)}</b>${player.isHost ? "<em>房主</em>" : ""}</div><span>已占领 ${player.claimed.length} / 3</span><small>${player.claimed.length ? `${player.claimed.join("、")} 号路线` : "尚未占领路线"}</small>${view.permissions?.canKick && !player.isHost ? `<button data-kick="${escapeHtml(player.id)}">移出</button>` : ""}`;
+      const kickButton = element.querySelector("[data-kick]");
+      if (kickButton) kickButton.onclick = () => kickPlayer(kickButton.dataset.kick);
+    }
+    const expected = E.playerList.children[index];
+    if (expected !== element) E.playerList.insertBefore(element, expected || null);
+    existing.delete(player.id);
+  });
+  existing.forEach((element) => element.remove());
+}
+
+function renderDice(model) {
+  const { view } = model;
+  const publicDice = ["preparing","rolling"].includes(view.turnStage) ? ["?","?","?","?"] : (view.dice.length ? view.dice : ["?","?","?","?"]);
+  while (E.diceArea.children.length < 4) E.diceArea.append(document.createElement("span"));
+  [...E.diceArea.children].forEach((dieElement,index) => {
+    if (index >= 4) return dieElement.remove();
+    const die=publicDice[index]; dieElement.className=`die ${die === "?" ? "empty" : ""}`; dieElement.textContent=die;
+  });
+  E.diceTotal.textContent = view.dice.length && view.turnStage !== "rolling" ? `总和 ${view.dice.reduce((sum,value)=>sum+value,0)}` : "";
+}
+
+function renderDecision(model) {
+  const { view, memberRole, decisionContext } = model;
   E.actionArea.innerHTML = "";
-  if (myTurn && view.turnStage === "roll") E.actionArea.innerHTML = '<button class="primary big-action" data-action="roll">掷骰子</button>';
-  if (myTurn && view.turnStage === "choose") E.actionArea.innerHTML = view.options.map((option) => `<button class="choice-action" data-choice="${option.key}"><span>${option.pair.join(" + ")}</span><small>推进 ${option.moves.join("、")}</small></button>`).join("");
-  if (myTurn && view.turnStage === "decision") E.actionArea.innerHTML = '<button class="primary big-action" data-action="roll">继续掷骰</button><button class="stop-action" data-action="stop">扎营收手</button>';
+  if (decisionContext.myTurn && view.turnStage === "roll") E.actionArea.innerHTML = '<button class="primary big-action" data-action="roll">掷骰子</button>';
+  if (decisionContext.myTurn && view.turnStage === "choose") E.actionArea.innerHTML = view.options.map((option)=>`<button class="choice-action" data-choice="${option.key}"><span>${option.pair.join(" + ")}</span><small>推进 ${option.moves.join("、")}</small></button>`).join("");
+  if (decisionContext.myTurn && view.turnStage === "decision") E.actionArea.innerHTML = '<button class="primary big-action" data-action="roll">继续掷骰</button><button class="stop-action" data-action="stop">扎营收手</button>';
   if (memberRole === "spectator" && view.phase === "playing") E.actionArea.innerHTML = '<p class="muted spectator-action-note">旁观模式可查看公开骰子、路线和攀登进度，但不能投骰或选择路线。</p>';
-  E.actionArea.querySelectorAll("[data-action]").forEach((button) => { button.onclick = () => submit({ type: button.dataset.action }); }); E.actionArea.querySelectorAll("[data-choice]").forEach((button) => { button.onclick = () => submit({ type: "choose", key: button.dataset.choice }); });
-  E.logList.innerHTML = view.logs.map((entry) => `<p>${escapeHtml(entry.text)}</p>`).join("") || '<p class="muted">暂无记录</p>';
-  if (view.phase === "playing" && view.deadline) countdown.start(view.deadline, ACTION_SECONDS * 1000); else { countdown.stop(); E.timerText.textContent = "--"; E.timerBar.style.width = "0"; }
-  setHidden(E.resultPanel, view.phase !== "ended"); setHidden(E.resultActions, !view.permissions?.canRestart); if (view.phase === "ended") { const winner = view.players.find((player) => player.id === view.winnerId); E.winnerText.textContent = `${winner?.name || "玩家"} 征服了山峰！`; E.resultList.innerHTML = view.players.map((player) => `<p><i style="background:${player.color}"></i><b>${escapeHtml(player.name)}</b><span>${player.claimed.length} 条路线</span></p>`).join(""); }
+  E.actionArea.querySelectorAll("[data-action]").forEach((button)=>{button.onclick=()=>submit({type:button.dataset.action});});
+  E.actionArea.querySelectorAll("[data-choice]").forEach((button)=>{button.onclick=()=>submit({type:"choose",key:button.dataset.choice});});
+}
+
+function renderLog(model) {
+  E.logList.innerHTML = model.view.logs.map((entry)=>`<p>${escapeHtml(entry.text)}</p>`).join("") || '<p class="muted">暂无记录</p>';
+}
+function renderTimer(model) {
+  const { view } = model;
+  if (view.phase === "playing" && view.deadline) countdown.start(view.deadline,ACTION_SECONDS*1000);
+  else { countdown.stop(); E.timerText.textContent="--"; E.timerBar.style.width="0"; }
+}
+function renderResult(model) {
+  const { view } = model;
+  setHidden(E.resultPanel,view.phase !== "ended"); setHidden(E.resultActions,!view.permissions?.canRestart);
+  if (view.phase !== "ended") return;
+  const winner=view.players.find((player)=>player.id === view.winnerId);
+  E.winnerText.textContent=`${winner?.name || "玩家"} 征服了山峰！`;
+  E.resultList.innerHTML=view.players.map((player)=>`<p><i style="background:${player.color}"></i><b>${escapeHtml(player.name)}</b><span>${player.claimed.length} 条路线</span></p>`).join("");
+}
+
+partitionRenderer=createGame10PartitionRenderer({
+  room:renderRoom,status:renderStatus,players:renderPlayers,
+  board:(model)=>renderBoard(model.view),physics:(model)=>renderPhysicsDice(model.view),dice:renderDice,
+  decision:renderDecision,log:renderLog,countdown:renderTimer,result:renderResult
+});
+
+function render() {
+  const view=currentView(); if(!view)return;
+  const spectatorModel=spectatorUi.render(view);
+  partitionRenderer.render(createGame10RenderModel(view,{memberRole:spectatorModel.memberRole,roomCode:room.snapshot().roomCode}));
 }
 
 function playerAnchor(playerId) {

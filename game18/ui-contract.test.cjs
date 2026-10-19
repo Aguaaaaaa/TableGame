@@ -39,12 +39,12 @@ test("页面满足圆桌中央行动区、旁观与移动端紧凑列表契约",
   assert.match(styles, /\.hand-strip \.game-card:not\(\.compact\)[\s\S]*?width: 86px/);
   assert.match(styles, /\.hand-strip \.game-card:not\(\.compact\) small[\s\S]*?display: -webkit-box/);
   assert.match(script, /function eligibleTargetPlayers\(\)/);
-  assert.match(script, /data-target-player-id=/);
+  assert.match(script, /setAttribute\("data-target-player-id", player\.id\)/);
   assert.match(script, /直接点击桌面左右两侧发光的玩家卡片/);
   assert.match(styles, /\.player-seat\.targetable/);
   assert.doesNotMatch(script, /privateInsight\.cardTypes[\s\S]{0,180}compact: true/);
   assert.match(script, /const leftCount = Math\.floor\(orderedPlayers\.length \/ 2\)/);
-  assert.match(script, /data-seat-side="\$\{side\}"/);
+  assert.match(script, /setAttribute\("data-seat-side", side\)/);
   assert.match(styles, /\.player-seat\[data-seat-side="left"\][\s\S]*?left: 18px/);
   assert.match(styles, /\.player-seat\[data-seat-side="right"\][\s\S]*?right: 18px/);
   assert.match(styles, /\.discard-zone, \.discard-area\s*\{[\s\S]*?top: 43%/);
@@ -69,4 +69,21 @@ test("案件描述草稿只在权威操作上下文真正失效时清理", () =>
   assert.match(script, /input\.dataset\.caseDraft = "story"/);
   assert.match(script, /input\.value = caseDraft\.value/);
   assert.match(script, /caseDraft\.contextKey !== caseDraftContext\(\)/);
+});
+
+test("权威视图按职责分区更新并保留仍然合法的本地选牌", () => {
+  const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  const partitions = fs.readFileSync(path.join(__dirname, "render-partitions.mjs"), "utf8");
+
+  assert.match(script, /createGame18PartitionRenderer, createGame18RenderModel/);
+  assert.match(script, /partitionRenderer = createGame18PartitionRenderer\(\{/);
+  assert.match(script, /room: renderRoom/);
+  assert.match(script, /status: renderStatus/);
+  assert.match(script, /players: renderPlayers/);
+  assert.match(script, /decision: \(model\) => renderActions\(model\.memberRole\)/);
+  assert.match(script, /hand: \(model\) => renderHand\(model\.memberRole\)/);
+  assert.match(script, /new Map\(\[\.\.\.E\.players\.querySelectorAll\(":scope > \[data-player-id\]"\)\]/);
+  assert.match(script, /const canSelectCard = view\.permissions\.canPlayCard \|\| view\.permissions\.canSubmitTrade \|\| view\.permissions\.canSubmitPass/);
+  assert.match(script, /if \(!canSelectCard \|\| !ownIds\.has\(selectedCardId\)\) selectedCardId = null/);
+  assert.match(partitions, /"room","status","players","discard","decision","hand","log","countdown"/);
 });

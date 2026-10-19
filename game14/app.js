@@ -15,6 +15,7 @@ import {
   setHidden,
   setModeVisibility
 } from "/shared/client/index.js";
+import { createGame14PartitionRenderer, createGame14RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const ACTION_SECONDS = 30;
@@ -50,6 +51,7 @@ let selectedCardId = null;
 let revealTimer = null;
 let spectatorUi = null;
 let presentation = null;
+let partitionRenderer = null;
 
 const sessions = createSessionStore({ gameId: "dirty-pig" });
 const countdown = createCountdown({
@@ -67,7 +69,7 @@ const room = createAuthoritativeRoomClient({
   handlers: {
     onView(nextView) {
       view = nextView;
-      if (!view.hand.some((card) => card.id === selectedCardId)) selectedCardId = null;
+      if (!view.permissions.canAct || !view.hand.some((card) => card.id === selectedCardId)) selectedCardId = null;
       enterRoom();
       render();
       presentation?.sync(nextView.presentationEvents);
@@ -178,29 +180,29 @@ function renderPlayers() {
   const card = selectedCard();
   const legalKeys = new Set((card?.legalTargets || []).map((target) => target.key));
   E.players.dataset.count = String(view.players.length);
-  E.players.innerHTML = view.players.map((player) => `
-    <article class="player-farm ${player.id === view.selfId ? "self" : ""} ${player.id === view.currentPlayerId && view.phase === "playing" ? "current" : ""} ${!player.connected ? "offline" : ""}">
-      <header><div><b>${escapeHtml(player.name)}</b>${player.id === view.selfId ? " · 你" : ""}<small>${player.isHost ? "房主 · " : ""}${player.connected ? "在线" : "离线"} · 手牌 ${player.handCount}</small></div>${view.permissions.canKick && !player.isHost ? `<button class="kick" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}</header>
-      <div class="pig-row">${player.pigs.map((pig, index) => pigHtml(player, pig, index, legalKeys)).join("") || '<p class="waiting">等待游戏开始</p>'}</div>
-    </article>`).join("");
-  E.players.querySelectorAll(".player-farm").forEach((farm, index) => { farm.dataset.playerId = view.players[index]?.id || ""; });
-
-  E.players.querySelectorAll("[data-kick]").forEach((button) => {
-    button.addEventListener("click", () => kickPlayer(button.dataset.kick));
+  const existing = new Map([...E.players.querySelectorAll(":scope > .player-farm")]
+    .map((farm) => [farm.dataset.playerId, farm]));
+  view.players.forEach((player,index) => {
+    const playerTargets=[...legalKeys].filter((target)=>target.startsWith(`${player.id}:`));
+    const renderKey=JSON.stringify([player,player.id===view.selfId,player.id===view.currentPlayerId&&view.phase==="playing",view.permissions.canKick,playerTargets]);
+    let farm=existing.get(player.id);
+    if(!farm){farm=document.createElement("article");farm.dataset.playerId=player.id;}
+    if(farm.dataset.renderKey!==renderKey){
+      farm.dataset.renderKey=renderKey;
+      farm.className=`player-farm ${player.id===view.selfId?"self":""} ${player.id===view.currentPlayerId&&view.phase==="playing"?"current":""} ${!player.connected?"offline":""}`;
+      farm.innerHTML=`<header><div><b>${escapeHtml(player.name)}</b>${player.id===view.selfId?" · 你":""}<small>${player.isHost?"房主 · ":""}${player.connected?"在线":"离线"} · 手牌 ${player.handCount}</small></div>${view.permissions.canKick&&!player.isHost?`<button class="kick" data-kick="${escapeHtml(player.id)}">移出</button>`:""}</header><div class="pig-row">${player.pigs.map((pig,pigIndex)=>pigHtml(player,pig,pigIndex,legalKeys)).join("")||'<p class="waiting">等待游戏开始</p>'}</div>`;
+      const kick=farm.querySelector("[data-kick]");
+      if(kick)kick.addEventListener("click",()=>kickPlayer(kick.dataset.kick));
+      farm.querySelectorAll(".pig.targetable").forEach((button)=>button.addEventListener("click",()=>{
+        const chosen=selectedCard();if(!chosen)return;selectedCardId=null;
+        submit({type:"playCard",cardId:chosen.id,targetPlayerId:button.dataset.player,targetPigId:button.dataset.pig});
+      }));
+    }
+    const expected=E.players.children[index];
+    if(expected!==farm)E.players.insertBefore(farm,expected||null);
+    existing.delete(player.id);
   });
-  E.players.querySelectorAll(".pig.targetable").forEach((button) => {
-    button.addEventListener("click", () => {
-      const chosen = selectedCard();
-      if (!chosen) return;
-      selectedCardId = null;
-      submit({
-        type: "playCard",
-        cardId: chosen.id,
-        targetPlayerId: button.dataset.player,
-        targetPigId: button.dataset.pig
-      });
-    });
-  });
+  existing.forEach((farm)=>farm.remove());
 }
 
 function addAction(text, handler, className = "") {
@@ -303,12 +305,8 @@ function renderLog() {
   E.logList.innerHTML = view.logs.map((entry) => `<div class="log-item">${escapeHtml(entry.text)}</div>`).join("") || '<p class="waiting">暂无记录</p>';
 }
 
-function render() {
-  if (!view) return;
-  const spectatorModel = spectatorUi.render(view);
-  const memberRole = spectatorModel.memberRole;
-  const current = view.players.find((player) => player.id === view.currentPlayerId);
-  const winner = view.players.find((player) => player.id === view.winnerId);
+function renderRoom(model) {
+  E.roomCodeDisplay.textContent = model.roomCode;
   setHidden(E.hostTools, !view.permissions.canManage);
   setHidden(E.startGameButton, !view.permissions.canStart);
   setHidden(E.restartGameButton, !view.permissions.canRestart);
@@ -317,9 +315,10 @@ function render() {
   E.restartGameButton.disabled = view.players.some((player) => !player.connected);
   E.roomPlayerCountSelect.value = String(view.capacity);
   E.roomPlayerCountSelect.disabled = !view.permissions.canSetCapacity;
-  E.deckCount.textContent = String(view.deckCount);
-  E.discardCount.textContent = String(view.discardCount);
-  E.discardTop.textContent = view.discardTop ? CARD_META[view.discardTop.type].label : "空";
+}
+
+function renderStatus(model) {
+  const { memberRole,current,winner }=model;
   E.notice.textContent = memberRole === "spectator" && view.phase === "lobby"
     ? "你正在旁观准备阶段，可在有空位时主动进入玩家席"
     : view.phase === "lobby"
@@ -327,20 +326,46 @@ function render() {
     : view.phase === "ended"
       ? `本局结束 · ${winner?.name || "玩家"} 获胜`
       : `当前行动：${current?.name || "玩家"}`;
+}
 
-  renderPlayers();
-  renderActions(memberRole);
-  E.controlDock.dataset.role = memberRole;
+function renderSupply() {
+  E.deckCount.textContent = String(view.deckCount);
+  E.discardCount.textContent = String(view.discardCount);
+  E.discardTop.textContent = view.discardTop ? CARD_META[view.discardTop.type].label : "空";
+}
+
+function renderDecision(model) {
+  renderActions(model.memberRole);
+  E.controlDock.dataset.role = model.memberRole;
+}
+
+function renderPrivateHand(model) {
+  const memberRole=model.memberRole;
   setHidden(E.handZone, memberRole === "spectator");
   renderHand();
-  renderExchangeReveal();
-  renderLog();
+}
+
+function renderTimer() {
   if (view.deadline) countdown.start(view.deadline, ACTION_SECONDS * 1000);
   else {
     countdown.stop();
     E.timerText.textContent = "--";
     E.timerBar.style.width = "0";
   }
+}
+
+partitionRenderer=createGame14PartitionRenderer({
+  room:renderRoom,status:renderStatus,supply:renderSupply,players:renderPlayers,
+  decision:renderDecision,hand:renderPrivateHand,reveal:renderExchangeReveal,
+  log:renderLog,countdown:renderTimer
+});
+
+function render() {
+  if(!view)return;
+  const spectatorModel=spectatorUi.render(view);
+  partitionRenderer.render(createGame14RenderModel(view,{
+    memberRole:spectatorModel.memberRole,roomCode:room.snapshot().roomCode,selectedCardId
+  }));
 }
 
 function farmFor(playerId) {

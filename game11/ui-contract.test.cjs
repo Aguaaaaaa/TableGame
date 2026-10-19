@@ -86,10 +86,19 @@ test("提示和猜码编辑器按权威上下文保留并合法清理", () => {
   const script = read("app.js");
   assert.match(script, /let localGuessDraft = null/);
   assert.match(script, /localGuessDraft = \{ key:editorKey, values:code\.map\(String\) \}/);
-  assert.match(script, /localGuessDraft\?\.key === editorKey/);
-  assert.match(script, /\[E\.guess1\.value, E\.guess2\.value, E\.guess3\.value\] = localGuessDraft\.values/);
-  assert.match(script, /const nextClueKey = \[room\.snapshot\(\)\.roomCode,current\.round,current\.turnTeam,current\.encryptorId/);
-  assert.match(script, /if \(clueEditorKey !== nextClueKey\)/);
-  assert.match(script, /if \(canSubmit && tiebreakEditorKey !== nextTiebreakKey\)/);
+  assert.match(script, /localGuessDraft\?\.key===editorKey/);
+  assert.match(script, /\[E\.guess1\.value,E\.guess2\.value,E\.guess3\.value\]=localGuessDraft\.values/);
+  assert.match(script, /const nextClueKey=\[model\.roomCode,current\.round,current\.turnTeam,current\.encryptorId/);
+  assert.match(script, /if\(clueEditorKey!==nextClueKey\)/);
+  assert.match(script, /if\(tiebreakEditorKey!==nextTiebreakKey\)/);
   assert.match(script, /function resetLocalEditors\(\)/);
+});
+
+test("权威视图按私人情报、传讯、编辑器、比分和档案分区更新", () => {
+  const script=read("app.js"),partitions=read("render-partitions.mjs");
+  assert.match(script,/createGame11PartitionRenderer/);assert.match(script,/createGame11RenderModel/);
+  assert.match(script,/decision:renderDecision,decisionFacts:renderDecisionFacts/);
+  assert.match(partitions,/"privateIntel", "transmission"/);
+  assert.match(partitions,/"decision", "decisionFacts", "scores", "history", "result", "countdown"/);
+  assert.match(script,/当前组合包含重复数字，尚未保存/);
 });

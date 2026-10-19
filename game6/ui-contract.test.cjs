@@ -70,3 +70,12 @@ test("game6 uses the shared authoritative presentation timeline without duplicat
   assert.match(styles,/pointer-events: none/);
   assert.match(styles,/@media \(prefers-reduced-motion: reduce\)/);
 });
+
+test("game6 partitions stable anchors and starts placement animation only on animation changes",() => {
+  const partitions=fs.readFileSync(path.join(__dirname,"render-partitions.mjs"),"utf8");
+  assert.match(script,/createGame6PartitionRenderer/);assert.match(script,/createGame6RenderModel/);
+  assert.match(script,/animation:renderAnimation/);
+  assert.match(script,/existing=new Map\(\[\.\.\.E\.playerList\.querySelectorAll/);
+  assert.match(script,/existing=new Map\(\[\.\.\.E\.rows\.querySelectorAll/);
+  assert.match(partitions,/"room","status","players","reveal","rows","decision","hand","log","countdown","animation"/);
+});

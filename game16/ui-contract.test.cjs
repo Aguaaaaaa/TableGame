@@ -21,7 +21,7 @@ test("页面接入共享旁观系统、私人区域和移动端吸附操作栏",
   assert.match(html, /<details class="panel rule-card">/); assert.doesNotMatch(html, /<details class="panel rule-card" open>/);
   assert.ok(logAt >= 0 && spectatorAt > logAt, "旁观席必须位于宫廷记录之后");
   assert.match(script, /createSpectatorUi/); assert.match(script, /setHidden\(E\.privateZone, memberRole === "spectator"\)/);
-  assert.match(script, /reactionId: view\.reaction\?\.id/); assert.match(script, /expectedVersion: renderedVersion/);
+  assert.match(script, /reactionId: view\.reaction\?\.id/); assert.match(script, /expectedVersion: room\.snapshot\(\)\.version/);
   assert.match(script, /createPresentationTimeline/); assert.match(script, /presentation\.sync\(view\.moments\)/); assert.match(script, /data-influence-slot/); assert.match(script, /moment\.actorId === view\.selfId/);
   assert.match(script, /function playersFromViewerSeat\(\)/); assert.match(script, /Math\.PI \/ 2/);
   assert.match(script, /function ellipseAngles\(/); assert.match(script, /function seatsOverlap\(/);
@@ -52,4 +52,16 @@ test("普通权威广播不会清空仍合法的行动与换牌选择", () => {
   assert.match(script, /if \(exchangeDraftKey !== nextKey\)/);
   assert.match(script, /exchangeSelection = new Set\(\[\.\.\.exchangeSelection\]\.filter/);
   assert.doesNotMatch(script, /view = nextView; selectedAction = null; exchangeSelection = new Set/);
+});
+
+test("政变权威视图按圆桌、私人身份、响应窗口和倒计时分区更新", () => {
+  const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  const partitions = fs.readFileSync(path.join(__dirname, "render-partitions.mjs"), "utf8");
+  assert.match(script, /createGame16PartitionRenderer/);
+  assert.match(script, /createGame16RenderModel/);
+  assert.match(script, /room: renderRoom, status: renderStatus, deck: renderDeck, players: renderPlayers/);
+  assert.match(script, /private: \(model\) => renderPrivate\(model\.memberRole\), decision: renderDecision/);
+  assert.match(script, /existing = new Map\(\[\.\.\.E\.players\.querySelectorAll/);
+  assert.match(script, /spectatorUi\.render\(view\)/);
+  assert.match(partitions, /"room","status","deck","players","private","decision","log","countdown"/);
 });

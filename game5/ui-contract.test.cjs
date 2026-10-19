@@ -88,3 +88,12 @@ test("game5 auxiliary cards remain separate and single-column",()=>{
   assert.match(styles,/\.layout aside \{ position: static; max-height: none; overflow: visible; \}/);
   assert.match(styles,/\.layout aside > \.rules-card,[\s\S]*?grid-column: 1;[\s\S]*?grid-row: auto;/);
 });
+
+test("game5 authoritative broadcasts update stable UNO partitions",()=>{
+  const partitions=fs.readFileSync(path.join(__dirname,"render-partitions.mjs"),"utf8");
+  assert.match(script,/createGame5PartitionRenderer/);assert.match(script,/createGame5RenderModel/);
+  assert.match(script,/decision:renderDecision,decisionFacts:renderDecisionFacts/);
+  assert.match(script,/existing=new Map\(\[\.\.\.E\.players\.querySelectorAll/);
+  assert.match(script,/existing=new Map\(\[\.\.\.E\.hand\.querySelectorAll/);
+  assert.match(partitions,/"room","status","players","table","decision","decisionFacts","hand","log","countdown"/);
+});

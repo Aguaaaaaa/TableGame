@@ -5,6 +5,7 @@ import {
   createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus,
   renderCountdown, setHidden, setModeVisibility
 } from "/shared/client/index.js";
+import { createGame16PartitionRenderer, createGame16RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const PHASE_TIMER_MS = { action: 45000, challengeAction: 18000, block: 18000, challengeBlock: 18000, proveClaim: 15000, loseInfluence: 20000, exchange: 30000 };
@@ -43,6 +44,7 @@ let exchangeDraftKey = "";
 let spectatorUi = null;
 let actionPending = false;
 let seatLayoutFrame = 0;
+let partitionRenderer = null;
 
 const wideSeatLayout = window.matchMedia("(min-width: 761px)");
 
@@ -240,16 +242,24 @@ function scheduleSeatLayout() {
 function renderPlayers() {
   const orderedPlayers = playersFromViewerSeat();
   E.players.dataset.count = String(view.players.length);
-  E.players.innerHTML = orderedPlayers.map((player, seatIndex) => {
+  const existing = new Map([...E.players.querySelectorAll(":scope > [data-player-id]")]
+    .map((element) => [element.dataset.playerId, element]));
+  orderedPlayers.forEach((player, seatIndex) => {
     const active = player.influences.filter((card) => !card.revealed).length;
-    return `<article data-player-id="${escapeHtml(player.id)}" data-seat-order="${seatIndex}" class="player-seat ${player.id === view.selfId ? "self" : ""} ${player.id === view.currentPlayerId && view.phase !== "lobby" ? "current" : ""} ${player.eliminated ? "eliminated" : ""} ${!player.connected ? "offline" : ""}">
-      <header><div><b>${escapeHtml(player.name)}${player.id === view.selfId ? " · 你" : ""}</b><small>${player.isHost ? "房主 · " : ""}${player.connected ? "在线" : "离线"}</small></div>
-      ${view.permissions.canKick && !player.isHost ? `<button class="kick" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}</header>
-      <div class="wealth"><span>● ${player.coins} 金币</span><span>${player.eliminated ? "已出局" : `${active} 点影响力`}</span></div>
-      <div class="seat-cards">${player.influences.map((card, index) => roleCard(card, { slotIndex: index })).join("") || '<p class="waiting">等待开局</p>'}</div>
-    </article>`;
-  }).join("");
-  E.players.querySelectorAll("[data-kick]").forEach((button) => button.onclick = () => kickPlayer(button.dataset.kick));
+    const renderKey = JSON.stringify([player,seatIndex,view.selfId,view.currentPlayerId,view.phase,view.permissions.canKick]);
+    let element = existing.get(player.id);
+    if (!element) { element = document.createElement("article"); element.dataset.playerId = player.id; }
+    if (element.dataset.renderKey !== renderKey) {
+      element.dataset.renderKey = renderKey;
+      element.setAttribute("data-seat-order", String(seatIndex));
+      element.className = `player-seat ${player.id === view.selfId ? "self" : ""} ${player.id === view.currentPlayerId && view.phase !== "lobby" ? "current" : ""} ${player.eliminated ? "eliminated" : ""} ${!player.connected ? "offline" : ""}`;
+      element.innerHTML = `<header><div><b>${escapeHtml(player.name)}${player.id === view.selfId ? " · 你" : ""}</b><small>${player.isHost ? "房主 · " : ""}${player.connected ? "在线" : "离线"}</small></div>${view.permissions.canKick && !player.isHost ? `<button class="kick" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}</header><div class="wealth"><span>● ${player.coins} 金币</span><span>${player.eliminated ? "已出局" : `${active} 点影响力`}</span></div><div class="seat-cards">${player.influences.map((card, index) => roleCard(card, { slotIndex: index })).join("") || '<p class="waiting">等待开局</p>'}</div>`;
+      const kick = element.querySelector("[data-kick]"); if (kick) kick.onclick = () => kickPlayer(kick.dataset.kick);
+    }
+    const expected = E.players.children[seatIndex]; if (expected !== element) E.players.insertBefore(element, expected || null);
+    existing.delete(player.id);
+  });
+  existing.forEach((element) => element.remove());
   // Presentation effects resolve seat positions immediately after render.
   layoutPlayerSeats();
 }
@@ -313,7 +323,7 @@ function renderTargetChoices(actionType) {
   view.players.filter((player) => player.id !== view.selfId && !player.eliminated && (actionType !== "steal" || player.coins > 0)).forEach((player) => {
     addButton(`${player.name} · ${player.coins}金币`, () => submit({ type: "declareAction", actionType, targetId: player.id }), "target-button");
   });
-  addButton("返回行动列表", () => { selectedAction = null; renderActions(view.roomRole); });
+  addButton("返回行动列表", () => { selectedAction = null; render(); });
 }
 
 function renderActionChoice() {
@@ -326,7 +336,7 @@ function renderActionChoice() {
     const cost = type === "coup" ? 7 : type === "assassinate" ? 3 : 0;
     if ((forced && type !== "coup") || self.coins < cost) return;
     if (type === "steal" && !view.players.some((p) => p.id !== self.id && !p.eliminated && p.coins > 0)) return;
-    addButton(`${meta.label}｜${meta.note}`, () => meta.target ? (selectedAction = type, renderActions(view.roomRole)) : submit({ type: "declareAction", actionType: type }), type === "coup" ? "danger" : "");
+    addButton(`${meta.label}｜${meta.note}`, () => meta.target ? (selectedAction = type, render()) : submit({ type: "declareAction", actionType: type }), type === "coup" ? "danger" : "");
   });
 }
 
@@ -339,7 +349,7 @@ function renderExchange() {
   grid.querySelectorAll("[data-exchange]").forEach((button) => button.onclick = () => {
     const id = button.dataset.exchange;
     if (exchangeSelection.has(id)) exchangeSelection.delete(id); else if (exchangeSelection.size < view.exchange.keepCount) exchangeSelection.add(id);
-    renderActions(view.roomRole);
+    render();
   });
   addButton(`确认保留 ${exchangeSelection.size}/${view.exchange.keepCount} 张`, () => submit({ type: "submitExchange", keepIds: [...exchangeSelection] }), "primary");
   E.actionButtons.lastElementChild.disabled = exchangeSelection.size !== view.exchange.keepCount;
@@ -348,9 +358,8 @@ function renderExchange() {
 function renderActions(memberRole) {
   E.actionButtons.innerHTML = ""; E.actionHint.textContent = "";
   const action = view.action; const current = nameOf(view.currentPlayerId);
-  const renderedVersion = room.snapshot().version;
   const reactionAction = (type, extra = {}) => ({ type, ...extra, reactionId: view.reaction?.id, reactionKind: view.reaction?.kind });
-  const submitReaction = (type, extra = {}) => submit(reactionAction(type, extra), { expectedVersion: renderedVersion });
+  const submitReaction = (type, extra = {}) => submit(reactionAction(type, extra), { expectedVersion: room.snapshot().version });
   if (memberRole === "spectator") {
     E.actionTitle.textContent = view.phase === "lobby" ? "旁观准备阶段" : `正在旁观 · ${current}`;
     E.actionHint.textContent = "旁观者只能看到公开角色、金币、声明和响应，不会看到隐藏身份。";
@@ -397,19 +406,36 @@ function renderPrivate(memberRole) {
 }
 function renderLog() { E.logList.innerHTML = view.logs.map((entry) => `<div class="log-item">${escapeHtml(entry.text)}</div>`).join("") || '<p class="waiting">暂无记录</p>'; }
 
-function render() {
-  if (!view) return;
-  const spectatorModel = spectatorUi.render(view); const memberRole = spectatorModel.memberRole;
-  const winner = view.players.find((p) => p.id === view.winnerId);
+function renderRoom(model) {
   setHidden(E.hostTools, !view.permissions.canManage); setHidden(E.startGameButton, !view.permissions.canStart); setHidden(E.restartGameButton, !view.permissions.canRestart); setHidden(E.endGameButton, !view.permissions.canEnd);
   E.startGameButton.disabled = view.players.length !== view.capacity || view.players.some((p) => !p.connected);
   E.restartGameButton.disabled = view.players.some((p) => !p.connected);
   E.roomPlayerCountSelect.value = String(view.capacity); E.roomPlayerCountSelect.disabled = !view.permissions.canSetCapacity;
-  E.deckCount.textContent = String(view.deckCount); E.controlDock.dataset.role = memberRole;
-  E.notice.textContent = memberRole === "spectator" && view.phase === "lobby" ? "你正在旁观准备阶段，可在有空位时进入玩家席" : view.phase === "lobby" ? `等待玩家加入：${view.players.length}/${view.capacity}` : view.phase === "ended" ? `本局结束 · ${winner?.name || "玩家"} 获胜` : `当前行动者：${nameOf(view.currentPlayerId)}`;
-  renderPlayers(); renderActions(memberRole); renderPrivate(memberRole); renderLog();
-  presentation.sync(view.moments);
+  E.roomCodeDisplay.textContent = model.roomCode;
+}
+function renderStatus(model) {
+  E.controlDock.dataset.role = model.memberRole;
+  E.notice.textContent = model.memberRole === "spectator" && view.phase === "lobby" ? "你正在旁观准备阶段，可在有空位时进入玩家席" : view.phase === "lobby" ? `等待玩家加入：${view.players.length}/${view.capacity}` : view.phase === "ended" ? `本局结束 · ${model.winner?.name || "玩家"} 获胜` : `当前行动者：${nameOf(view.currentPlayerId)}`;
+}
+function renderDeck() { E.deckCount.textContent = String(view.deckCount); }
+function renderDecision(model) { renderActions(model.memberRole); }
+function renderTimer() {
   if (view.deadline) countdown.start(view.deadline, PHASE_TIMER_MS[view.phase] || 45000); else { countdown.stop(); E.timerText.textContent = "--"; E.timerBar.style.width = "0"; }
+}
+
+partitionRenderer = createGame16PartitionRenderer({
+  room: renderRoom, status: renderStatus, deck: renderDeck, players: renderPlayers,
+  private: (model) => renderPrivate(model.memberRole), decision: renderDecision,
+  log: renderLog, countdown: renderTimer
+});
+
+function render() {
+  if (!view) return;
+  const spectatorModel = spectatorUi.render(view); const memberRole = spectatorModel.memberRole;
+  partitionRenderer.render(createGame16RenderModel(view, {
+    memberRole, roomCode: room.snapshot().roomCode, selectedAction, exchangeSelection: [...exchangeSelection]
+  }));
+  presentation.sync(view.moments);
 }
 
 function selectMode(nextMode) { mode = nextMode; setModeVisibility(mode, { hostButton: E.hostModeButton, guestButton: E.guestModeButton, hostSetup: E.hostSetup, guestSetup: E.guestSetup, hostTools: E.hostTools }); }

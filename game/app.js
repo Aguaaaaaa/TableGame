@@ -13,6 +13,7 @@ import {
   setModeVisibility
 } from "/shared/client/index.js";
 import { TOPICS, normalizeWord } from "./rules.mjs";
+import { createGame1PartitionRenderer, createGame1RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const ROOM_CAPACITY = 32;
@@ -34,6 +35,7 @@ let logPlayerFilter = "all";
 let configuringRoom = false;
 let spectatorUi = null;
 let presentation = null;
+let partitionRenderer = null;
 let draftRoomCode = "";
 const actionDraft = {
   submittedWord:"",
@@ -250,33 +252,54 @@ function endCurrentGame() {
   submitAction({ type: "end" });
 }
 
+function renderRoomPartition(model) {
+  const current = model.view;
+  document.body.dataset.phase = current.phase;
+  setHidden(elements.hostTools,!current.permissions?.canManage);
+  setHidden(elements.startGameButton,!current.permissions?.canStart);
+  setHidden(elements.endGameButton,!current.permissions?.canEnd);
+  elements.startGameButton.disabled = model.configuringRoom || current.players.length < 2 || current.players.some((player) => !player.connected);
+  elements.roomCodeDisplay.textContent = model.roomCode;
+}
+
+function renderStatusPartition(model) {
+  const current = model.view;
+  elements.gameNotice.textContent = model.memberRole === "spectator" && current.phase === "lobby"
+    ? "你正在旁观准备阶段，可在有空位时进入玩家席。"
+    : current.notice;
+  elements.roundBadge.textContent = `第 ${current.round} 轮`;
+  elements.turnTitle.textContent = model.current?.name
+    || (current.phase === "collectingWords" ? "提交词语" : current.phase === "ended" ? "本局结束" : "未开始");
+}
+
 function render() {
   if (!view) return;
-  document.body.dataset.phase = view.phase;
   const spectatorModel = spectatorUi.render(view);
-  const memberRole = spectatorModel.memberRole;
-  setHidden(elements.hostTools, !view.permissions?.canManage);
-  setHidden(elements.startGameButton, !view.permissions?.canStart);
-  setHidden(elements.endGameButton, !view.permissions?.canEnd);
-  elements.startGameButton.disabled = configuringRoom || view.players.length < 2 || view.players.some((player) => !player.connected);
-  elements.roomCodeDisplay.textContent = room.snapshot().roomCode;
-  elements.gameNotice.textContent = memberRole === "spectator" && view.phase === "lobby"
-    ? "你正在旁观准备阶段，可在有空位时进入玩家席。"
-    : view.notice;
-  elements.roundBadge.textContent = `第 ${view.round} 轮`;
-  const current = view.players.find((player) => player.isCurrent);
-  elements.turnTitle.textContent = current?.name
-    || (view.phase === "collectingWords" ? "提交词语" : view.phase === "ended" ? "本局结束" : "未开始");
-  renderPlayers();
-  renderWords(memberRole);
-  renderActions(memberRole);
-  renderLog();
+  const model = createGame1RenderModel(view,{
+    memberRole:spectatorModel.memberRole,
+    roomCode:room.snapshot().roomCode,
+    configuringRoom,
+    logPlayerFilter
+  });
+  partitionRenderer ??= createGame1PartitionRenderer({
+    room:renderRoomPartition,
+    status:renderStatusPartition,
+    players:renderPlayers,
+    words:(currentModel) => renderWords(currentModel.memberRole),
+    decision:(currentModel) => renderActions(currentModel.memberRole),
+    logFilter:renderLogFilter,
+    log:renderLogEntries
+  });
+  partitionRenderer.render(model);
 }
 
 function renderPlayers() {
   elements.playerList.dataset.count = String(view.players.length);
-  elements.playerList.classList.toggle("crowded", view.players.length > 8);
-  elements.playerList.innerHTML = view.players.map((player, index) => {
+  elements.playerList.classList.toggle("crowded",view.players.length > 8);
+  const existing = new Map([...elements.playerList.querySelectorAll("[data-player-id]")].map((node) => [node.dataset.playerId,node]));
+  const retained = new Set();
+  view.players.forEach((player,index) => {
+    const id = String(player.id);
     const submitted = view.submittedPlayerIds?.includes(player.id);
     const statusText = player.status === "won" ? "已猜中"
       : player.status === "eliminated" ? "已出局"
@@ -286,21 +309,28 @@ function renderPlayers() {
     const tagClass = player.status === "won" ? "won"
       : player.status === "eliminated" ? "eliminated"
         : player.status === "left" ? "out" : player.isCurrent ? "active" : "";
-    const tag = player.isCurrent ? "行动" : statusText;
-    const stateClass = player.connected ? "online" : "offline";
-    return `
-      <div class="player-item operator-chip ${stateClass} ${player.id === view.selfId ? "player-self" : ""}" title="${escapeHtml(player.connected ? "在线" : "离线")} · ${escapeHtml(statusText)}">
-        <span class="operator-light" aria-hidden="true"></span>
-        <span class="operator-number">${String(index + 1).padStart(2, "0")}</span>
-        <div class="player-name">${escapeHtml(player.name)}${player.isHost ? " · 房主" : ""}</div>
-        <div class="player-actions">
-          <span class="tag ${tagClass}">${tag}</span>
-          ${view.permissions?.canKick && !player.isHost ? `<button class="kick-player-button" data-player-id="${escapeHtml(player.id)}" type="button">移出</button>` : ""}
-        </div>
-      </div>`;
-  }).join("");
-  elements.playerList.querySelectorAll(".kick-player-button").forEach((button) => {
-    button.addEventListener("click", () => kickPlayer(button.dataset.playerId));
+    let node = existing.get(id);
+    if (!node) {
+      node = document.createElement("div");
+      node.dataset.playerId = id;
+      node.innerHTML = '<span class="operator-light" aria-hidden="true"></span><span class="operator-number" data-operator-number></span><div class="player-name" data-player-name></div><div class="player-actions"><span class="tag" data-player-tag></span><button class="kick-player-button" data-kick-player type="button">移出</button></div>';
+    }
+    retained.add(id);
+    node.className = `player-item operator-chip ${player.connected ? "online" : "offline"} ${player.id === view.selfId ? "player-self" : ""}`;
+    node.title = `${player.connected ? "在线" : "离线"} · ${statusText}`;
+    node.querySelector("[data-operator-number]").textContent = String(index + 1).padStart(2,"0");
+    node.querySelector("[data-player-name]").textContent = `${player.name}${player.isHost ? " · 房主" : ""}`;
+    const tag = node.querySelector("[data-player-tag]");
+    tag.className = `tag ${tagClass}`;
+    tag.textContent = player.isCurrent ? "行动" : statusText;
+    const kick = node.querySelector("[data-kick-player]");
+    kick.dataset.kickPlayer = id;
+    setHidden(kick,!view.permissions?.canKick || player.isHost);
+    const atIndex = elements.playerList.children[index];
+    if (atIndex !== node) elements.playerList.insertBefore(node,atIndex || null);
+  });
+  [...elements.playerList.querySelectorAll("[data-player-id]")].forEach((node) => {
+    if (!retained.has(node.dataset.playerId)) node.remove();
   });
 }
 
@@ -308,7 +338,10 @@ function renderWords(memberRole) {
   elements.wordBoard.dataset.count = String(view.words.length);
   elements.wordBoard.classList.toggle("crowded", view.words.length > 8);
   elements.wordBoard.classList.toggle("dense", view.words.length > 16);
-  elements.wordBoard.innerHTML = view.words.map((item, index) => {
+  const existing = new Map([...elements.wordBoard.querySelectorAll("[data-player-anchor]")].map((node) => [node.dataset.playerAnchor,node]));
+  const retained = new Set();
+  view.words.forEach((item,index) => {
+    const id = String(item.id);
     const mine = item.id === view.selfId;
     const player = view.players.find((entry) => entry.id === item.id);
     const stateClass = !player?.connected ? "offline"
@@ -323,28 +356,27 @@ function renderWords(memberRole) {
             : player?.connected ? "线路待命" : "信号中断";
     const value = item.status === "waiting" ? "待发牌"
       : memberRole === "spectator" ? "答案对旁观者隐藏"
-      : mine ? "你的词被服务器遮住" : item.word || "未分配";
-    const extra = item.extra && ["playing", "ended"].includes(view.phase)
+        : mine ? "你的词被服务器遮住" : item.word || "未分配";
+    const extra = item.extra && ["playing","ended"].includes(view.phase)
       ? `<div class="word-extra word-extra-${escapeHtml(view.wordExtraMode)}"><strong>${view.wordExtraMode === "forbidden" ? "禁问" : "提示"}：</strong>${escapeHtml(item.extra)}</div>`
       : "";
     const trap = view.playerWordMode === "trap" && item.status !== "waiting"
       ? `<div class="trap-word ${mine ? "mine" : ""}"><strong>陷阱：</strong>${memberRole === "spectator" ? "对旁观者隐藏" : mine ? "你的陷阱词被服务器遮住" : escapeHtml(item.trapWord || "未分配")}</div>`
       : "";
-    return `
-      <article class="word-card operator-card ${stateClass} ${mine ? "self-card" : ""}" data-player-anchor="${escapeHtml(item.id)}">
-        <header class="operator-card-head">
-          <span class="operator-code">OP-${String(index + 1).padStart(2, "0")}</span>
-          <div class="word-owner">${escapeHtml(item.name)}${mine ? " · 你" : ""}</div>
-          <span class="operator-state">${statusLabel}</span>
-        </header>
-        <div class="cipher-label ${mine ? "sealed" : ""}">
-          <small>${mine ? "SEALED PERSONAL CODE" : "ASSIGNED CODE"}</small>
-          <div class="word-value ${mine ? "mine" : ""}">${escapeHtml(value)}</div>
-        </div>
-        ${trap}${extra}
-        <footer class="operator-card-foot"><span>${player?.connected ? "LINK STABLE" : "LINK LOST"}</span><i aria-hidden="true"></i></footer>
-      </article>`;
-  }).join("");
+    let node = existing.get(id);
+    if (!node) {
+      node = document.createElement("article");
+      node.dataset.playerAnchor = id;
+    }
+    retained.add(id);
+    node.className = `word-card operator-card ${stateClass} ${mine ? "self-card" : ""}`;
+    node.innerHTML = `<header class="operator-card-head"><span class="operator-code">OP-${String(index + 1).padStart(2,"0")}</span><div class="word-owner">${escapeHtml(item.name)}${mine ? " · 你" : ""}</div><span class="operator-state">${statusLabel}</span></header><div class="cipher-label ${mine ? "sealed" : ""}"><small>${mine ? "SEALED PERSONAL CODE" : "ASSIGNED CODE"}</small><div class="word-value ${mine ? "mine" : ""}">${escapeHtml(value)}</div></div>${trap}${extra}<footer class="operator-card-foot"><span>${player?.connected ? "LINK STABLE" : "LINK LOST"}</span><i aria-hidden="true"></i></footer>`;
+    const atIndex = elements.wordBoard.children[index];
+    if (atIndex !== node) elements.wordBoard.insertBefore(node,atIndex || null);
+  });
+  [...elements.wordBoard.querySelectorAll("[data-player-anchor]")].forEach((node) => {
+    if (!retained.has(node.dataset.playerAnchor)) node.remove();
+  });
 }
 
 function renderActions(memberRole) {
@@ -480,24 +512,40 @@ function renderResult() {
     ${eliminated ? `<p class="danger">陷阱出局：${eliminated}</p>` : ""}`;
 }
 
-function renderLog() {
+function renderLogFilter(model) {
   const availableIds = new Set(view.players.map((player) => player.id));
   if (logPlayerFilter !== "all" && !availableIds.has(logPlayerFilter)) logPlayerFilter = "all";
-  elements.logPlayerFilter.innerHTML = [
-    '<option value="all">全部玩家</option>',
-    ...view.players.map((player) => `<option value="${escapeHtml(player.id)}">${escapeHtml(player.name)}</option>`)
-  ].join("");
+  const existing = new Map([...elements.logPlayerFilter.options].map((option) => [option.value,option]));
+  const choices = [{id:"all",name:"全部玩家"},...view.players.map((player) => ({id:String(player.id),name:player.name}))];
+  const retained = new Set();
+  choices.forEach((choice,index) => {
+    let option = existing.get(choice.id);
+    if (!option) {
+      option = document.createElement("option");
+      option.value = choice.id;
+    }
+    retained.add(choice.id);
+    option.textContent = choice.name;
+    const atIndex = elements.logPlayerFilter.options[index];
+    if (atIndex !== option) elements.logPlayerFilter.insertBefore(option,atIndex || null);
+  });
+  [...elements.logPlayerFilter.options].forEach((option) => {
+    if (!retained.has(option.value)) option.remove();
+  });
   elements.logPlayerFilter.value = logPlayerFilter;
+}
+
+function renderLogEntries() {
   const records = logPlayerFilter === "all" ? view.log : view.log.filter((item) => item.playerId === logPlayerFilter);
   if (!records.length) {
     elements.logList.innerHTML = `<p class="muted">${logPlayerFilter === "all" ? "还没有记录。" : "该玩家还没有问答记录。"}</p>`;
     return;
   }
-  elements.logList.innerHTML = records.slice(0, 24).map((item) => {
+  elements.logList.innerHTML = records.slice(0,24).map((item) => {
     const answerTags = item.type === "question"
-      ? Object.values(item.answers || {}).map(({ playerName, answer }) => `<span class="log-answer-tag log-answer-${escapeHtml(answer)}">${escapeHtml(playerName)}：${escapeHtml({ yes: "是", no: "否", maybe: "不一定" }[answer] || "不一定")}</span>`).join("") : "";
+      ? Object.values(item.answers || {}).map(({playerName,answer}) => `<span class="log-answer-tag log-answer-${escapeHtml(answer)}">${escapeHtml(playerName)}：${escapeHtml({yes:"是",no:"否",maybe:"不一定"}[answer] || "不一定")}</span>`).join("") : "";
     const detail = item.type === "question"
-      ? `${item.wordExtra ? renderWordExtraNotice(item.wordExtraMode, item.wordExtra, true) : ""}<div class="log-answer-list">${answerTags || '<span class="muted">等待其他玩家回答。</span>'}</div>`
+      ? `${item.wordExtra ? renderWordExtraNotice(item.wordExtraMode,item.wordExtra,true) : ""}<div class="log-answer-list">${answerTags || '<span class="muted">等待其他玩家回答。</span>'}</div>`
       : `<div class="muted">${escapeHtml(item.detail || "")}</div>`;
     return `<div class="log-item"><div class="log-line">${escapeHtml(item.text)}</div>${detail}</div>`;
   }).join("");
@@ -600,7 +648,11 @@ async function init() {
   elements.wordExtraModeSelect.addEventListener("change", syncPlayerWordSettings);
   elements.logPlayerFilter.addEventListener("change", () => {
     logPlayerFilter = elements.logPlayerFilter.value;
-    if (view) renderLog();
+    if (view) render();
+  });
+  elements.playerList.addEventListener("click",(event) => {
+    const button = event.target.closest("[data-kick-player]");
+    if (button) kickPlayer(button.dataset.kickPlayer);
   });
   syncPlayerWordSettings();
   selectMode("host");

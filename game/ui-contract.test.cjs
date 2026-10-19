@@ -64,7 +64,7 @@ test("game1 preserves private words, question actions and log filtering",()=>{
   assert.match(script,/ASSIGNED CODE/);
   assert.match(script,/questionInput/);
   assert.match(script,/guessInput/);
-  assert.match(script,/renderLog\(\)/);
+  assert.match(script,/renderLogEntries/);
   assert.match(script,/logPlayerFilter/);
 });
 
@@ -96,4 +96,14 @@ test("game1 preserves unsent form drafts across authoritative view broadcasts",(
   assert.match(script,/if \(nextView\.phase !== "collectingWords"\) clearDraftGroup\("submission"\)/);
   assert.match(script,/if \(nextView\.phase !== "playing"\) clearDraftGroup\("turn"\)/);
   assert.doesNotMatch(script,/localStorage[\s\S]*actionDraft|actionDraft[\s\S]*localStorage/);
+});
+
+test("game1 isolates text decisions from unrelated authoritative partitions",()=>{
+  assert.match(script,/createGame1RenderModel/);
+  assert.match(script,/createGame1PartitionRenderer/);
+  assert.match(script,/decision:\(currentModel\) => renderActions/);
+  assert.match(script,/logFilter:renderLogFilter/);
+  assert.match(script,/log:renderLogEntries/);
+  assert.match(script,/elements\.playerList\.addEventListener\("click"/);
+  assert.doesNotMatch(script,/playerList\.innerHTML\s*=/);
 });

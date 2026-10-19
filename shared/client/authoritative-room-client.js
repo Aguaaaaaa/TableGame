@@ -2,6 +2,7 @@
 
 import { createId, cleanPlayerName, isValidRoomCode, normalizeRoomCode } from "./utils.js";
 import { assertProtocolVersion, MESSAGE_KINDS, readServerConfig, requestJson } from "./protocol.js";
+import { sharedServerClock } from "./server-clock.js";
 import { createSseChannel } from "./sse-channel.js";
 
 export function createAuthoritativeRoomClient({
@@ -9,6 +10,14 @@ export function createAuthoritativeRoomClient({
   sessionStore,
   fetchImpl = globalThis.fetch,
   EventSourceImpl = globalThis.EventSource,
+  serverClock = sharedServerClock,
+  initialClockSamples = 5,
+  reconnectClockSamples = 3,
+  clockRefreshMs = 90000,
+  wallNow = () => Date.now(),
+  monotonicNow = () => globalThis.performance?.now?.() ?? Date.now(),
+  setIntervalImpl = globalThis.setInterval,
+  clearIntervalImpl = globalThis.clearInterval,
   onStatus = () => {},
   handlers = {}
 } = {}) {
@@ -22,6 +31,56 @@ export function createAuthoritativeRoomClient({
   let version = 0;
   let assignmentReason = null;
   let autoSpectated = false;
+  let clockSyncPromise = null;
+  let clockRefreshTimer = null;
+
+  async function timedRequest(request) {
+    const wallStart = wallNow();
+    const monotonicStart = monotonicNow();
+    const result = await request();
+    const rttMs = Math.max(0, monotonicNow() - monotonicStart);
+    const sample = Number.isFinite(result?.serverNow) ? {
+      serverNow: Number(result.serverNow), wallStart, wallEnd: wallStart + rttMs, rttMs
+    } : null;
+    return { result, sample };
+  }
+
+  async function synchronizeClock(sampleCount = initialClockSamples, force = false) {
+    const ageMs = serverClock.snapshot?.().ageMs;
+    if (!force && Number.isFinite(ageMs) && ageMs < Math.min(clockRefreshMs / 2, 30000)) return null;
+    if (clockSyncPromise) return clockSyncPromise;
+    clockSyncPromise = (async () => {
+      const samples = [];
+      let latestConfig = null;
+      let lastError = null;
+      for (let index = 0; index < Math.max(1, Number(sampleCount) || 1); index += 1) {
+        try {
+          const measured = await timedRequest(() => readServerConfig({ fetchImpl }));
+          latestConfig = assertProtocolVersion(measured.result, protocolVersion);
+          if (measured.sample) samples.push(measured.sample);
+        } catch (error) { lastError = error; }
+      }
+      if (!latestConfig && lastError) throw lastError;
+      if (samples.length) serverClock.applySamples(samples);
+      handlers.onClockSync?.(serverClock.snapshot?.());
+      return latestConfig;
+    })().finally(() => { clockSyncPromise = null; });
+    return clockSyncPromise;
+  }
+
+  function stopClockRefresh() {
+    if (clockRefreshTimer != null) clearIntervalImpl(clockRefreshTimer);
+    clockRefreshTimer = null;
+  }
+
+  function startClockRefresh() {
+    stopClockRefresh();
+    if (!(clockRefreshMs > 0)) return;
+    clockRefreshTimer = setIntervalImpl(() => {
+      synchronizeClock(reconnectClockSamples, true).catch((error) => handlers.onClockSyncError?.(error));
+    }, clockRefreshMs);
+    clockRefreshTimer?.unref?.();
+  }
 
   function acceptView(view, nextVersion = 0) {
     const numericVersion = Number(nextVersion) || 0;
@@ -39,6 +98,9 @@ export function createAuthoritativeRoomClient({
   const channel = createSseChannel({
     EventSourceImpl,
     onStatus,
+    onOpen() {
+      synchronizeClock(reconnectClockSamples, true).catch((error) => handlers.onClockSyncError?.(error));
+    },
     onMessage(message) {
       const payload = message?.payload;
       if (payload?.kind === MESSAGE_KINDS.VIEW) {
@@ -57,8 +119,12 @@ export function createAuthoritativeRoomClient({
     }
   });
 
-  const checked = (promise) => promise.then((result) => assertProtocolVersion(result, protocolVersion));
-  const post = (path, data) => checked(requestJson(path, data, { fetchImpl }));
+  async function post(path, data) {
+    const measured = await timedRequest(() => requestJson(path, data, { fetchImpl }));
+    const result = assertProtocolVersion(measured.result, protocolVersion);
+    if (measured.sample) serverClock.applySamples([measured.sample]);
+    return result;
+  }
 
   function eventsUrl() {
     const params = new URLSearchParams({ clientId: playerId, roomCode, resumeToken });
@@ -68,7 +134,7 @@ export function createAuthoritativeRoomClient({
   async function checkServer() {
     onStatus("checking");
     try {
-      const result = assertProtocolVersion(await readServerConfig({ fetchImpl }), protocolVersion);
+      const result = await synchronizeClock(initialClockSamples, true);
       if (result.authorityMode !== "server") throw new Error("当前服务端不是权威游戏模式");
       onStatus("idle");
       return result;
@@ -79,6 +145,7 @@ export function createAuthoritativeRoomClient({
   }
 
   async function createRoom({ name, capacity, id = createId("host") } = {}) {
+    await synchronizeClock(initialClockSamples);
     role = "host";
     playerId = id;
     hostId = id;
@@ -97,10 +164,12 @@ export function createAuthoritativeRoomClient({
     sessionStore?.save(roomCode, { playerId, resumeToken, name: playerName, memberRole });
     acceptView(result.view, result.version);
     await channel.open(eventsUrl());
+    startClockRefresh();
     return snapshot();
   }
 
   async function joinRoom({ code, name, id, intent = "play" } = {}) {
+    await synchronizeClock(initialClockSamples);
     const normalizedCode = normalizeRoomCode(code);
     if (!isValidRoomCode(normalizedCode)) throw new TypeError("请输入四位房间号");
     roomCode = normalizedCode;
@@ -125,6 +194,7 @@ export function createAuthoritativeRoomClient({
     sessionStore?.save(roomCode, { playerId, resumeToken, name: playerName, memberRole });
     acceptView(result.view, result.version);
     await channel.open(eventsUrl());
+    startClockRefresh();
     return { ...snapshot(), resumed: Boolean(result.resumed) };
   }
 
@@ -182,15 +252,18 @@ export function createAuthoritativeRoomClient({
   }
 
   function snapshot() {
+    const clock = serverClock.snapshot?.() || {};
     return Object.freeze({
       role, memberRole, roomCode, playerId, hostId, resumeToken, name: playerName, version,
-      assignmentReason, autoSpectated
+      assignmentReason, autoSpectated, clockOffsetMs: clock.clockOffsetMs || 0,
+      clockRttMs: clock.lastRttMs ?? null, clockSynced: Boolean(clock.synced)
     });
   }
 
-  function close() { channel.close(); }
+  function close() { stopClockRefresh(); channel.close(); }
 
   return Object.freeze({
-    checkServer, createRoom, joinRoom, submitAction, kick, changeSeat, setRoomSettings, close, snapshot
+    checkServer, createRoom, joinRoom, submitAction, kick, changeSeat, setRoomSettings,
+    resyncClock: () => synchronizeClock(initialClockSamples, true), close, snapshot
   });
 }

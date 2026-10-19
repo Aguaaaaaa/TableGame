@@ -9,6 +9,7 @@
 - `client/session-store.js`：按游戏和房间隔离的断线恢复身份。
 - `client/protocol.js`：HTTP、协议版本以及公共消息类型。
 - `client/sse-channel.js`：SSE 生命周期和初次连接超时。
+- `client/server-clock.js`：多样本服务器校时、低延迟样本筛选和单调时钟估算。
 - `client/spectator-ui.js`：旁观加入、身份提示、换席、旁观席、房主设置和统一错误信息。
 - `client/presentation-events.js`：服务器演出事件的去重、排序、播放队列、中央通告和来源—目标轨迹。
 - `server/presentation-events.mjs`：为权威演出事件分配不可伪造的递增序号、裁剪历史并兼容旧快照。
@@ -19,6 +20,20 @@
 - `styles/spectator.css`：可按游戏主题变量覆盖的通用旁观界面样式。
 
 公共层不维护游戏 `state`，也不实现动作校验、阶段推进、隐私视图、胜负结算或游戏界面。
+
+## 服务器时钟同步
+
+服务器权威游戏仍在状态中保存绝对 `deadline`，阶段推进仍只由服务端 `handleTimeout` 完成。共享服务器会在JSON响应和SSE事件中附带 `serverNow`；共享权威客户端连接前默认顺序采集5次 `/api/config` 往返样本，选择往返延迟最低的三个样本并取时差中位数。SSE每次重新打开后采集3次，在线期间默认每90秒进行一次轻量复校。
+
+`createCountdown()` 默认使用校准后的共享服务器时间，并依靠 `performance.now()` 单调推进，不再直接相信各设备可能相差数十秒或被用户改动的系统时钟。尚未接入权威客户端或服务器未提供 `serverNow` 时会兼容回退到 `Date.now()`。客户端归零只显示“服务器结算中”，不得自行推进权威阶段。
+
+诊断信息可通过权威客户端 `snapshot()` 读取：
+
+```js
+const { clockSynced, clockOffsetMs, clockRttMs } = room.snapshot();
+```
+
+也可以调用 `room.resyncClock()` 主动重新采样。生产环境仍须为SSE关闭Nginx代理缓冲；校时只能修正倒计时显示，不能掩盖连接断开、代理缓存或服务端事件循环阻塞。
 
 演出时间线首次收到房间快照时只建立事件游标，因此加入或断线重连不会重播历史动画；后续仅播放 `sequence` 更大的事件。每款游戏可以注入事件名称、来源和目标元素，以及卡牌强调等专属演出。动画只表现已经由服务器裁定的结果，不能代替规则结算或携带不应公开的秘密字段。
 

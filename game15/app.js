@@ -10,6 +10,7 @@ import {
   escapeHtml,
   renderConnectionStatus,
   renderCountdown,
+  serverNow,
   setHidden,
   setModeVisibility
 } from "/shared/client/index.js";
@@ -324,7 +325,7 @@ function renderHand() {
 function renderTable() {
   const map = tileMap();
   const layout = activeLayout();
-  const changedIds = new Set(view.lastChange?.until > Date.now() ? view.lastChange.tileIds : []);
+  const changedIds = new Set(view.lastChange?.until > serverNow() ? view.lastChange.tileIds : []);
   const self = view.players.find((player) => player.id === view.selfId);
   E.table.innerHTML = layout.map((meld, meldIndex) => {
     const checked = checkedMeld(meld);
@@ -409,12 +410,12 @@ function renderScoreboard() {
 function renderChangeNotice() {
   if (changeTimer) clearTimeout(changeTimer);
   const change = view.lastChange;
-  const active = change && change.until > Date.now();
+  const active = change && change.until > serverNow();
   setHidden(E.changeNotice, !active);
   if (!active) return;
   const actor = view.players.find((player) => player.id === change.actorId);
   E.changeNotice.textContent = `${actor?.name || "一名玩家"}刚刚更新了牌桌，高亮牌块为本次发生变化的位置。`;
-  changeTimer = setTimeout(() => { setHidden(E.changeNotice, true); renderTable(); }, change.until - Date.now());
+  changeTimer = setTimeout(() => { setHidden(E.changeNotice, true); renderTable(); }, Math.max(0, change.until - serverNow()));
 }
 
 function renderResult() {

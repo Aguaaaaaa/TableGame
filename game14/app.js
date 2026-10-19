@@ -11,6 +11,7 @@ import {
   escapeHtml,
   renderConnectionStatus,
   renderCountdown,
+  serverNow,
   setHidden,
   setModeVisibility
 } from "/shared/client/index.js";
@@ -290,12 +291,12 @@ function renderHand() {
 function renderExchangeReveal() {
   if (revealTimer) clearTimeout(revealTimer);
   const reveal = view.revealedExchange;
-  const active = reveal && reveal.until > Date.now();
+  const active = reveal && reveal.until > serverNow();
   setHidden(E.exchangeReveal, !active);
   if (!active) return;
   const player = view.players.find((item) => item.id === reveal.playerId);
   E.exchangeReveal.innerHTML = `<b>${escapeHtml(player?.name || "一名玩家")} 公开并更换了三张无法使用的牌：</b><span>${reveal.cards.map((card) => escapeHtml(CARD_META[card.type]?.label || card.type)).join(" · ")}</span>`;
-  revealTimer = setTimeout(() => setHidden(E.exchangeReveal, true), Math.max(0, reveal.until - Date.now()));
+  revealTimer = setTimeout(() => setHidden(E.exchangeReveal, true), Math.max(0, reveal.until - serverNow()));
 }
 
 function renderLog() {

@@ -32,7 +32,12 @@ export function renderConnectionStatus(element, status, roomCode = "") {
 }
 
 export function renderCountdown({ textElement, barElement }, { seconds, progress }) {
-  setText(textElement, `${seconds}s`);
+  const settling = Number(seconds) <= 0;
+  setText(textElement, settling ? "服务器结算中" : `${seconds}s`);
+  if (textElement) {
+    textElement.dataset.settling = String(settling);
+    textElement.title = settling ? "倒计时已结束，等待服务器权威结算" : "";
+  }
   if (barElement) barElement.style.width = `${Math.round(progress * 100)}%`;
 }
 

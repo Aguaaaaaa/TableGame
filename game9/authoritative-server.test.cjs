@@ -79,12 +79,15 @@ test("authoritative server owns room state, actions and private views", async (c
   const config = await configResponse.json();
   assert.equal(config.authorityMode, "server");
   assert.equal(config.protocolVersion, 3);
+  assert.ok(Number.isFinite(config.serverNow));
 
   const created = await post(baseUrl, "/api/rooms", {
     hostId: "host", name: "房主", capacity: 3
   });
   assert.equal(created.response.status, 200);
   assert.equal(created.payload.view.phase, "lobby");
+  assert.ok(Number.isFinite(created.payload.serverNow));
+  assert.ok(Number.isFinite(created.payload.view.serverNow));
   streams.push(await openEvents(baseUrl, created.payload));
 
   const players = [];
@@ -112,6 +115,10 @@ test("authoritative server owns room state, actions and private views", async (c
     const view = stream.messages.at(-1)?.payload?.view;
     return view?.phase === "playing" && view.players[view.currentIndex]?.id === stream.session.clientId;
   }));
+  const timedMessage = currentStream.messages.at(-1);
+  assert.ok(Number.isFinite(timedMessage.serverNow));
+  assert.ok(Number.isFinite(timedMessage.payload.serverNow));
+  assert.ok(Number.isFinite(timedMessage.payload.view.serverNow));
   const acted = await post(baseUrl, "/api/actions", {
     roomCode: currentStream.session.roomCode,
     playerId: currentStream.session.clientId,

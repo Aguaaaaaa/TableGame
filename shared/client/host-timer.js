@@ -1,6 +1,8 @@
 "use strict";
 
-export function createHostTimer({ now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
+import { serverNow } from "./server-clock.js";
+
+export function createHostTimer({ now = serverNow, setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
   let timer = null;
   let deadline = 0;
 
@@ -39,7 +41,7 @@ export function createHostTimer({ now = Date.now, setTimer = setTimeout, clearTi
 export function createCountdown({
   onTick,
   intervalMs = 200,
-  now = Date.now,
+  now = serverNow,
   setTicker = setInterval,
   clearTicker = clearInterval
 } = {}) {

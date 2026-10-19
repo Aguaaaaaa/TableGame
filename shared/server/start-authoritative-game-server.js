@@ -134,11 +134,12 @@ module.exports = function startAuthoritativeGameServer({
   }
 
   function sendJson(response, status, payload) {
+    const serverNow = Date.now();
     response.writeHead(status, {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store"
     });
-    response.end(JSON.stringify(payload));
+    response.end(JSON.stringify({ ...payload, serverNow }));
   }
 
   function sendError(response, error) {
@@ -253,8 +254,9 @@ module.exports = function startAuthoritativeGameServer({
     const client = clients.get(clientKey(roomCode, playerId));
     if (!client) return false;
     try {
+      const serverNow = Date.now();
       client.response.write("event: signal\n");
-      client.response.write(`data: ${JSON.stringify({ roomCode, from: "server", payload })}\n\n`);
+      client.response.write(`data: ${JSON.stringify({ roomCode, from: "server", serverNow, payload: { ...payload, serverNow } })}\n\n`);
       return true;
     } catch {
       return false;
@@ -290,6 +292,7 @@ module.exports = function startAuthoritativeGameServer({
     const spectators = spectatorMembers(room);
     return {
       ...baseView,
+      serverNow: Date.now(),
       roomRole: member.role,
       spectators,
       spectatorCount: spectators.length,

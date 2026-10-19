@@ -2,7 +2,7 @@
 
 import {
   bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown,
-  createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus, renderCountdown, setHidden,
+  createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus, renderCountdown, serverNow, setHidden,
   setModeVisibility
 } from "/shared/client/index.js";
 import {
@@ -260,7 +260,7 @@ function playPlacementAnimation() {
     : Math.min(rowBox.right-sourceBox.width-12,(lastBox?.right || rowBox.left+44)+8);
   const targetTop = rowBox.top + (rowBox.height-sourceBox.height)/2;
   const total = Math.max(1,animation.endsAt-animation.startedAt);
-  const remaining = Math.max(0,animation.endsAt-Date.now());
+  const remaining = Math.max(0,animation.endsAt-serverNow());
   const progress = Math.max(0,Math.min(1,1-remaining/total));
   const deltaX = targetLeft-sourceBox.left;
   const deltaY = targetTop-sourceBox.top;

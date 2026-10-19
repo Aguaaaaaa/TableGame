@@ -12,6 +12,7 @@ import {
   escapeHtml,
   renderConnectionStatus,
   renderCountdown,
+  serverNow,
   setHidden,
   setModeVisibility
 } from "/shared/client/index.js";
@@ -192,7 +193,7 @@ function createVisualTestView(playerCount) {
     activeCard: 26,
     pot: 6,
     deckCount: 7,
-    deadline: Date.now() + ACTION_SECONDS * 1000,
+    deadline: serverNow() + ACTION_SECONDS * 1000,
     winners: [],
     removed: [],
     permissions: { canManage: false, canKick: false, canStart: false, canEnd: false },

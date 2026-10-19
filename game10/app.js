@@ -3,7 +3,7 @@
 import {
   bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown,
   createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus,
-  renderCountdown, setHidden, setModeVisibility
+  renderCountdown, serverNow, setHidden, setModeVisibility
 } from "/shared/client/index.js";
 import { COLUMN_LENGTHS } from "./rules.js";
 import { createDicePhysics, simulateDiceRoll } from "./dice-physics.js";
@@ -144,7 +144,7 @@ function renderPhysicsDice(view) {
   Promise.all([getDicePhysics(), getSimulation(view.physicsSeed)]).then(([physics, simulation]) => {
     if (activePhysicsRollId !== view.rollId) return;
     const elapsedMs = view.turnStage === "rolling"
-      ? Math.max(0, simulation.durationMs - Math.max(0, view.revealAt - Date.now()))
+      ? Math.max(0, simulation.durationMs - Math.max(0, view.revealAt - serverNow()))
       : simulation.durationMs;
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) physics.renderFinal(simulation);
     else physics.play(simulation, { elapsedMs });

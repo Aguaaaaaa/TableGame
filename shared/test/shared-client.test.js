@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createAuthoritativeRoomClient } from "../client/authoritative-room-client.js";
 import { createSessionStore } from "../client/session-store.js";
+import { createServerClock } from "../client/server-clock.js";
 import { assertProtocolVersion, ProtocolVersionError } from "../client/protocol.js";
 import { cleanPlayerName, escapeHtml, normalizeRoomCode } from "../client/utils.js";
 
@@ -43,6 +44,23 @@ test("protocol mismatch is rejected", () => {
     () => assertProtocolVersion({ protocolVersion: 1 }, 2),
     ProtocolVersionError
   );
+});
+
+test("server clock selects low-latency samples and advances with a monotonic clock", () => {
+  let wall = 1_000_000;
+  let monotonic = 5000;
+  const clock = createServerClock({ wallNow: () => wall, monotonicNow: () => monotonic });
+  clock.applySamples([
+    { serverNow: 1_020_040, wallStart: 1_000_000, wallEnd: 1_000_080, rttMs: 80 },
+    { serverNow: 1_020_025, wallStart: 1_000_000, wallEnd: 1_000_050, rttMs: 50 },
+    { serverNow: 1_020_500, wallStart: 1_000_000, wallEnd: 1_001_000, rttMs: 1000 },
+    { serverNow: 1_020_030, wallStart: 1_000_000, wallEnd: 1_000_060, rttMs: 60 }
+  ]);
+  assert.equal(Math.round(clock.snapshot().clockOffsetMs), 20000);
+  monotonic += 3000;
+  wall += 60000; // 模拟用户手动修改系统时间；服务器时钟仍只前进3秒。
+  assert.equal(Math.round(clock.now()), 1_023_000);
+  assert.equal(clock.snapshot().lastRttMs, 50);
 });
 
 test("authoritative client sends every role action to the server with a state version", async () => {
@@ -123,6 +141,11 @@ test("authoritative client sends join intent and persists role changes returned 
   }
   const requests = [];
   async function fetchImpl(path, options = {}) {
+    if (path === "/api/config") {
+      return new Response(JSON.stringify({ authorityMode: "server", protocolVersion: 3, serverNow: Date.now() }), {
+        status: 200, headers: { "Content-Type": "application/json" }
+      });
+    }
     const data = JSON.parse(options.body);
     requests.push({ path, data });
     const payload = path === "/api/join"
@@ -161,4 +184,49 @@ test("authoritative client sends join intent and persists role changes returned 
   assert.equal(requests[1].path, "/api/seat");
   assert.equal(requests[1].data.intent, "play");
   assert.equal(sessions.load("ABCD").memberRole, "player");
+});
+
+test("authoritative client pre-samples server time and re-synchronizes after SSE reconnect", async () => {
+  let activeSource = null;
+  let configRequests = 0;
+  class FakeEventSource {
+    constructor() {
+      this.listeners = new Map();
+      activeSource = this;
+      queueMicrotask(() => this.listeners.get("open")?.({ type: "open" }));
+    }
+    addEventListener(type, listener) { this.listeners.set(type, listener); }
+    close() {}
+  }
+  async function fetchImpl(path) {
+    if (path === "/api/config") {
+      configRequests += 1;
+      return new Response(JSON.stringify({ authorityMode: "server", protocolVersion: 3, serverNow: Date.now() + 12000 }), {
+        status: 200, headers: { "Content-Type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({
+      roomCode: "TIME", hostId: "host", clientId: "host", resumeToken: "token",
+      role: "host", memberRole: "player", version: 1, view: { phase: "lobby" },
+      protocolVersion: 3, serverNow: Date.now() + 12000
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+  const clock = createServerClock();
+  const client = createAuthoritativeRoomClient({
+    protocolVersion: 3,
+    sessionStore: createSessionStore({ gameId: "clock-sync", storage: memoryStorage() }),
+    fetchImpl, EventSourceImpl: FakeEventSource, serverClock: clock,
+    initialClockSamples: 3, reconnectClockSamples: 2, clockRefreshMs: 0
+  });
+  await client.createRoom({ name: "房主", capacity: 5, id: "host" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const afterInitialOpen = configRequests;
+  assert.ok(afterInitialOpen >= 3);
+  assert.equal(client.snapshot().clockSynced, true);
+  assert.ok(client.snapshot().clockOffsetMs > 11000);
+
+  activeSource.listeners.get("open")?.({ type: "open" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(configRequests >= afterInitialOpen + 2);
+  client.close();
 });

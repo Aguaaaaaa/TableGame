@@ -4,6 +4,7 @@ export function createSseChannel({
   EventSourceImpl = globalThis.EventSource,
   connectTimeoutMs = 5000,
   onMessage = () => {},
+  onOpen = () => {},
   onStatus = () => {}
 } = {}) {
   let source = null;
@@ -33,6 +34,7 @@ export function createSseChannel({
       });
       source.addEventListener("open", () => {
         onStatus("open");
+        onOpen();
         if (!settled) {
           settled = true;
           clearTimeout(timer);

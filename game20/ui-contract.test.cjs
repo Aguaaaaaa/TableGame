@@ -27,8 +27,8 @@ test("局内人使用独立问答沙龙外壳，同时保留完整信息责任",
   assert.match(html, /id="presentationTrail"/);
   assert.match(html, /id="presentationAnnouncement"/);
 
-  assert.match(script, /data-target-id=/);
-  assert.match(script, /data-player-anchor=/);
+  assert.match(script, /setAttribute\("data-target-id", item\.id\)/);
+  assert.match(script, /seat\.dataset\.playerAnchor = item\.id/);
   assert.match(script, /Math\.cos\(radians\)/);
   assert.match(script, /view\.answerHistory/);
   assert.match(script, /type: "markCorrectGuesser"/);
@@ -56,4 +56,18 @@ test("局内人使用独立问答沙龙外壳，同时保留完整信息责任",
   for (const [, id] of elementBlock.matchAll(/"([A-Za-z][A-Za-z0-9]+)"/g)) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `app.js引用的 #${id} 必须存在于页面`);
   }
+});
+
+test("权威视图按沙龙职责分区并保留主持人本地选择模式", () => {
+  const script = read("app.js"), partitions = read("render-partitions.mjs");
+  assert.match(script, /createGame20PartitionRenderer, createGame20RenderModel/);
+  assert.match(script, /partitionRenderer = createGame20PartitionRenderer\(\{/);
+  assert.match(script, /players: renderPlayers/);
+  assert.match(script, /focus: renderPublicFocus/);
+  assert.match(script, /secret: \(model\) => renderSecret\(model\.memberRole\)/);
+  assert.match(script, /decision: \(model\) => renderActions\(model\.memberRole\)/);
+  assert.match(script, /querySelectorAll\(":scope > \[data-player-anchor\]"\)/);
+  assert.match(script, /if \(!view\.permissions\.canMarkCorrectGuesser\) selectingGuesser = false/);
+  assert.match(script, /selectingGuesser = true; render\(\)/);
+  assert.match(partitions, /"room","status","players","focus","secret","decision","log","countdown"/);
 });

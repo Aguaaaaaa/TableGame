@@ -4,6 +4,7 @@ import {
   bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown, createPresentationTimeline, createSessionStore,
   createSpectatorUi, escapeHtml, renderConnectionStatus, renderCountdown, setHidden, setModeVisibility
 } from "/shared/client/index.js";
+import { createGame20PartitionRenderer, createGame20RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const PHASE_MS = { secretReveal: 30000, questioning: 300000, firstVote: 30000, secondVote: 30000, tieBreak: 20000 };
@@ -25,6 +26,7 @@ let view = null;
 let spectatorUi = null;
 let selectingGuesser = false;
 let presentation = null;
+let partitionRenderer = null;
 
 const sessions = createSessionStore({ gameId: "insider" });
 const countdown = createCountdown({ onTick(value) { renderCountdown({ textElement: E.timerText, barElement: E.timerBar }, value); } });
@@ -175,7 +177,9 @@ function renderPlayers() {
   const kind = targetMode();
   const targets = eligibleTargetIds(kind);
   E.players.dataset.count = String(ordered.length);
-  E.players.innerHTML = ordered.map((item, index) => {
+  const existing = new Map([...E.players.querySelectorAll(":scope > [data-player-anchor]")]
+    .map((seat) => [seat.dataset.playerAnchor, seat]));
+  ordered.forEach((item, index) => {
     const angle = -90 + (180 / ordered.length) + index * (360 / ordered.length);
     const radians = angle * Math.PI / 180;
     const x = 50 + Math.cos(radians) * 41;
@@ -189,17 +193,33 @@ function renderPlayers() {
       view.phase === "firstVote" && view.submittedFirstVoteIds.includes(item.id) ? '<span class="badge">已投票</span>' : "",
       view.phase === "secondVote" && view.submittedSecondVoteIds.includes(item.id) ? '<span class="badge">已投票</span>' : ""
     ].join("");
-    return `<article data-player-anchor="${escapeHtml(item.id)}" style="--seat-x:${x.toFixed(2)}%;--seat-y:${y.toFixed(2)}%" class="player-seat ${item.id === view.selfId ? "self" : ""} ${item.isMaster ? "master" : ""} ${!item.connected ? "offline" : ""} ${targetable ? "targetable" : ""}" ${targetable ? `data-target-id="${escapeHtml(item.id)}" role="button" tabindex="0" aria-label="选择 ${escapeHtml(item.name)}"` : ""}>
-      <div class="seat-head"><div><b>${escapeHtml(item.name)}${item.id === view.selfId ? " · 你" : ""}</b><small>${item.isHost ? "房主 · " : ""}${item.connected ? "在线" : "离线"}</small></div>${view.permissions.canManage && view.phase === "lobby" && !item.isHost ? `<button class="small" data-kick="${escapeHtml(item.id)}" type="button">移出</button>` : ""}</div>
-      <div class="seat-badges">${badges || '<span class="badge">身份隐藏</span>'}</div>
-    </article>`;
-  }).join("");
-  E.players.querySelectorAll("[data-kick]").forEach((button) => { button.onclick = (event) => { event.stopPropagation(); kickPlayer(button.dataset.kick); }; });
-  E.players.querySelectorAll("[data-target-id]").forEach((seat) => {
-    const choose = () => choosePlayer(kind, seat.dataset.targetId);
-    seat.onclick = (event) => { if (!event.target.closest("[data-kick]")) choose(); };
-    seat.onkeydown = (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); choose(); } };
+    const renderKey = JSON.stringify([item,index,x,y,targetable,badges,view.selfId,view.phase,view.permissions.canManage]);
+    let seat = existing.get(item.id);
+    if (!seat) { seat = document.createElement("article"); seat.dataset.playerAnchor = item.id; }
+    if (seat.dataset.renderKey !== renderKey) {
+      const presentationFocus = seat.classList.contains("presentation-focus");
+      seat.dataset.renderKey = renderKey;
+      seat.style.setProperty("--seat-x", `${x.toFixed(2)}%`);
+      seat.style.setProperty("--seat-y", `${y.toFixed(2)}%`);
+      seat.className = `player-seat ${item.id === view.selfId ? "self" : ""} ${item.isMaster ? "master" : ""} ${!item.connected ? "offline" : ""} ${targetable ? "targetable" : ""}`;
+      if (presentationFocus) seat.classList.add("presentation-focus");
+      seat.innerHTML = `<div class="seat-head"><div><b>${escapeHtml(item.name)}${item.id === view.selfId ? " · 你" : ""}</b><small>${item.isHost ? "房主 · " : ""}${item.connected ? "在线" : "离线"}</small></div>${view.permissions.canManage && view.phase === "lobby" && !item.isHost ? `<button class="small" data-kick="${escapeHtml(item.id)}" type="button">移出</button>` : ""}</div><div class="seat-badges">${badges || '<span class="badge">身份隐藏</span>'}</div>`;
+      const kick = seat.querySelector("[data-kick]");
+      if (kick) kick.onclick = (event) => { event.stopPropagation(); kickPlayer(kick.dataset.kick); };
+      if (targetable) {
+        seat.setAttribute("data-target-id", item.id); seat.setAttribute("role", "button"); seat.tabIndex = 0; seat.setAttribute("aria-label", `选择 ${item.name}`);
+        const choose = () => choosePlayer(kind, seat.dataset.targetId);
+        seat.onclick = (event) => { if (!event.target.closest("[data-kick]")) choose(); };
+        seat.onkeydown = (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); choose(); } };
+      } else {
+        seat.removeAttribute("data-target-id"); seat.removeAttribute("role"); seat.removeAttribute("tabindex"); seat.removeAttribute("aria-label"); seat.onclick = null; seat.onkeydown = null;
+      }
+    }
+    const expected = E.players.children[index];
+    if (expected !== seat) E.players.insertBefore(seat, expected || null);
+    existing.delete(item.id);
   });
+  existing.forEach((seat) => seat.remove());
 }
 
 function addButton(text, handler, className = "", disabled = false) {
@@ -224,7 +244,6 @@ function renderSecret(memberRole) {
 function renderActions(memberRole) {
   E.actionButtons.innerHTML = "";
   E.actionHint.textContent = "";
-  renderSecret(memberRole);
   if (memberRole === "spectator") {
     E.actionTitle.textContent = view.phase === "lobby" ? "正在旁观准备阶段" : `正在旁观：${PHASE_LABEL[view.phase]}`;
     E.actionHint.textContent = view.phase === "roundEnd" ? "本轮身份和答案已经公开。" : "旁观者只能看到公开进度，不会收到答案、隐藏身份或未结算投票。";
@@ -249,8 +268,8 @@ function renderActions(memberRole) {
         addButton("是", () => submit({ type: "showMasterAnswer", answer: "yes" }), "answer-yes");
         addButton("不是", () => submit({ type: "showMasterAnswer", answer: "no" }), "answer-no");
         addButton("不知道", () => submit({ type: "showMasterAnswer", answer: "unknown" }), "answer-unknown");
-        addButton("有人猜中", () => { selectingGuesser = true; renderPlayers(); renderActions(memberRole); }, "primary");
-      } else addButton("取消选择", () => { selectingGuesser = false; renderPlayers(); renderActions(memberRole); });
+        addButton("有人猜中", () => { selectingGuesser = true; render(); }, "primary");
+      } else addButton("取消选择", () => { selectingGuesser = false; render(); });
     } else {
       E.actionTitle.textContent = "通过语音向主持人提问";
       E.actionHint.textContent = view.privateRole === "insider" ? "你知道答案：自然地引导讨论，同时隐藏自己的身份。" : "问题应当能由主持人回答“是”“不是”或“不知道”。";
@@ -322,10 +341,7 @@ function renderLog() {
   E.logList.innerHTML = view.logs.map((entry) => `<div class="log-item">${escapeHtml(entry.text)}</div>`).join("") || '<p class="muted">暂无公开记录</p>';
 }
 
-function render() {
-  if (!view) return;
-  const model = spectatorUi.render(view);
-  const memberRole = model.memberRole;
+function renderRoom() {
   setHidden(E.hostTools, !view.permissions.canManage);
   setHidden(E.startGameButton, !view.permissions.canStart);
   setHidden(E.nextRoundButton, !view.permissions.canNextRound);
@@ -334,19 +350,42 @@ function render() {
   E.nextRoundButton.disabled = view.players.some((item) => !item.connected);
   E.roomPlayerCountSelect.value = String(view.capacity);
   E.roomPlayerCountSelect.disabled = !view.permissions.canSetCapacity;
+}
+
+function renderStatus(model) {
   E.phaseTitle.textContent = PHASE_LABEL[view.phase] || "服务器结算中";
   E.roundNumber.textContent = String(view.round);
   E.commonWins.textContent = String(view.stats.commonWins);
   E.insiderWins.textContent = String(view.stats.insiderWins);
   E.failedRounds.textContent = String(view.stats.failedRounds);
   E.notice.textContent = view.phase === "lobby" ? `等待玩家加入：${view.players.length}/${view.capacity}` : `第 ${view.round} 轮 · ${PHASE_LABEL[view.phase]}${view.masterId ? ` · 主持人：${nameOf(view.masterId)}` : ""}`;
-  E.controlDock.dataset.role = memberRole;
-  renderPlayers();
-  renderPublicFocus();
-  renderActions(memberRole);
-  renderLog();
+  E.controlDock.dataset.role = model.memberRole;
+}
+
+function renderCountdownPartition() {
   if (view.deadline) countdown.start(view.deadline, view.phase === "discussion" ? Math.max(1000, view.guessElapsedMs) : PHASE_MS[view.phase] || 30000);
   else { countdown.stop(); E.timerText.textContent = "--"; E.timerBar.style.width = "0"; }
+}
+
+partitionRenderer = createGame20PartitionRenderer({
+  room: renderRoom,
+  status: renderStatus,
+  players: renderPlayers,
+  focus: renderPublicFocus,
+  secret: (model) => renderSecret(model.memberRole),
+  decision: (model) => renderActions(model.memberRole),
+  log: renderLog,
+  countdown: renderCountdownPartition
+});
+
+function render() {
+  if (!view) return;
+  const model = spectatorUi.render(view);
+  partitionRenderer.render(createGame20RenderModel(view, {
+    memberRole: model.memberRole,
+    roomCode: room.snapshot().roomCode,
+    selectingGuesser
+  }));
 }
 
 function selectMode(nextMode) {

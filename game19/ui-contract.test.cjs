@@ -19,7 +19,7 @@ test("页面遵守统一标题、侧栏、独立桌面、合并操作区与手�
   assert.match(html, /<h3>濒死、出局与奖励<\/h3>/);
   assert.match(html, /name="joinIntent" value="spectate"/); assert.match(script, /createSpectatorUi/);
   assert.doesNotMatch(script, /https?:\/\//); assert.match(script, /escapeHtml/);
-  assert.match(script, /data-side="\$\{side\}"/);
+  assert.match(script, /setAttribute\("data-side",side\)/);
   assert.match(script, /createPresentationTimeline/);
   assert.match(script, /presentation\?\.sync\(next\.presentationEvents\)/);
   assert.match(script, /sceneKey:\(event\)=>event\.sceneId\|\|event\.id/);
@@ -30,9 +30,22 @@ test("页面遵守统一标题、侧栏、独立桌面、合并操作区与手�
   assert.match(html, /id="presentationAnnouncement"/);
   assert.match(styles, /\.presentation-token/);
   assert.match(styles, /\.player-seat\.responding/);
-  assert.match(script, /E\.controlDock\.dataset\.role=role/);
+  assert.match(script, /E\.controlDock\.dataset\.role=model\.memberRole/);
   assert.match(styles, /@media\(max-width:850px\)[\s\S]*?\.game-area\{order:1\}[\s\S]*?\.sidebar\{order:2/);
   assert.match(styles, /\.control-dock\{position:sticky/);
   assert.match(styles, /\.private-zone\{position:static/);
   assert.match(styles, /\.control-dock\[data-role="spectator"\]\{position:relative/);
+});
+
+test("权威视图分区更新并保留合法的本地牌与目标选择", () => {
+  const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  const partitions = fs.readFileSync(path.join(__dirname, "render-partitions.mjs"), "utf8");
+  assert.match(script, /createGame19PartitionRenderer, createGame19RenderModel/);
+  assert.match(script, /partitionRenderer=createGame19PartitionRenderer\(\{room:renderRoom,status:renderStatus,table:renderTable,players:renderPlayers/);
+  assert.match(script, /private:\(model\)=>renderHand\(model\.memberRole\),decision:\(model\)=>renderActions\(model\.memberRole\)/);
+  assert.match(script, /querySelectorAll\(":scope > \[data-player-id\]"\)/);
+  assert.match(script, /if\(!view\.permissions\.canPlay\|\|!selected\)\{selectedCardId=null;selectedTargetId=null;\}/);
+  assert.match(script, /else if\(selectedTargetId&&!eligibleTargets\(selected\)\.some/);
+  assert.match(script, /selectedCardId=button\.dataset\.card;selectedTargetId=null;render\(\)/);
+  assert.match(partitions, /"room","status","table","players","private","decision","log","countdown"/);
 });

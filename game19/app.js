@@ -5,6 +5,7 @@ import {
   createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus,
   renderCountdown, setHidden, setModeVisibility
 } from "/shared/client/index.js";
+import { createGame19PartitionRenderer, createGame19RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const PHASE_MS = { turnStart: 20000, draw: 20000, drawChoice: 20000, kitChoice: 20000, judgmentChoice: 20000, play: 75000, defense: 15000, duel: 12000, dying: 15000, discardExcess: 25000, generalStore: 20000 };
@@ -16,13 +17,19 @@ const ROLE = { sheriff:"警长", deputy:"副警长", outlaw:"歹徒", renegade:"
 const $ = (id) => document.getElementById(id);
 const E = Object.fromEntries(["hero","connectionStatus","roomHeaderTools","setupPanel","roomPanel","hostModeButton","guestModeButton","hostSetup","guestSetup","hostNameInput","guestNameInput","playerCountSelect","createRoomButton","joinRoomButton","roomCodeInput","joinIntentField","roomCodeDisplay","hostTools","roomPlayerCountSelect","spectatorSettingButton","seatActionButton","spectatorPanel","spectatorCountBadge","spectatorList","startGameButton","restartGameButton","endGameButton","notice","westernTable","players","tableCenter","centerMoment","deckPile","deckCount","discardTop","presentationEffects","presentationTrail","presentationAnnouncement","presentationLabel","presentationText","controlDock","actionTitle","actionHint","actionButtons","timerText","timerBar","privateZone","selfSummary","myHand","toggleLogButton","logList"].map((id)=>[id,$(id)]));
 
-let view = null, selectedCardId = null, selectedTargetId = null, spectatorUi = null, presentation = null;
+let view = null, selectedCardId = null, selectedTargetId = null, spectatorUi = null, presentation = null, partitionRenderer = null;
 const sessions = createSessionStore({ gameId:"bang" });
 const countdown = createCountdown({ onTick(value){ renderCountdown({ textElement:E.timerText,barElement:E.timerBar },value); } });
 const room = createAuthoritativeRoomClient({
   protocolVersion:PROTOCOL_VERSION, sessionStore:sessions,
   onStatus(status){ renderConnectionStatus(E.connectionStatus,status,room.snapshot().roomCode); },
-  handlers:{ onView(next){ view=next; const mine=own()?.hand.some((card)=>card.id===selectedCardId); if(!mine){selectedCardId=null;selectedTargetId=null;} enterRoom();render();presentation?.sync(next.presentationEvents); }, onKicked(){spectatorUi?.handleSessionEnded("kicked");}, onRoomExpired(){spectatorUi?.handleSessionEnded("room_expired");} }
+  handlers:{ onView(next){
+    view=next;
+    const selected=own()?.hand.find((card)=>card.id===selectedCardId);
+    if(!view.permissions.canPlay||!selected){selectedCardId=null;selectedTargetId=null;}
+    else if(selectedTargetId&&!eligibleTargets(selected).some((target)=>target.id===selectedTargetId))selectedTargetId=null;
+    enterRoom();render();presentation?.sync(next.presentationEvents);
+  }, onKicked(){spectatorUi?.handleSessionEnded("kicked");}, onRoomExpired(){spectatorUi?.handleSessionEnded("room_expired");} }
 });
 spectatorUi=createSpectatorUi({room,getView:()=>view,elements:{joinIntentField:E.joinIntentField,seatActionButton:E.seatActionButton,spectatorSettingButton:E.spectatorSettingButton,spectatorPanel:E.spectatorPanel,spectatorCountBadge:E.spectatorCountBadge,spectatorList:E.spectatorList},notify:(m)=>alert(m),confirmAction:(m)=>confirm(m),onSessionEnded:()=>location.reload()});
 
@@ -56,27 +63,48 @@ function renderPlayers(){
   const seats=selfIndex<0?view.players:[...view.players.slice(selfIndex),...view.players.slice(0,selfIndex)];
   const leftCount=Math.floor(seats.length/2),rightCount=seats.length-leftCount;
   E.players.dataset.count=String(seats.length);
-  E.players.innerHTML=seats.map((p,index)=>{const side=index<leftCount?"left":"right",sideIndex=side==="left"?index:index-leftCount,sideCount=side==="left"?leftCount:rightCount,y=sideCount===1?50:8+84*(sideIndex+.5)/sideCount;const responding=view.pending?.actorId===p.id&&["defense","duel","dying"].includes(view.phase),source=view.pending?.sourceId===p.id;return `<article data-player-id="${escapeHtml(p.id)}" data-side="${side}" style="--seat-y:${y}%" class="player-seat ${p.id===view.selfId?"self":""} ${p.id===view.currentPlayerId?"current":""} ${responding?"responding":""} ${source?"action-source":""} ${!p.alive?"dead":""} ${!p.connected?"offline":""}"><div class="seat-head"><div><b>${escapeHtml(p.name)}${p.id===view.selfId?" · 你":""}</b><small>${p.connected?"在线":"离线"} · ${p.handCount}张手牌${p.distance?` · 距离${p.distance}`:""}</small></div><div class="seat-tools"><span class="role">${escapeHtml(p.role?ROLE[p.role]:"身份隐藏")}</span>${view.permissions.canManage&&view.phase==="lobby"&&!p.isHost?`<button class="kick small" data-kick="${escapeHtml(p.id)}">移出</button>`:""}</div></div><div class="character">${escapeHtml(p.characterName||"等待角色")} <span class="life">${p.alive?"♥".repeat(Math.max(0,p.life)):"已出局"}${p.maxLife?` / ${p.maxLife}`:""}</span></div><div class="equipment">${p.equipment.map((card)=>`<span class="equip">${escapeHtml(cardName(card.type))}</span>`).join("")||"<small>无装备</small>"}</div></article>`;}).join("");
-  E.players.querySelectorAll("[data-kick]").forEach((button)=>{button.onclick=()=>kickPlayer(button.dataset.kick);});
+  const existing=new Map([...E.players.querySelectorAll(":scope > [data-player-id]")].map((seat)=>[seat.dataset.playerId,seat]));
+  seats.forEach((p,index)=>{
+    const side=index<leftCount?"left":"right",sideIndex=side==="left"?index:index-leftCount,sideCount=side==="left"?leftCount:rightCount,y=sideCount===1?50:8+84*(sideIndex+.5)/sideCount;
+    const responding=view.pending?.actorId===p.id&&["defense","duel","dying"].includes(view.phase),source=view.pending?.sourceId===p.id;
+    const renderKey=JSON.stringify([p,index,side,y,responding,source,view.selfId,view.currentPlayerId,view.phase,view.permissions.canManage]);
+    let seat=existing.get(p.id);
+    if(!seat){seat=document.createElement("article");seat.dataset.playerId=p.id;}
+    if(seat.dataset.renderKey!==renderKey){
+      const presentationFocus=seat.classList.contains("presentation-focus");
+      seat.dataset.renderKey=renderKey;seat.setAttribute("data-side",side);seat.style.setProperty("--seat-y",`${y}%`);
+      seat.className=`player-seat ${p.id===view.selfId?"self":""} ${p.id===view.currentPlayerId?"current":""} ${responding?"responding":""} ${source?"action-source":""} ${!p.alive?"dead":""} ${!p.connected?"offline":""}`;
+      if(presentationFocus)seat.classList.add("presentation-focus");
+      seat.innerHTML=`<div class="seat-head"><div><b>${escapeHtml(p.name)}${p.id===view.selfId?" · 你":""}</b><small>${p.connected?"在线":"离线"} · ${p.handCount}张手牌${p.distance?` · 距离${p.distance}`:""}</small></div><div class="seat-tools"><span class="role">${escapeHtml(p.role?ROLE[p.role]:"身份隐藏")}</span>${view.permissions.canManage&&view.phase==="lobby"&&!p.isHost?`<button class="kick small" data-kick="${escapeHtml(p.id)}">移出</button>`:""}</div></div><div class="character">${escapeHtml(p.characterName||"等待角色")} <span class="life">${p.alive?"♥".repeat(Math.max(0,p.life)):"已出局"}${p.maxLife?` / ${p.maxLife}`:""}</span></div><div class="equipment">${p.equipment.map((card)=>`<span class="equip">${escapeHtml(cardName(card.type))}</span>`).join("")||"<small>无装备</small>"}</div>`;
+      const kick=seat.querySelector("[data-kick]");if(kick)kick.onclick=()=>kickPlayer(kick.dataset.kick);
+    }
+    const expected=E.players.children[index];if(expected!==seat)E.players.insertBefore(seat,expected||null);
+    existing.delete(p.id);
+  });
+  existing.forEach((seat)=>seat.remove());
+}
+function eligibleTargets(card){
+  const self=own(),type=card?.type;
+  return view.players.filter((p)=>p.alive&&p.id!==view.selfId&&(!(type==="bang"||type==="missed")||p.distance<=weaponRange(self))&&(!(type==="panic")||p.distance<=1)&&(type!=="jail"||p.role!=="sheriff"));
 }
 function targetButtons(card){
   const self=own(), type=card.type;
   if(type==="missed"&&self?.characterId!=="calamity_janet"){E.actionHint.textContent="【闪！】通常只能在受到【砰！】时响应，不能主动打出。";return;}
   const needsTarget=["bang","missed","duel","panic","cat_balou","jail"].includes(type);
   if(!needsTarget)return addButton(`使用${cardName(type)}`,()=>submit({type:"playCard",cardId:card.id}),"primary");
-  const targets=view.players.filter((p)=>p.alive&&p.id!==view.selfId&&(!(type==="bang"||type==="missed")||p.distance<=weaponRange(self))&&(!(type==="panic")||p.distance<=1)&&(type!=="jail"||p.role!=="sheriff"));
-  if(!selectedTargetId){E.actionHint.textContent="请选择目标；服务器会再次校验距离与规则。";for(const p of targets)addButton(`${p.name}${p.distance?` · 距离${p.distance}`:""}`,()=>{selectedTargetId=p.id;renderActions();});return;}
+  const targets=eligibleTargets(card);
+  if(!selectedTargetId){E.actionHint.textContent="请选择目标；服务器会再次校验距离与规则。";for(const p of targets)addButton(`${p.name}${p.distance?` · 距离${p.distance}`:""}`,()=>{selectedTargetId=p.id;render();});return;}
   const target=player(selectedTargetId);
   if(["panic","cat_balou"].includes(type)){
     if(target?.handCount)addButton(`随机选择 ${target.name} 的一张手牌`,()=>submit({type:"playCard",cardId:card.id,targetId:selectedTargetId,targetZone:"hand"}),"primary");
     for(const item of target?.equipment||[])addButton(`${cardName(item.type)}`,()=>submit({type:"playCard",cardId:card.id,targetId:selectedTargetId,targetCardId:item.id}));
   }else addButton(`确认对 ${target?.name} 使用`,()=>submit({type:"playCard",cardId:card.id,targetId:selectedTargetId}),"primary");
-  addButton("重选目标",()=>{selectedTargetId=null;renderActions();});
+  addButton("重选目标",()=>{selectedTargetId=null;render();});
 }
 function weaponRange(self){const weapon=self?.equipment.find((c)=>["volcanic","schofield","remington","rev_carabine","winchester"].includes(c.type));return {volcanic:1,schofield:2,remington:3,rev_carabine:4,winchester:5}[weapon?.type]||1;}
 function responseCards(expected){return own()?.hand.filter((card)=>card.type===expected||(own().characterId==="calamity_janet"&&((expected==="missed"&&card.type==="bang")||(expected==="bang"&&card.type==="missed"))))||[];}
-function renderActions(){
-  if(!view)return;E.actionButtons.innerHTML="";E.actionHint.textContent="";const role=spectatorUi.render(view).memberRole;
+function renderActions(role){
+  if(!view)return;E.actionButtons.innerHTML="";E.actionHint.textContent="";
   if(role==="spectator"){E.actionTitle.textContent=view.phase==="lobby"?"旁观准备阶段":"正在旁观枪战";E.actionHint.textContent="隐藏身份和手牌不会发送给旁观者。";return;}
   if(view.phase==="lobby"){E.actionTitle.textContent="等待枪手到齐";E.actionHint.textContent=`当前 ${view.players.length}/${view.capacity} 人。`;return;}
   if(view.phase==="ended"){E.actionTitle.textContent=view.winner?.text||"枪战结束";E.actionHint.textContent="所有身份与手牌已经公开。";return;}
@@ -94,8 +122,14 @@ function renderActions(){
   E.actionTitle.textContent=`等待 ${name(view.pending?.actorId||view.currentPlayerId)} 操作`;E.actionHint.textContent="服务器将在倒计时结束后执行合法默认动作。";renderSid();
 }
 function renderSid(){if(own()?.characterId!=="sid_ketchum"||own().hand.length<2)return;addButton("西德：弃2张牌回血",()=>{const cards=own().hand;const answer=prompt(`输入要弃掉的两张牌序号（例如 1,3）：\n${cards.map((card,index)=>`${index+1}. ${cardName(card.type)} ${card.rank}${SUIT[card.suit]}`).join("\n")}`);if(answer==null)return;const indexes=answer.split(/[,，\s]+/).filter(Boolean).map((value)=>Number(value)-1);if(indexes.length!==2||new Set(indexes).size!==2||indexes.some((index)=>!cards[index]))return alert("请输入两个不同且有效的牌序号。");submit({type:"useSid",cardIds:indexes.map((index)=>cards[index].id)});});}
-function renderHand(role){setHidden(E.privateZone,role==="spectator");if(role==="spectator")return;const self=own();E.selfSummary.textContent=self?`${self.characterName||"未分配角色"} · ${self.role?ROLE[self.role]:""} · ${self.life}/${self.maxLife}生命`:"";E.myHand.innerHTML=self?.hand.map((card)=>cardHtml(card,{selectable:view.permissions.canPlay,selected:card.id===selectedCardId})).join("")||'<p class="muted">暂无手牌</p>';E.myHand.querySelectorAll("[data-card]").forEach((button)=>button.onclick=()=>{selectedCardId=button.dataset.card;selectedTargetId=null;renderHand(role);renderActions();});}
-function render(){const model=spectatorUi.render(view),role=model.memberRole;setHidden(E.hostTools,!view.permissions.canManage);setHidden(E.startGameButton,!view.permissions.canStart);setHidden(E.restartGameButton,!view.permissions.canRestart);setHidden(E.endGameButton,!view.permissions.canEnd);E.startGameButton.disabled=view.players.length!==view.capacity||view.players.some((p)=>!p.connected);E.roomPlayerCountSelect.value=String(view.capacity);E.roomPlayerCountSelect.disabled=!view.permissions.canSetCapacity;E.controlDock.dataset.role=role;E.notice.textContent=view.phase==="lobby"?`等待玩家：${view.players.length}/${view.capacity}`:`第 ${view.turn} 回合 · ${name(view.currentPlayerId)} 行动`;E.centerMoment.textContent=view.winner?.text||(view.phase==="lobby"?"酒馆尚未响起枪声":view.logs[0]?.text||`${name(view.currentPlayerId)} 的回合`);E.deckCount.textContent=view.deckCount;E.discardTop.innerHTML=view.discardTop?`<b>${escapeHtml(cardName(view.discardTop.type))}</b><span>${escapeHtml(view.discardTop.rank+SUIT[view.discardTop.suit])}</span>`:"<b>—</b><span>弃牌堆</span>";renderPlayers();renderActions();renderHand(role);E.logList.innerHTML=view.logs.map((item)=>`<div class="log-item">${escapeHtml(item.text)}</div>`).join("")||'<p class="muted">暂无记录</p>';if(view.deadline)countdown.start(view.deadline,PHASE_MS[view.phase]||20000);else{countdown.stop();E.timerText.textContent="--";E.timerBar.style.width="0";}}
+function renderHand(role){setHidden(E.privateZone,role==="spectator");if(role==="spectator")return;const self=own();E.selfSummary.textContent=self?`${self.characterName||"未分配角色"} · ${self.role?ROLE[self.role]:""} · ${self.life}/${self.maxLife}生命`:"";E.myHand.innerHTML=self?.hand.map((card)=>cardHtml(card,{selectable:view.permissions.canPlay,selected:card.id===selectedCardId})).join("")||'<p class="muted">暂无手牌</p>';E.myHand.querySelectorAll("[data-card]").forEach((button)=>button.onclick=()=>{selectedCardId=button.dataset.card;selectedTargetId=null;render();});}
+function renderRoom(){setHidden(E.hostTools,!view.permissions.canManage);setHidden(E.startGameButton,!view.permissions.canStart);setHidden(E.restartGameButton,!view.permissions.canRestart);setHidden(E.endGameButton,!view.permissions.canEnd);E.startGameButton.disabled=view.players.length!==view.capacity||view.players.some((p)=>!p.connected);E.roomPlayerCountSelect.value=String(view.capacity);E.roomPlayerCountSelect.disabled=!view.permissions.canSetCapacity;}
+function renderStatus(model){E.controlDock.dataset.role=model.memberRole;E.notice.textContent=view.phase==="lobby"?`等待玩家：${view.players.length}/${view.capacity}`:`第 ${view.turn} 回合 · ${name(view.currentPlayerId)} 行动`;}
+function renderTable(){E.centerMoment.textContent=view.winner?.text||(view.phase==="lobby"?"酒馆尚未响起枪声":view.logs[0]?.text||`${name(view.currentPlayerId)} 的回合`);E.deckCount.textContent=view.deckCount;E.discardTop.innerHTML=view.discardTop?`<b>${escapeHtml(cardName(view.discardTop.type))}</b><span>${escapeHtml(view.discardTop.rank+SUIT[view.discardTop.suit])}</span>`:"<b>—</b><span>弃牌堆</span>";}
+function renderLog(){E.logList.innerHTML=view.logs.map((item)=>`<div class="log-item">${escapeHtml(item.text)}</div>`).join("")||'<p class="muted">暂无记录</p>';}
+function renderCountdownPartition(){if(view.deadline)countdown.start(view.deadline,PHASE_MS[view.phase]||20000);else{countdown.stop();E.timerText.textContent="--";E.timerBar.style.width="0";}}
+partitionRenderer=createGame19PartitionRenderer({room:renderRoom,status:renderStatus,table:renderTable,players:renderPlayers,private:(model)=>renderHand(model.memberRole),decision:(model)=>renderActions(model.memberRole),log:renderLog,countdown:renderCountdownPartition});
+function render(){if(!view)return;const model=spectatorUi.render(view);partitionRenderer.render(createGame19RenderModel(view,{memberRole:model.memberRole,roomCode:room.snapshot().roomCode,selectedCardId,selectedTargetId}));}
 presentation=createPresentationTimeline({
   container:E.westernTable,
   trailPath:E.presentationTrail,

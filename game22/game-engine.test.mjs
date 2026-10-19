@@ -51,3 +51,55 @@ test("只有房主能中止密议并清除全部秘密状态返回大厅",()=>{
   assert.equal(spectatorView.selfRole,null);
 });
 
+test("房主可在开局前选择预设或自定义节奏且开局后锁定",()=>{
+  const state=lobby();
+  act(state,"p1",{type:"setPace",paceMode:"quick"});
+  assert.equal(state.timers.teamProposal,120);
+  const custom={secretReveal:50,teamProposal:420,teamVote:55,questAction:50,ladyInspect:75,assassination:240};
+  act(state,"p1",{type:"setPace",paceMode:"custom",timers:custom});
+  assert.deepEqual(state.timers,custom);
+  act(state,"p1",{type:"start"},5000);
+  assert.equal(state.deadline,55000);
+  assert.equal(state.deadlineDurationSeconds,50);
+  assert.throws(()=>act(state,"p1",{type:"setPace",paceMode:"standard"},5100),/只能在准备阶段/);
+  assert.throws(()=>act(lobby(),"p2",{type:"setPace",paceMode:"quick"}),/只有房主/);
+});
+
+test("组队最后30秒可发起一次延长表决，严格多数通过后增加60秒",()=>{
+  const state=lobby();start(state);
+  const requestAt=state.deadline-25000;
+  act(state,"p2",{type:"requestDiscussionExtension"},requestAt);
+  assert.equal(state.proposalExtension.requested,true);
+  assert.equal(state.proposalExtension.votes.p2,true);
+  assert.equal(state.deadline,requestAt+20000);
+  act(state,"p3",{type:"voteDiscussionExtension",approve:true},requestAt+1000);
+  act(state,"p4",{type:"voteDiscussionExtension",approve:true},requestAt+2000);
+  assert.equal(state.proposalExtension.requested,false);
+  assert.equal(state.proposalExtension.granted,true);
+  assert.equal(state.deadline,requestAt+62000);
+  assert.equal(engine.buildView(state,"p1").permissions.canRequestExtension,false);
+  assert.throws(()=>act(state,"p1",{type:"requestDiscussionExtension"},state.deadline-1000),/已经使用过/);
+});
+
+test("延时申请过早会拒绝，表决超时则回到原组队倒计时并保留至少5秒",()=>{
+  const state=lobby();start(state);
+  assert.throws(()=>act(state,"p2",{type:"requestDiscussionExtension"},state.deadline-31000),/最后30秒/);
+  const requestAt=state.deadline-20000;
+  act(state,"p2",{type:"requestDiscussionExtension"},requestAt);
+  const voteDeadline=state.deadline;
+  assert.equal(engine.handleTimeout(state,{now:voteDeadline,random:()=>0}),true);
+  assert.equal(state.phase,"teamProposal");
+  assert.equal(state.proposalExtension.granted,false);
+  assert.ok(state.deadline>=voteDeadline+5000);
+});
+
+test("旧存档缺少节奏字段时恢复为标准节奏",()=>{
+  const state=lobby();start(state);
+  const serialized=engine.serializeState(state);
+  delete serialized.paceMode;delete serialized.timers;delete serialized.deadlineDurationSeconds;delete serialized.proposalExtension;
+  const restored=engine.restoreState(serialized);
+  assert.equal(restored.paceMode,"standard");
+  assert.equal(restored.timers.teamProposal,180);
+  assert.equal(restored.deadlineDurationSeconds,180);
+});
+

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ALIGNMENT, PRESET, QUEST_SIZES, ROLE, alignmentOf, failsRequired, rolesFor } from "./rules.mjs";
+import { ALIGNMENT, PACE, PACE_PRESETS, PRESET, QUEST_SIZES, ROLE, alignmentOf, failsRequired, normalizeTimers, rolesFor } from "./rules.mjs";
 
 test("5至10人阵营数量与任务表符合规则",()=>{
   const evil={5:2,6:2,7:3,8:3,9:3,10:4};
@@ -8,4 +8,14 @@ test("5至10人阵营数量与任务表符合规则",()=>{
 });
 test("只有7人以上第4任务需要两张失败牌",()=>{for(let count=5;count<=10;count+=1)for(let quest=0;quest<5;quest+=1)assert.equal(failsRequired(count,quest),count>=7&&quest===3?2:1);});
 test("三套预设逐步加入经典特殊角色",()=>{assert.deepEqual(rolesFor(5,PRESET.BASIC).filter((r)=>![ROLE.LOYAL,ROLE.MINION].includes(r)).sort(),[ROLE.ASSASSIN,ROLE.MERLIN].sort());assert.ok(rolesFor(5,PRESET.CLASSIC).includes(ROLE.PERCIVAL));assert.ok(rolesFor(7,PRESET.ADVANCED).includes(ROLE.MORDRED));assert.ok(rolesFor(10,PRESET.ADVANCED).includes(ROLE.OBERON));});
+
+test("三套节奏预设与自定义时长均经过统一边界校验",()=>{
+  assert.equal(normalizeTimers(PACE.QUICK).teamProposal,120);
+  assert.equal(normalizeTimers(PACE.STANDARD).teamProposal,180);
+  assert.equal(normalizeTimers(PACE.DISCUSSION).teamProposal,300);
+  const custom={...PACE_PRESETS[PACE.STANDARD],teamProposal:420,assassination:360};
+  assert.deepEqual(normalizeTimers(PACE.CUSTOM,custom),custom);
+  assert.throws(()=>normalizeTimers(PACE.CUSTOM,{...custom,teamProposal:59}),/invalid timer/);
+  assert.throws(()=>normalizeTimers(PACE.CUSTOM,{...custom,questAction:30.5}),/invalid timer/);
+});
 

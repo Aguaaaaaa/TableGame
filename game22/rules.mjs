@@ -1,11 +1,28 @@
 export const MIN_PLAYERS = 5;
 export const MAX_PLAYERS = 10;
-export const SECRET_SECONDS = 30;
-export const PROPOSAL_SECONDS = 120;
-export const TEAM_VOTE_SECONDS = 30;
-export const QUEST_SECONDS = 30;
-export const LADY_SECONDS = 45;
-export const ASSASSINATION_SECONDS = 90;
+export const PACE = Object.freeze({ QUICK: "quick", STANDARD: "standard", DISCUSSION: "discussion", CUSTOM: "custom" });
+export const TIMER_KEYS = Object.freeze(["secretReveal", "teamProposal", "teamVote", "questAction", "ladyInspect", "assassination"]);
+export const PACE_PRESETS = Object.freeze({
+  [PACE.QUICK]: Object.freeze({ secretReveal: 30, teamProposal: 120, teamVote: 30, questAction: 30, ladyInspect: 45, assassination: 90 }),
+  [PACE.STANDARD]: Object.freeze({ secretReveal: 45, teamProposal: 180, teamVote: 45, questAction: 45, ladyInspect: 60, assassination: 150 }),
+  [PACE.DISCUSSION]: Object.freeze({ secretReveal: 60, teamProposal: 300, teamVote: 60, questAction: 60, ladyInspect: 90, assassination: 240 })
+});
+export const TIMER_LIMITS = Object.freeze({
+  secretReveal: Object.freeze([15, 180]), teamProposal: Object.freeze([60, 600]),
+  teamVote: Object.freeze([15, 180]), questAction: Object.freeze([15, 180]),
+  ladyInspect: Object.freeze([20, 240]), assassination: Object.freeze([30, 600])
+});
+export const PROPOSAL_EXTENSION_SECONDS = 60;
+export const PROPOSAL_EXTENSION_WINDOW_SECONDS = 30;
+export const EXTENSION_VOTE_SECONDS = 20;
+
+// 保留旧导出，供已有测试和服务配置兼容；实际对局时长以房间的 timers 为准。
+export const SECRET_SECONDS = PACE_PRESETS[PACE.STANDARD].secretReveal;
+export const PROPOSAL_SECONDS = PACE_PRESETS[PACE.STANDARD].teamProposal;
+export const TEAM_VOTE_SECONDS = PACE_PRESETS[PACE.STANDARD].teamVote;
+export const QUEST_SECONDS = PACE_PRESETS[PACE.STANDARD].questAction;
+export const LADY_SECONDS = PACE_PRESETS[PACE.STANDARD].ladyInspect;
+export const ASSASSINATION_SECONDS = PACE_PRESETS[PACE.STANDARD].assassination;
 
 export const ROLE = Object.freeze({
   MERLIN: "merlin", PERCIVAL: "percival", LOYAL: "loyal",
@@ -30,6 +47,23 @@ export function assertCapacity(value) {
 export function assertPreset(value) {
   if (!Object.values(PRESET).includes(value)) throw new RangeError("invalid preset");
   return value;
+}
+
+export function assertPace(value) {
+  if (!Object.values(PACE).includes(value)) throw new RangeError("invalid pace");
+  return value;
+}
+
+export function normalizeTimers(pace = PACE.STANDARD, values = null) {
+  pace = assertPace(pace);
+  if (pace !== PACE.CUSTOM) return { ...PACE_PRESETS[pace] };
+  if (!values || typeof values !== "object") throw new RangeError("custom timers required");
+  return Object.fromEntries(TIMER_KEYS.map((key) => {
+    const seconds = Number(values[key]);
+    const [minimum, maximum] = TIMER_LIMITS[key];
+    if (!Number.isInteger(seconds) || seconds < minimum || seconds > maximum) throw new RangeError(`invalid timer: ${key}`);
+    return [key, seconds];
+  }));
 }
 
 export function alignmentOf(role) {

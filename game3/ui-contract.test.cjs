@@ -49,3 +49,15 @@ test("game3 preserves dice controls and public score inspection",() => {
   assert.match(script,/data-die-index/);
   assert.match(script,/spectatorUi\.render\(view\)/);
 });
+
+test("game3 partitions authoritative views without replacing unrelated interaction DOM",() => {
+  assert.match(script,/createGame3RenderModel/);
+  assert.match(script,/createGame3PartitionRenderer/);
+  assert.match(script,/turnActionFacts: renderTurnActionFactsPartition/);
+  assert.match(script,/scorecard: renderScorecardPartition/);
+  assert.match(script,/elements\.playerList\.addEventListener\("click"/);
+  assert.match(script,/elements\.diceTray\.addEventListener\("click"/);
+  assert.match(script,/elements\.scoreGrid\.addEventListener\("click"/);
+  assert.doesNotMatch(script,/playerList\.innerHTML\s*=/);
+  assert.doesNotMatch(script,/function renderLegacy/);
+});

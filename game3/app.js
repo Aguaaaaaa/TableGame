@@ -11,11 +11,13 @@ import {
   setHidden
 } from "/shared/client/index.js";
 import { CATEGORIES, categoryScore } from "./rules.mjs";
+import { createGame3PartitionRenderer, createGame3RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 let mode = "host";
 let view = null;
 let selectedScorePlayerId = "";
+let partitionRenderer = null;
 
 const $ = (id) => document.getElementById(id);
 const elements = {
@@ -160,117 +162,179 @@ function dieHtml(value, held, canHold, index) {
   return `<button class="die ${held ? "held" : ""}" data-die-index="${index}" type="button" ${canHold ? "" : "disabled"}><span class="die-face">${pips}</span></button>`;
 }
 
-function render() {
-  if (!view) return;
-  const spectatorModel = spectatorUi.render(view);
-  const memberRole = spectatorModel.memberRole;
-  const me = view.players.find((player) => player.id === view.selfId);
-  const active = view.players.find((player) => player.id === view.currentPlayerId);
-  const myTurn = view.phase === "playing" && view.currentPlayerId === view.selfId;
-  const canStart = view.permissions?.canStart
-    && view.players.length === view.playerCount
-    && view.players.every((player) => player.connected);
-
-  elements.roomCodeDisplay.textContent = roomInfo().roomCode;
-  elements.playerCountBadge.textContent = `${view.players.length} / ${view.playerCount}`;
-  elements.playerList.innerHTML = view.players.map((player, index) => {
-    const kick = view.permissions?.canKick && !player.isHost
-      ? `<button class="kick-player-button" data-player-id="${escapeHtml(player.id)}" type="button">移出</button>`
-      : "";
-    return `<div class="player-item ${player.id === view.currentPlayerId && view.phase === "playing" ? "current" : ""}"><div><div class="player-name">${escapeHtml(player.name)}</div><div class="player-meta">${player.isHost ? "房主 · " : ""}${view.phase === "lobby" ? `玩家 ${index + 1}` : `${player.totals.total} 分`} · ${player.connected ? "在线" : "离线"}</div></div><div class="player-actions"><i class="online-dot ${player.connected ? "" : "offline"}"></i>${kick}</div></div>`;
-  }).join("");
-  elements.playerList.querySelectorAll(".kick-player-button").forEach((button) => {
-    button.addEventListener("click", () => kickPlayer(button.dataset.playerId));
-  });
-
-  setHidden(elements.hostTools, !view.permissions?.canManage);
-  elements.roomPlayerCountSelect.value = String(view.playerCount);
-  elements.roomPlayerCountSelect.disabled = !view.permissions?.canSetCapacity;
-  setHidden(elements.startGameButton, !view.permissions?.canStart);
+function renderRoomPartition(model) {
+  const current = model.view;
+  const canStart = current.permissions?.canStart
+    && current.players.length === current.playerCount
+    && current.players.every((player) => player.connected);
+  elements.roomCodeDisplay.textContent = model.roomCode;
+  elements.playerCountBadge.textContent = `${current.players.length} / ${current.playerCount}`;
+  setHidden(elements.hostTools, !current.permissions?.canManage);
+  elements.roomPlayerCountSelect.value = String(current.playerCount);
+  elements.roomPlayerCountSelect.disabled = !current.permissions?.canSetCapacity;
+  setHidden(elements.startGameButton, !current.permissions?.canStart);
   elements.startGameButton.disabled = !canStart;
-  setHidden(elements.endGameButton, !view.permissions?.canEnd && !view.permissions?.canRestart);
-  elements.endGameButton.textContent = view.phase === "ended" ? "返回大厅" : "结束当前游戏";
-  elements.roundBadge.textContent = `第 ${Math.min(view.round, 13)} / 13 轮`;
-  elements.rollBadge.textContent = `投掷 ${view.rolls} / 3`;
+  setHidden(elements.endGameButton, !current.permissions?.canEnd && !current.permissions?.canRestart);
+  elements.endGameButton.textContent = current.phase === "ended" ? "返回大厅" : "结束当前游戏";
+}
 
-  if (view.phase === "lobby") {
-    elements.gameNotice.textContent = memberRole === "spectator"
+function renderPlayersPartition(model) {
+  const current = model.view;
+  const existing = new Map(
+    [...elements.playerList.querySelectorAll("[data-player-id]")]
+      .map((node) => [node.dataset.playerId, node])
+  );
+  const retained = new Set();
+  current.players.forEach((player, index) => {
+    const id = String(player.id);
+    let node = existing.get(id);
+    if (!node) {
+      node = document.createElement("div");
+      node.dataset.playerId = id;
+      node.innerHTML = `<div><div class="player-name" data-player-name></div><div class="player-meta" data-player-meta></div></div><div class="player-actions"><i class="online-dot" data-online-dot></i><button class="kick-player-button" data-kick-player type="button">移出</button></div>`;
+    }
+    retained.add(id);
+    node.className = `player-item ${player.id === current.currentPlayerId && current.phase === "playing" ? "current" : ""}`;
+    node.querySelector("[data-player-name]").textContent = player.name;
+    node.querySelector("[data-player-meta]").textContent = `${player.isHost ? "房主 · " : ""}${current.phase === "lobby" ? `玩家 ${index + 1}` : `${player.totals.total} 分`} · ${player.connected ? "在线" : "离线"}`;
+    node.querySelector("[data-online-dot]").className = `online-dot ${player.connected ? "" : "offline"}`;
+    const kickButton = node.querySelector("[data-kick-player]");
+    kickButton.dataset.kickPlayer = id;
+    setHidden(kickButton, !current.permissions?.canKick || player.isHost);
+    const currentAtIndex = elements.playerList.children[index];
+    if (currentAtIndex !== node) elements.playerList.insertBefore(node, currentAtIndex || null);
+  });
+  [...elements.playerList.querySelectorAll("[data-player-id]")].forEach((node) => {
+    if (!retained.has(node.dataset.playerId)) node.remove();
+  });
+}
+
+function renderStatusPartition(model) {
+  const current = model.view;
+  elements.roundBadge.textContent = `第 ${Math.min(current.round, 13)} / 13 轮`;
+  elements.rollBadge.textContent = `投掷 ${current.rolls} / 3`;
+  if (current.phase === "lobby") {
+    elements.gameNotice.textContent = model.memberRole === "spectator"
       ? "你正在旁观准备阶段，可在有空位时主动进入玩家席。"
-      : view.players.length === view.playerCount
-      ? "玩家已经到齐，房主可以开始比赛。"
-      : `等待玩家加入，还差 ${view.playerCount - view.players.length} 人。`;
+      : current.players.length === current.playerCount
+        ? "玩家已经到齐，房主可以开始比赛。"
+        : `等待玩家加入，还差 ${current.playerCount - current.players.length} 人。`;
     elements.turnTitle.textContent = "等待比赛开始";
-  } else if (view.phase === "ended") {
-    const ranking = [...view.players].sort((a, b) => b.totals.total - a.totals.total);
+  } else if (current.phase === "ended") {
+    const ranking = [...current.players].sort((a, b) => b.totals.total - a.totals.total);
     const best = ranking[0]?.totals.total;
     const winners = ranking.filter((player) => player.totals.total === best).map((player) => player.name).join("、");
     elements.gameNotice.textContent = `比赛结束！${winners} 以 ${best} 分获得最高分。`;
     elements.turnTitle.textContent = "最终排名";
   } else {
-    elements.gameNotice.textContent = memberRole === "spectator"
-      ? `旁观中：${active?.name || "玩家"} 正在投掷和选择计分。`
-      : myTurn
-      ? "轮到你了：投骰、保留需要的骰子，然后选择一个计分格。"
-      : `正在等待 ${active?.name || "玩家"} 完成本回合。`;
-    elements.turnTitle.textContent = `${active?.name || "玩家"} 的回合`;
+    elements.gameNotice.textContent = model.memberRole === "spectator"
+      ? `旁观中：${model.active?.name || "玩家"} 正在投掷和选择计分。`
+      : model.myTurn
+        ? "轮到你了：投骰、保留需要的骰子，然后选择一个计分格。"
+        : `正在等待 ${model.active?.name || "玩家"} 完成本回合。`;
+    elements.turnTitle.textContent = `${model.active?.name || "玩家"} 的回合`;
   }
+}
 
-  const canHold = myTurn && view.rolls > 0 && view.rolls < 3;
-  elements.diceTray.innerHTML = view.dice.map((value, index) => dieHtml(value, view.held[index], canHold, index)).join("");
-  elements.diceTray.querySelectorAll("[data-die-index]").forEach((button) => {
-    button.addEventListener("click", () => submitAction({ type: "hold", index: Number(button.dataset.dieIndex) }));
-  });
+function renderDicePartition(model) {
+  const current = model.view;
+  const canHold = model.myTurn && current.rolls > 0 && current.rolls < 3;
+  elements.diceTray.innerHTML = current.dice
+    .map((value, index) => dieHtml(value, current.held[index], canHold, index))
+    .join("");
+}
 
-  if (view.phase === "ended") {
-    const ranking = [...view.players].sort((a, b) => b.totals.total - a.totals.total);
-    elements.turnActions.innerHTML = `<div class="winner-list">${ranking.map((player, index) => `<div class="winner-row"><span>${index + 1}. ${escapeHtml(player.name)}</span><span>${player.totals.total} 分</span></div>`).join("")}</div>`;
-  } else if (myTurn) {
-    elements.turnActions.innerHTML = `<button class="primary" id="rollButton" type="button" ${view.rolls >= 3 ? "disabled" : ""}>${view.rolls === 0 ? "投掷骰子" : "重投未保留骰子"}</button>`;
-    $("rollButton")?.addEventListener("click", () => submitAction({ type: "roll" }));
+function renderTurnActionPartition(model) {
+  if (model.view.phase === "ended") {
+    elements.turnActions.innerHTML = '<div class="winner-list" data-winner-list></div>';
+  } else if (model.myTurn) {
+    elements.turnActions.innerHTML = '<button class="primary" data-action="roll" type="button"></button>';
+  } else if (model.memberRole === "spectator" && model.view.phase === "playing") {
+    elements.turnActions.innerHTML = '<span class="player-meta spectator-action-note">旁观模式不提供投骰、保留骰子或计分操作。</span>';
+  } else if (model.view.phase === "playing") {
+    elements.turnActions.innerHTML = '<span class="player-meta">等待当前玩家操作…</span>';
   } else {
-    elements.turnActions.innerHTML = memberRole === "spectator" && view.phase === "playing"
-      ? '<span class="player-meta spectator-action-note">旁观模式不提供投骰、保留骰子或计分操作。</span>'
-      : view.phase === "playing"
-      ? "<span class=\"player-meta\">等待当前玩家操作…</span>"
-      : "";
+    elements.turnActions.innerHTML = "";
   }
-
-  renderScoreSelector();
-  const scorePlayer = view.players.find((player) => player.id === selectedScorePlayerId) || me || view.players[0];
-  renderScorecard(scorePlayer, myTurn && scorePlayer?.id === view.selfId);
 }
 
-function renderScoreSelector() {
-  if (!view.players.some((player) => player.id === selectedScorePlayerId)) selectedScorePlayerId = view.selfId || view.players[0]?.id || "";
-  elements.scorePlayerSelect.innerHTML = view.players.map((player) => (
-    `<option value="${escapeHtml(player.id)}" ${player.id === selectedScorePlayerId ? "selected" : ""}>${escapeHtml(player.name)}${player.id === view.selfId ? "（我）" : ""}</option>`
-  )).join("");
+function renderTurnActionFactsPartition(model) {
+  const current = model.view;
+  const rollButton = elements.turnActions.querySelector('[data-action="roll"]');
+  if (rollButton) {
+    rollButton.disabled = current.rolls >= 3;
+    rollButton.textContent = current.rolls === 0 ? "投掷骰子" : "重投未保留骰子";
+  }
+  const winnerList = elements.turnActions.querySelector("[data-winner-list]");
+  if (winnerList) {
+    const ranking = [...current.players].sort((a, b) => b.totals.total - a.totals.total);
+    winnerList.innerHTML = ranking.map((player, index) => `<div class="winner-row"><span>${index + 1}. ${escapeHtml(player.name)}</span><span>${player.totals.total} 分</span></div>`).join("");
+  }
 }
 
-function renderScorecard(player, canScore) {
-  if (!player) return;
+function renderScoreSelectorPartition(model) {
+  const existing = new Map([...elements.scorePlayerSelect.options].map((option) => [option.value, option]));
+  const retained = new Set();
+  model.view.players.forEach((player, index) => {
+    const id = String(player.id);
+    let option = existing.get(id);
+    if (!option) {
+      option = document.createElement("option");
+      option.value = id;
+    }
+    retained.add(id);
+    option.textContent = `${player.name}${player.id === model.view.selfId ? "（我）" : ""}`;
+    const currentAtIndex = elements.scorePlayerSelect.options[index];
+    if (currentAtIndex !== option) elements.scorePlayerSelect.insertBefore(option, currentAtIndex || null);
+  });
+  [...elements.scorePlayerSelect.options].forEach((option) => {
+    if (!retained.has(option.value)) option.remove();
+  });
+  elements.scorePlayerSelect.value = model.selectedScorePlayerId;
+}
+
+function renderScorecardPartition(model) {
+  const player = model.scorePlayer;
+  if (!player) {
+    elements.scoreSummary.innerHTML = "";
+    elements.scoreGrid.innerHTML = "";
+    return;
+  }
   const value = player.totals;
   elements.scoreSummary.innerHTML = `<div class="summary-item"><span>上半区</span><strong>${value.upper}</strong></div><div class="summary-item"><span>上半区奖励</span><strong>${value.upperBonus}</strong></div><div class="summary-item"><span>快艇奖励</span><strong>${value.yahtzeeBonus}</strong></div><div class="summary-item total"><span>总分</span><strong>${value.total}</strong></div>`;
   let previousSection = "";
   elements.scoreGrid.innerHTML = CATEGORIES.map((category) => {
     const score = player.scorecard[category.id];
-    const available = canScore && view.rolls > 0 && score === null;
-    const preview = available ? categoryScore(category.id, view.dice) : null;
+    const available = model.canScore && model.view.rolls > 0 && score === null;
+    const preview = available ? categoryScore(category.id, model.view.dice) : null;
     const divider = category.section !== previousSection
       ? `<div class="upper-divider">${category.section === "upper" ? "上半区" : "下半区"}</div>`
       : "";
     previousSection = category.section;
     return `${divider}<div class="score-row ${available ? "available" : ""}" ${available ? `data-category="${category.id}"` : ""}><div><div class="score-name">${category.name}</div><div class="score-help">${category.help}</div></div><div class="score-value ${available ? "preview" : ""}">${score === null ? (available ? `+${preview}` : "—") : score}</div></div>`;
   }).join("");
-  elements.scoreGrid.querySelectorAll("[data-category]").forEach((row) => {
-    row.addEventListener("click", () => {
-      const category = CATEGORIES.find((item) => item.id === row.dataset.category);
-      const points = categoryScore(row.dataset.category, view.dice);
-      if (confirm(`确定将本次结果记入“${category.name}”（${points} 分）吗？`)) {
-        submitAction({ type: "score", category: row.dataset.category });
-      }
-    });
+}
+
+function render() {
+  if (!view) return;
+  const spectatorModel = spectatorUi.render(view);
+  const model = createGame3RenderModel(view, {
+    memberRole: spectatorModel.memberRole,
+    roomCode: room.snapshot().roomCode,
+    selectedScorePlayerId
   });
+  selectedScorePlayerId = model.selectedScorePlayerId;
+  partitionRenderer ??= createGame3PartitionRenderer({
+    room: renderRoomPartition,
+    players: renderPlayersPartition,
+    status: renderStatusPartition,
+    dice: renderDicePartition,
+    turnAction: renderTurnActionPartition,
+    turnActionFacts: renderTurnActionFactsPartition,
+    scoreSelector: renderScoreSelectorPartition,
+    scorecard: renderScorecardPartition
+  });
+  partitionRenderer.render(model);
 }
 
 async function init() {
@@ -283,6 +347,27 @@ async function init() {
   elements.roomPlayerCountSelect.addEventListener("change", changePlayerCount);
   elements.startGameButton.addEventListener("click", startGame);
   elements.endGameButton.addEventListener("click", endGame);
+  elements.playerList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-kick-player]");
+    if (button) kickPlayer(button.dataset.kickPlayer);
+  });
+  elements.diceTray.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-die-index]");
+    if (button && !button.disabled) submitAction({ type: "hold", index: Number(button.dataset.dieIndex) });
+  });
+  elements.turnActions.addEventListener("click", (event) => {
+    const button = event.target.closest('[data-action="roll"]');
+    if (button && !button.disabled) submitAction({ type: "roll" });
+  });
+  elements.scoreGrid.addEventListener("click", (event) => {
+    const row = event.target.closest("[data-category]");
+    if (!row) return;
+    const category = CATEGORIES.find((item) => item.id === row.dataset.category);
+    const points = categoryScore(row.dataset.category, view.dice);
+    if (confirm(`确定将本次结果记入“${category.name}”（${points} 分）吗？`)) {
+      submitAction({ type: "score", category: row.dataset.category });
+    }
+  });
   elements.scorePlayerSelect.addEventListener("change", () => {
     selectedScorePlayerId = elements.scorePlayerSelect.value;
     render();

@@ -75,3 +75,21 @@ test("统一演出层具备服务器事件时间线、场景合并与自适应�
   assert.match(css, /\.presentation-effects/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
+
+test("客户端按权威上下文分区更新且操作按钮使用稳定事件委托", () => {
+  const script = read("app.js");
+  const partitions = read("render-partitions.mjs");
+
+  assert.match(script, /createGame9PartitionRenderer/);
+  assert.match(script, /createGame9RenderModel/);
+  assert.match(script, /room: renderRoomShell/);
+  assert.match(script, /table: renderTable/);
+  assert.match(script, /decision: renderDecision/);
+  assert.match(script, /decisionFacts: renderDecisionFacts/);
+  assert.match(script, /privateArea: renderPrivateArea/);
+  assert.match(script, /E\.actionArea\.onclick =/);
+  assert.match(script, /const existingPlayers = new Map/);
+  assert.match(script, /existingPlayers\.get\(String\(player\.id\)\)/);
+  assert.match(partitions, /只有权威操作上下文改变才替换按钮结构/);
+  assert.match(partitions, /同一操作上下文中的数值变化只给现有节点打补丁/);
+});

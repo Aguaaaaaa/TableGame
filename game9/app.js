@@ -17,6 +17,7 @@ import {
   setModeVisibility
 } from "/shared/client/index.js";
 import { cardScore } from "./rules.js";
+import { createGame9PartitionRenderer, createGame9RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const ACTION_SECONDS = 30;
@@ -38,6 +39,7 @@ let mode = "host";
 let view = null;
 let spectatorUi = null;
 let presentation = null;
+let partitionRenderer = null;
 const sessions = createSessionStore({ gameId: "no-thanks" });
 const countdown = createCountdown({
   onTick(value) { renderCountdown({ textElement: E.timerText, barElement: E.timerBar }, value); }
@@ -214,88 +216,163 @@ function createVisualTestView(playerCount) {
   };
 }
 
-function render() {
-  if (!view) return;
-  const spectatorModel = spectatorUi.render(view);
-  const memberRole = spectatorModel.memberRole;
-  const me = view.players.find((player) => player.id === view.selfId);
-  const current = view.players[view.currentIndex];
-  const myTurn = memberRole === "player" && view.phase === "playing" && current?.id === view.selfId;
+function renderRoomShell(model) {
+  const { view: current } = model;
+  E.roomCodeDisplay.textContent = model.roomCode;
+  E.roomPlayerCountSelect.value = String(current.capacity);
+  E.roomPlayerCountSelect.disabled = current.phase !== "lobby" || !current.permissions?.canManage;
+  E.playerCountBadge.textContent = `${current.players.length} / ${current.capacity}`;
+  E.startGameButton.disabled = current.phase !== "lobby"
+    || current.players.length !== current.capacity
+    || current.players.some((player) => !player.connected);
+  setHidden(E.startGameButton, !current.permissions?.canStart);
+  setHidden(E.endGameButton, !current.permissions?.canEnd);
+}
 
-  E.roomCodeDisplay.textContent = room.snapshot().roomCode;
-  E.roomPlayerCountSelect.value = String(view.capacity);
-  E.roomPlayerCountSelect.disabled = view.phase !== "lobby" || !view.permissions?.canManage;
-  E.playerCountBadge.textContent = `${view.players.length} / ${view.capacity}`;
-  E.startGameButton.disabled = view.phase !== "lobby" || view.players.length !== view.capacity || view.players.some((p) => !p.connected);
-  setHidden(E.startGameButton, !view.permissions?.canStart);
-  setHidden(E.endGameButton, !view.permissions?.canEnd);
-  E.phaseBadge.textContent = { lobby: "准备阶段", playing: "游戏进行中", ended: "结算完成" }[view.phase];
-  E.deckCount.textContent = String(view.deckCount);
-  E.potCount.textContent = String(view.pot);
-  E.activeCard.textContent = view.activeCard ?? "—";
-  E.activeCard.classList.toggle("empty", view.activeCard == null);
-  E.activeCard.style.setProperty("--tilt", `${((Number(view.activeCard) || 0) % 7) - 3}deg`);
+function renderTable(model) {
+  const { view: current } = model;
+  E.phaseBadge.textContent = { lobby: "准备阶段", playing: "游戏进行中", ended: "结算完成" }[current.phase];
+  E.deckCount.textContent = String(current.deckCount);
+  E.potCount.textContent = String(current.pot);
+  E.activeCard.textContent = current.activeCard ?? "—";
+  E.activeCard.classList.toggle("empty", current.activeCard == null);
+  E.activeCard.style.setProperty("--tilt", `${((Number(current.activeCard) || 0) % 7) - 3}deg`);
+}
 
-  E.playerList.innerHTML = view.players.map((player, index) => `
-    <article class="player-item ${player.id === view.selfId ? "player-self" : ""} ${!player.connected ? "player-offline" : ""} ${view.phase === "playing" && index === view.currentIndex ? "player-current" : ""}" data-player-id="${escapeHtml(player.id)}">
-      <div><span class="status-dot"></span><b>${escapeHtml(player.name)}</b>${player.isHost ? '<em>房主</em>' : ""}</div>
-      <div class="player-stats"><span>${player.cards.length} 张牌</span><span>牌面 ${player.cardScore}</span><span>${player.chips == null ? "筹码 ?" : `筹码 ${player.chips}`}</span></div>
-      <div class="public-card-runs" aria-label="${escapeHtml(player.name)}的公开数字牌">${cardRunsHtml(player.cards)}</div>
-      ${view.permissions?.canKick && !player.isHost ? `<button type="button" data-kick-player="${escapeHtml(player.id)}">移出</button>` : ""}
-    </article>`).join("");
-  E.playerList.querySelectorAll("[data-kick-player]").forEach((button) => {
-    const player = view.players.find((item) => item.id === button.dataset.kickPlayer);
-    button.onclick = () => player && kickPlayer(player.id, player.name);
+function renderPlayers(model) {
+  const { view: current } = model;
+  const existingPlayers = new Map(
+    [...E.playerList.querySelectorAll("[data-player-id]")].map((element) => [element.dataset.playerId, element])
+  );
+  const retainedIds = new Set();
+  current.players.forEach((player, index) => {
+    let article = existingPlayers.get(String(player.id));
+    if (!article) {
+      article = document.createElement("article");
+      article.dataset.playerId = String(player.id);
+      article.innerHTML = `
+        <div><span class="status-dot"></span><b data-player-name></b><em data-host-badge>房主</em></div>
+        <div class="player-stats"><span data-card-count></span><span data-card-score></span><span data-player-chips></span></div>
+        <div class="public-card-runs" data-public-cards></div>
+        <button type="button" data-kick-player>移出</button>`;
+    }
+    retainedIds.add(String(player.id));
+    article.className = `player-item ${player.id === current.selfId ? "player-self" : ""} ${!player.connected ? "player-offline" : ""} ${current.phase === "playing" && index === current.currentIndex ? "player-current" : ""}`;
+    article.querySelector("[data-player-name]").textContent = player.name;
+    setHidden(article.querySelector("[data-host-badge]"), !player.isHost);
+    article.querySelector("[data-card-count]").textContent = `${player.cards.length} 张牌`;
+    article.querySelector("[data-card-score]").textContent = `牌面 ${player.cardScore}`;
+    article.querySelector("[data-player-chips]").textContent = player.chips == null ? "筹码 ?" : `筹码 ${player.chips}`;
+    const publicCards = article.querySelector("[data-public-cards]");
+    publicCards.setAttribute("aria-label", `${player.name}的公开数字牌`);
+    const cardsKey = JSON.stringify(player.cards);
+    if (publicCards.dataset.cardsKey !== cardsKey) {
+      publicCards.innerHTML = cardRunsHtml(player.cards);
+      publicCards.dataset.cardsKey = cardsKey;
+    }
+    const kickButton = article.querySelector("[data-kick-player]");
+    kickButton.dataset.kickPlayer = String(player.id);
+    setHidden(kickButton, !current.permissions?.canKick || player.isHost);
+    const currentAtIndex = E.playerList.children[index];
+    if (currentAtIndex !== article) E.playerList.insertBefore(article, currentAtIndex || null);
   });
+  [...E.playerList.querySelectorAll("[data-player-id]")].forEach((element) => {
+    if (!retainedIds.has(element.dataset.playerId)) element.remove();
+  });
+}
 
-  if (memberRole === "spectator" && view.phase === "lobby") E.notice.textContent = "你正在旁观准备阶段，可在有空位时主动进入玩家席";
-  else if (view.phase === "lobby") E.notice.textContent = `等待 ${view.capacity} 位玩家到齐后，由房主开始游戏`;
-  else if (view.phase === "ended") E.notice.textContent = "所有数字牌都已被拿走，本局结算完成";
-  else if (myTurn) E.notice.textContent = me.chips > 0 ? "轮到你：拿下数字牌，或支付一枚筹码拒绝" : "你没有筹码，只能拿下这张牌";
-  else E.notice.textContent = `${memberRole === "spectator" ? "旁观中 · " : ""}等待 ${current?.name} 决定是否接受 ${view.activeCard}`;
-
+function renderDecision(model) {
   E.actionArea.innerHTML = "";
-  if (myTurn) {
-    const take = document.createElement("button");
-    take.className = "take-action";
-    take.innerHTML = `<span>拿下 ${view.activeCard}</span><small>${view.pot ? `同时获得 ${view.pot} 枚筹码` : "接受这张数字牌"}</small>`;
-    take.onclick = () => submit({ type: "take" });
-    const pass = document.createElement("button");
-    pass.className = "pass-action";
-    pass.disabled = me.chips <= 0;
-    pass.innerHTML = `<span>不，谢谢！</span><small>${me.chips > 0 ? "支付 1 枚筹码" : "没有筹码，无法拒绝"}</small>`;
-    pass.onclick = () => submit({ type: "pass" });
-    E.actionArea.append(take, pass);
-  } else if (memberRole === "spectator") {
+  if (model.myTurn) {
+    E.actionArea.innerHTML = `
+      <button type="button" class="take-action" data-action="take"><span></span><small></small></button>
+      <button type="button" class="pass-action" data-action="pass"><span>不，谢谢！</span><small></small></button>`;
+  } else if (model.memberRole === "spectator") {
     E.actionArea.innerHTML = '<p class="spectator-action-note">旁观模式不会显示游戏操作按钮</p>';
   }
+}
 
+function renderDecisionFacts(model) {
+  const { view: current, memberRole, me, myTurn } = model;
+  if (memberRole === "spectator" && current.phase === "lobby") E.notice.textContent = "你正在旁观准备阶段，可在有空位时主动进入玩家席";
+  else if (current.phase === "lobby") E.notice.textContent = `等待 ${current.capacity} 位玩家到齐后，由房主开始游戏`;
+  else if (current.phase === "ended") E.notice.textContent = "所有数字牌都已被拿走，本局结算完成";
+  else if (myTurn) E.notice.textContent = me.chips > 0 ? "轮到你：拿下数字牌，或支付一枚筹码拒绝" : "你没有筹码，只能拿下这张牌";
+  else E.notice.textContent = `${memberRole === "spectator" ? "旁观中 · " : ""}等待 ${model.current?.name} 决定是否接受 ${current.activeCard}`;
+
+  const take = E.actionArea.querySelector('[data-action="take"]');
+  if (take) {
+    take.querySelector("span").textContent = `拿下 ${current.activeCard}`;
+    take.querySelector("small").textContent = current.pot ? `同时获得 ${current.pot} 枚筹码` : "接受这张数字牌";
+  }
+  const pass = E.actionArea.querySelector('[data-action="pass"]');
+  if (pass) {
+    pass.disabled = (me?.chips ?? 0) <= 0;
+    pass.querySelector("small").textContent = (me?.chips ?? 0) > 0 ? "支付 1 枚筹码" : "没有筹码，无法拒绝";
+  }
+}
+
+function renderPrivateArea(model) {
+  const { memberRole, me, view: current } = model;
   setHidden(E.myArea, memberRole === "spectator");
   E.myChips.textContent = me?.chips ?? "?";
   E.myCardScore.textContent = String(me?.cardScore ?? 0);
   E.myNetScore.textContent = me?.chips == null ? "?" : String(me.cardScore - me.chips);
   E.myCards.innerHTML = cardRunsHtml(me?.cards);
-  E.logList.innerHTML = view.logs.map((entry) => `<p>${escapeHtml(entry.text)}</p>`).join("") || '<p class="muted">暂无记录</p>';
+  const ownChipLabel = [...E.playerList.querySelectorAll("[data-player-id]")]
+    .find((element) => element.dataset.playerId === String(current.selfId))
+    ?.querySelector("[data-player-chips]");
+  if (ownChipLabel) ownChipLabel.textContent = me?.chips == null ? "筹码 ?" : `筹码 ${me.chips}`;
+}
 
-  if (view.phase === "playing" && view.deadline) countdown.start(view.deadline, ACTION_SECONDS * 1000);
+function renderLog(model) {
+  E.logList.innerHTML = model.view.logs.map((entry) => `<p>${escapeHtml(entry.text)}</p>`).join("") || '<p class="muted">暂无记录</p>';
+}
+
+function renderCountdownPartition(model) {
+  const current = model.view;
+  if (current.phase === "playing" && current.deadline) countdown.start(current.deadline, ACTION_SECONDS * 1000);
   else {
     countdown.stop();
     E.timerText.textContent = "--";
     E.timerBar.style.width = "0";
   }
+}
 
-  setHidden(E.resultPanel, view.phase !== "ended");
-  setHidden(E.resultActions, !view.permissions?.canRestart);
-  if (view.phase === "ended") {
-    const winners = view.winners.map((id) => view.players.find((player) => player.id === id)?.name).join("、");
-    E.winnerText.textContent = `${winners} 获胜！`;
-    E.scoreTable.innerHTML = [...view.players].sort((a, b) => a.finalScore - b.finalScore).map((player, index) => `
-      <div class="score-row ${view.winners.includes(player.id) ? "winner" : ""}">
-        <b>${index + 1}</b><span>${escapeHtml(player.name)}</span>
-        <span>牌面 ${player.cardScore}</span><span>筹码 −${player.chips}</span><strong>${player.finalScore} 分</strong>
-      </div>`).join("");
-    E.removedCards.innerHTML = view.removed.map((card) => `<span>${card}</span>`).join("");
-  }
+function renderResult(model) {
+  const current = model.view;
+  setHidden(E.resultPanel, current.phase !== "ended");
+  setHidden(E.resultActions, !current.permissions?.canRestart);
+  if (current.phase !== "ended") return;
+  const winners = current.winners.map((id) => current.players.find((player) => player.id === id)?.name).join("、");
+  E.winnerText.textContent = `${winners} 获胜！`;
+  E.scoreTable.innerHTML = [...current.players].sort((a, b) => a.finalScore - b.finalScore).map((player, index) => `
+    <div class="score-row ${current.winners.includes(player.id) ? "winner" : ""}">
+      <b>${index + 1}</b><span>${escapeHtml(player.name)}</span>
+      <span>牌面 ${player.cardScore}</span><span>筹码 −${player.chips}</span><strong>${player.finalScore} 分</strong>
+    </div>`).join("");
+  E.removedCards.innerHTML = current.removed.map((card) => `<span>${card}</span>`).join("");
+}
+
+function render() {
+  if (!view) return;
+  const spectatorModel = spectatorUi.render(view);
+  const model = createGame9RenderModel(view, {
+    memberRole: spectatorModel.memberRole,
+    roomCode: room.snapshot().roomCode
+  });
+  partitionRenderer ??= createGame9PartitionRenderer({
+    room: renderRoomShell,
+    table: renderTable,
+    players: renderPlayers,
+    decision: renderDecision,
+    decisionFacts: renderDecisionFacts,
+    privateArea: renderPrivateArea,
+    log: renderLog,
+    countdown: renderCountdownPartition,
+    result: renderResult
+  });
+  partitionRenderer.render(model);
 }
 
 function playerElement(playerId) {
@@ -396,6 +473,18 @@ async function init() {
   E.createRoomButton.onclick = createGameRoom;
   E.joinRoomButton.onclick = joinGameRoom;
   spectatorUi.bind();
+  E.playerList.onclick = (event) => {
+    const button = event.target.closest?.("[data-kick-player]");
+    if (!button) return;
+    const player = view?.players.find((item) => item.id === button.dataset.kickPlayer);
+    if (player) kickPlayer(player.id, player.name);
+  };
+  E.actionArea.onclick = (event) => {
+    const button = event.target.closest?.("[data-action]");
+    if (!button || !E.actionArea.contains(button)) return;
+    if (button.dataset.action === "take") submit({ type: "take" });
+    if (button.dataset.action === "pass") submit({ type: "pass" });
+  };
   E.roomPlayerCountSelect.onchange = changeCapacity;
   E.startGameButton.onclick = startGame;
   E.endGameButton.onclick = endGameEarly;

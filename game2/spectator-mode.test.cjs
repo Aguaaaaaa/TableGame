@@ -120,7 +120,7 @@ test("game2 page uses shared spectator UI and distinguishes room role from team 
   assert.doesNotMatch(html,/id="roomRoleBanner"/);
   assert.match(html,/id="spectatorList"/);
   assert.match(script,/createSpectatorUi/);
-  assert.match(script,/view\.roomRole !== "spectator"/);
+  assert.match(script,/model\.memberRole !== "spectator"/);
   assert.match(script,/旁观者不可见/);
   assert.match(script,/spectator-action-note/);
 });

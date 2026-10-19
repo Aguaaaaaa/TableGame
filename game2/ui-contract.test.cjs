@@ -40,10 +40,10 @@ test("game2 prioritizes score, seats and active turn on small screens",()=>{
 
 test("game2 preserves team seats, private idiom and text action surfaces",()=>{
   for(const id of["scoreBoard","seatBoard","idiomValue","turnTitle","teamBadge","actionArea","logList"])assert.match(html,new RegExp(`id="${id}"`));
-  assert.match(script,/view\.roomRole !== "spectator"/);
+  assert.match(script,/model\.memberRole !== "spectator"/);
   assert.match(script,/descriptionInput/);
   assert.match(script,/guessInput/);
-  assert.match(script,/renderIdiom/);
+  assert.match(script,/renderIdiomPartition/);
 });
 
 test("game2 preserves legal unsent text drafts across authoritative broadcasts",()=>{
@@ -53,4 +53,13 @@ test("game2 preserves legal unsent text drafts across authoritative broadcasts",
   assert.match(script,/restoreActionDraft\(\);/);
   assert.match(script,/input\.value = actionDraft\.value/);
   assert.match(script,/input\.focus\(\{preventScroll:true\}\)/);
+});
+
+test("game2 uses text-safe render partitions and stable delegated controls",()=>{
+  assert.match(script,/createGame2RenderModel/);
+  assert.match(script,/createGame2PartitionRenderer/);
+  assert.match(script,/decision:renderDecisionPartition/);
+  assert.match(script,/elements\.actionArea\.addEventListener\("click"/);
+  assert.match(script,/elements\.playerList\.addEventListener\("click"/);
+  assert.doesNotMatch(script,/playerList\.innerHTML\s*=/);
 });

@@ -5,6 +5,7 @@ import {
   createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus,
   renderCountdown, setHidden, setModeVisibility
 } from "/shared/client/index.js";
+import { createGame17PartitionRenderer, createGame17RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const PHASE_TIMER_MS = { supply: 60000, bidding: 45000, marketAction: 30000, selling: 45000, dividend: 30000, roundReview: 8000 };
@@ -24,7 +25,7 @@ const E = Object.fromEntries([
   "presentationEffects", "presentationTrail", "presentationAnnouncement", "presentationLabel", "presentationText"
 ].map((id) => [id, $(id)]));
 
-let mode = "host"; let view = null; let spectatorUi = null; let presentation = null; let actionDraft = null;
+let mode = "host"; let view = null; let spectatorUi = null; let presentation = null; let actionDraft = null; let partitionRenderer = null;
 const sessions = createSessionStore({ gameId: "stockpile" });
 const countdown = createCountdown({ onTick(value) { renderCountdown({ textElement: E.timerText, barElement: E.timerBar }, value); } });
 const room = createAuthoritativeRoomClient({
@@ -111,9 +112,30 @@ function infoCard(pair, label) {
   return `<article class="info-card" data-info-company="${escapeHtml(item.id)}" style="--company:${item.color}"><small>${escapeHtml(label)}</small><b>${escapeHtml(item.name)}</b><strong>${escapeHtml(forecastLabel(pair.forecastId))}</strong></article>`;
 }
 
-function renderMarket() {
+function renderTicker() {
   E.roundNumber.textContent = String(view.round); E.roundTotal.textContent = String(view.totalRounds); E.deckCount.textContent = String(view.deckCount);
-  E.stockTicker.innerHTML = COMPANIES.map((item) => `<article data-company-id="${escapeHtml(item.id)}" style="--company:${item.color}"><span>${escapeHtml(item.short)}</span><b>$${view.stockPrices[item.id]}</b><div class="price-track"><i style="width:${view.stockPrices[item.id] * 10}%"></i></div></article>`).join("");
+  const existing = new Map([...E.stockTicker.querySelectorAll(":scope > [data-company-id]")].map((node) => [node.dataset.companyId, node]));
+  COMPANIES.forEach((item, index) => {
+    let node = existing.get(item.id);
+    if (!node) { node = document.createElement("article"); node.dataset.companyId = item.id; }
+    const renderKey = `${view.stockPrices[item.id]}`;
+    if (node.dataset.renderKey !== renderKey) {
+      const presentationClasses = ["presentation-focus", "presentation-rise", "presentation-fall"].filter((name) => node.classList.contains(name));
+      node.dataset.renderKey = renderKey; node.style.setProperty("--company", item.color);
+      node.innerHTML = `<span>${escapeHtml(item.short)}</span><b>$${view.stockPrices[item.id]}</b><div class="price-track"><i style="width:${view.stockPrices[item.id] * 10}%"></i></div>`;
+      presentationClasses.forEach((name) => node.classList.add(name));
+    }
+    const expected = E.stockTicker.children[index]; if (expected !== node) E.stockTicker.insertBefore(node, expected || null);
+    existing.delete(item.id);
+  });
+  existing.forEach((node) => node.remove());
+}
+
+function renderInformation() {
+  if (view.phase === "ended") {
+    E.informationPanel.innerHTML = view.finalScores.slice().sort((a, b) => b.total - a.total).map((score) => `<article class="score-card"><b>${escapeHtml(nameOf(score.playerId))}</b><span>现金 ${money(score.cash)}</span><span>股票 ${money(score.shareValue)}</span><span>大股东 ${money(score.majorityBonus)}</span><strong>${money(score.total)}</strong></article>`).join("");
+    return;
+  }
   const revealedIds = new Set(view.revealedInformation.map((pair) => pair.id));
   E.informationPanel.innerHTML = [
     view.publicInformation && !revealedIds.has(view.publicInformation.id) ? infoCard(view.publicInformation, "公开内幕") : "",
@@ -128,18 +150,41 @@ function marketCard(card) {
 }
 
 function renderStockpiles() {
-  E.stockpiles.innerHTML = view.stockpiles.map((pile, index) => {
+  const existing = new Map([...E.stockpiles.querySelectorAll(":scope > [data-pile-id]")].map((node) => [node.dataset.pileId, node]));
+  view.stockpiles.forEach((pile, index) => {
     const bid = view.bidTokens.find((token) => token.pileId === pile.id);
-    return `<article data-pile-id="${escapeHtml(pile.id)}" class="stockpile ${view.phase === "bidding" && !bid ? "open" : ""}"><header><b>股票堆 ${index + 1}</b><span>${bid ? `${escapeHtml(nameOf(bid.ownerId))} · ${money(bid.amount)}` : "尚无报价"}</span></header><div class="pile-cards">${pile.cards.map(marketCard).join("") || '<span class="empty-pile">已被取得</span>'}</div></article>`;
-  }).join("");
+    const renderKey = JSON.stringify([pile,index,bid,view.phase,bid?.ownerId ? nameOf(bid.ownerId) : ""]);
+    let node = existing.get(pile.id);
+    if (!node) { node = document.createElement("article"); node.dataset.pileId = pile.id; }
+    if (node.dataset.renderKey !== renderKey) {
+      const presentationFocus = node.classList.contains("presentation-focus");
+      node.dataset.renderKey = renderKey; node.className = `stockpile ${view.phase === "bidding" && !bid ? "open" : ""}`;
+      if (presentationFocus) node.classList.add("presentation-focus");
+      node.innerHTML = `<header><b>股票堆 ${index + 1}</b><span>${bid ? `${escapeHtml(nameOf(bid.ownerId))} · ${money(bid.amount)}` : "尚无报价"}</span></header><div class="pile-cards">${pile.cards.map(marketCard).join("") || '<span class="empty-pile">已被取得</span>'}</div>`;
+    }
+    const expected = E.stockpiles.children[index]; if (expected !== node) E.stockpiles.insertBefore(node, expected || null);
+    existing.delete(pile.id);
+  });
+  existing.forEach((node) => node.remove());
 }
 
 function renderPlayers() {
-  E.players.innerHTML = view.players.map((player) => `<article data-player-id="${escapeHtml(player.id)}" class="player-row ${player.id === view.selfId ? "self" : ""} ${player.id === view.currentPlayerId ? "current" : ""} ${!player.connected ? "offline" : ""}">
-    <div><b>${escapeHtml(player.name)}${player.id === view.selfId ? " · 你" : ""}</b><small>${player.isHost ? "房主 · " : ""}${player.connected ? "在线" : "离线"}${player.id === view.firstPlayerId ? " · 起始玩家" : ""}</small></div>
-    <strong>${money(player.cash)}</strong><span>普通 ${player.portfolioCount} · 拆股 ${player.splitPortfolioCount}</span><span class="debt">${player.debts.length ? `欠费 ${player.debts.map(money).join("+")}` : "无欠费"}</span>
-    ${view.permissions.canKick && !player.isHost ? `<button class="small" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}</article>`).join("");
-  E.players.querySelectorAll("[data-kick]").forEach((button) => button.onclick = () => kickPlayer(button.dataset.kick));
+  const existing = new Map([...E.players.querySelectorAll(":scope > [data-player-id]")].map((node) => [node.dataset.playerId, node]));
+  view.players.forEach((player, index) => {
+    const renderKey = JSON.stringify([player,index,view.selfId,view.currentPlayerId,view.firstPlayerId,view.permissions.canKick]);
+    let node = existing.get(player.id);
+    if (!node) { node = document.createElement("article"); node.dataset.playerId = player.id; }
+    if (node.dataset.renderKey !== renderKey) {
+      const presentationFocus = node.classList.contains("presentation-focus");
+      node.dataset.renderKey = renderKey; node.className = `player-row ${player.id === view.selfId ? "self" : ""} ${player.id === view.currentPlayerId ? "current" : ""} ${!player.connected ? "offline" : ""}`;
+      if (presentationFocus) node.classList.add("presentation-focus");
+      node.innerHTML = `<div><b>${escapeHtml(player.name)}${player.id === view.selfId ? " · 你" : ""}</b><small>${player.isHost ? "房主 · " : ""}${player.connected ? "在线" : "离线"}${player.id === view.firstPlayerId ? " · 起始玩家" : ""}</small></div><strong>${money(player.cash)}</strong><span>普通 ${player.portfolioCount} · 拆股 ${player.splitPortfolioCount}</span><span class="debt">${player.debts.length ? `欠费 ${player.debts.map(money).join("+")}` : "无欠费"}</span>${view.permissions.canKick && !player.isHost ? `<button class="small" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}`;
+      const kick = node.querySelector("[data-kick]"); if (kick) kick.onclick = () => kickPlayer(kick.dataset.kick);
+    }
+    const expected = E.players.children[index]; if (expected !== node) E.players.insertBefore(node, expected || null);
+    existing.delete(player.id);
+  });
+  existing.forEach((node) => node.remove());
 }
 
 function addButton(text, handler, className = "") { const button = document.createElement("button"); button.type = "button"; button.textContent = text; button.className = className; button.onclick = handler; E.actionButtons.append(button); return button; }
@@ -275,19 +320,39 @@ function renderPrivate(memberRole) {
 }
 
 function renderLog() { E.logList.innerHTML = view.logs.map((entry) => `<div class="log-item">${escapeHtml(entry.text)}</div>`).join("") || '<p class="muted">暂无记录</p>'; }
-function renderScores() {
-  if (view.phase !== "ended") return;
-  E.informationPanel.innerHTML = view.finalScores.slice().sort((a, b) => b.total - a.total).map((score) => `<article class="score-card"><b>${escapeHtml(nameOf(score.playerId))}</b><span>现金 ${money(score.cash)}</span><span>股票 ${money(score.shareValue)}</span><span>大股东 ${money(score.majorityBonus)}</span><strong>${money(score.total)}</strong></article>`).join("");
-}
-
-function render() {
-  if (!view) return; const spectatorModel = spectatorUi.render(view); const memberRole = spectatorModel.memberRole;
+function renderRoom() {
   setHidden(E.hostTools, !view.permissions.canManage); setHidden(E.startGameButton, !view.permissions.canStart); setHidden(E.restartGameButton, !view.permissions.canRestart); setHidden(E.endGameButton, !view.permissions.canEnd);
   E.startGameButton.disabled = view.players.length !== view.capacity || view.players.some((player) => !player.connected); E.restartGameButton.disabled = view.players.some((player) => !player.connected);
-  E.roomPlayerCountSelect.value = String(view.capacity); E.roomPlayerCountSelect.disabled = !view.permissions.canSetCapacity; E.controlDock.dataset.role = memberRole;
+  E.roomPlayerCountSelect.value = String(view.capacity); E.roomPlayerCountSelect.disabled = !view.permissions.canSetCapacity;
+}
+
+function renderStatus(model) {
+  E.controlDock.dataset.role = model.memberRole;
   E.notice.textContent = view.phase === "lobby" ? `等待玩家加入：${view.players.length}/${view.capacity}` : view.phase === "ended" ? "交易结束，最终净资产已经公开" : `第 ${view.round}/${view.totalRounds} 轮 · 当前阶段：${view.phase} · 行动者：${nameOf(view.currentPlayerId)}`;
-  renderMarket(); renderStockpiles(); renderPlayers(); renderActions(memberRole); restoreActionDraft(); renderPrivate(memberRole); renderLog(); renderScores();
+}
+
+function renderDecision(model) { renderActions(model.memberRole); restoreActionDraft(); }
+function renderCountdownPartition() {
   if (view.deadline) countdown.start(view.deadline, PHASE_TIMER_MS[view.phase] || 60000); else { countdown.stop(); E.timerText.textContent = "--"; E.timerBar.style.width = "0"; }
+}
+
+partitionRenderer = createGame17PartitionRenderer({
+  room: renderRoom,
+  status: renderStatus,
+  ticker: renderTicker,
+  information: renderInformation,
+  stockpiles: renderStockpiles,
+  players: renderPlayers,
+  decision: renderDecision,
+  private: (model) => renderPrivate(model.memberRole),
+  log: renderLog,
+  countdown: renderCountdownPartition
+});
+
+function render() {
+  if (!view) return;
+  const spectatorModel = spectatorUi.render(view);
+  partitionRenderer.render(createGame17RenderModel(view, { memberRole: spectatorModel.memberRole, roomCode: room.snapshot().roomCode }));
 }
 
 function selectMode(nextMode) { mode = nextMode; setModeVisibility(mode, { hostButton: E.hostModeButton, guestButton: E.guestModeButton, hostSetup: E.hostSetup, guestSetup: E.guestSetup, hostTools: E.hostTools }); }

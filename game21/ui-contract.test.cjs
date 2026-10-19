@@ -29,8 +29,8 @@ test("间谍危机使用地点档案库与分布式情报网络外壳", () => {
 
   assert.match(script, /const NODE_LAYOUTS = Object\.freeze/);
   assert.match(script, /class="network-wire/);
-  assert.match(script, /data-node-index=/);
-  assert.match(script, /data-target-id=/);
+  assert.match(script, /seat\.dataset\.nodeIndex = String\(index\)/);
+  assert.match(script, /setAttribute\("data-target-id", item\.id\)/);
   assert.match(script, /type: "spyGuess"/);
   assert.match(script, /type: "voteAccusation"/);
   assert.match(script, /createPresentationTimeline/);
@@ -67,4 +67,20 @@ test("页面原生接入旁观系统并仅向正式玩家显示秘密档案", ()
   assert.match(html, /id="spectatorPanel"/);
   assert.match(script, /createSpectatorUi\(\{/);
   assert.match(script, /memberRole === "player" && view\.phase !== "lobby"/);
+});
+
+test("权威视图按情报网络职责分区并冻结中断阶段的本地目标", () => {
+  const script = read("app.js"), partitions = read("render-partitions.mjs");
+  assert.match(script, /createGame21PartitionRenderer, createGame21RenderModel/);
+  assert.match(script, /partitionRenderer = createGame21PartitionRenderer\(\{/);
+  assert.match(script, /network: renderNetworkWires/);
+  assert.match(script, /players: renderPlayers/);
+  assert.match(script, /secret: \(model\) => renderSecret\(model\.memberRole\)/);
+  assert.match(script, /decision: \(model\) => renderActions\(model\.memberRole\)/);
+  assert.match(script, /locations: renderLocations/);
+  assert.match(script, /scoreboard: renderScoreboard/);
+  assert.match(script, /querySelectorAll\(":scope > \[data-player-id\]"\)/);
+  assert.match(script, /!selectionStillLegal\(view\)/);
+  assert.match(script, /selectionMode = selectionMode === kind \? null : kind;\s*render\(\)/);
+  assert.match(partitions, /"room","status","network","players","focus","secret","decision","locations","scoreboard","log","countdown"/);
 });

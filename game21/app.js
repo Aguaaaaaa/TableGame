@@ -4,6 +4,7 @@ import {
   bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown, createSessionStore,
   createPresentationTimeline, createSpectatorUi, escapeHtml, renderConnectionStatus, renderCountdown, setHidden, setModeVisibility
 } from "/shared/client/index.js";
+import { createGame21PartitionRenderer, createGame21RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const PHASE_MS = { secretReveal: 30000, questioning: 480000, accusationVote: 30000, timeoutNomination: 20000, timeoutVote: 30000 };
@@ -38,6 +39,7 @@ let presentation = null;
 let interactionContextKey = "";
 let spyLocationDraft = "";
 let restoreSpyLocationFocus = false;
+let partitionRenderer = null;
 
 const sessions = createSessionStore({ gameId: "spyfall" });
 const countdown = createCountdown({ onTick(value) { renderCountdown({ textElement: E.timerText, barElement: E.timerBar }, value); } });
@@ -194,7 +196,7 @@ async function kickPlayer(playerId) {
 }
 
 function targetIds() {
-  if (!selectionMode || !view.selfId) return new Set();
+  if (!selectionMode || !view.selfId || !selectionStillLegal(view)) return new Set();
   if (selectionMode === "question") return new Set(view.players.filter((item) => item.id !== view.selfId && item.id !== view.blockedTargetId).map((item) => item.id));
   if (["accuse", "nominate"].includes(selectionMode)) return new Set(view.players.filter((item) => item.id !== view.selfId).map((item) => item.id));
   return new Set();
@@ -209,11 +211,14 @@ function chooseTarget(targetId) {
   selectionMode = null;
 }
 
-function renderPlayers() {
+function orderedPlayers() {
   const selfIndex = view.players.findIndex((item) => item.id === view.selfId);
-  const ordered = selfIndex < 0 ? view.players : [...view.players.slice(selfIndex), ...view.players.slice(0, selfIndex)];
+  return selfIndex < 0 ? view.players : [...view.players.slice(selfIndex), ...view.players.slice(0, selfIndex)];
+}
+
+function renderNetworkWires() {
+  const ordered = orderedPlayers();
   const layout = NODE_LAYOUTS[ordered.length] || NODE_LAYOUTS[8];
-  const targets = targetIds();
   E.networkWires.innerHTML = ordered.map((item, index) => {
     const [x, y] = layout[index];
     const active = [view.questionerId, view.questionTargetId, view.currentNominatorId].includes(item.id);
@@ -221,7 +226,15 @@ function renderPlayers() {
     const bendY = 50 + (y - 50) * .18;
     return `<path class="network-wire ${active ? "active" : ""}" d="M ${x} ${y} Q ${bendX.toFixed(1)} ${bendY.toFixed(1)} 50 50"></path>`;
   }).join("");
-  E.players.innerHTML = ordered.map((item, index) => {
+}
+
+function renderPlayers() {
+  const ordered = orderedPlayers();
+  const layout = NODE_LAYOUTS[ordered.length] || NODE_LAYOUTS[8];
+  const targets = targetIds();
+  const existing = new Map([...E.players.querySelectorAll(":scope > [data-player-id]")]
+    .map((seat) => [seat.dataset.playerId, seat]));
+  ordered.forEach((item, index) => {
     const [x, y] = layout[index];
     const active = [view.questionerId, view.questionTargetId, view.currentNominatorId].includes(item.id);
     const badges = [
@@ -234,17 +247,32 @@ function renderPlayers() {
     const targetable = targets.has(item.id);
     const responseState = view.phase === "accusationVote" && view.accusation?.targetId === item.id ? "accused" : view.phase === "timeoutVote" && view.nomination?.targetId === item.id ? "accused" : "";
     const voted = [...(view.submittedAccusationVoteIds || []), ...(view.submittedTimeoutVoteIds || [])].includes(item.id);
-    return `<article data-player-id="${escapeHtml(item.id)}" data-node-index="${index}" style="--node-x:${x}%;--node-y:${y}%" class="player-seat agent-node ${item.id === view.selfId ? "self" : ""} ${!item.connected ? "offline" : ""} ${active ? "active" : ""} ${targetable ? "targetable" : ""} ${responseState} ${voted ? "responded" : ""}" ${targetable ? `data-target-id="${escapeHtml(item.id)}" role="button" tabindex="0"` : ""}>
-      <div class="seat-head"><div><b>${escapeHtml(item.name)}${item.id === view.selfId ? " · 你" : ""}</b><small>${item.isHost ? "房主 · " : ""}${item.connected ? "在线" : "离线"} · ${item.score}分</small></div>${view.permissions.canManage && view.phase === "lobby" && !item.isHost ? `<button class="small" data-kick="${escapeHtml(item.id)}" type="button">移出</button>` : ""}</div>
-      <div class="seat-badges">${badges || '<span class="badge">身份保密</span>'}</div>
-    </article>`;
-  }).join("");
-  E.players.querySelectorAll("[data-kick]").forEach((button) => { button.onclick = (event) => { event.stopPropagation(); kickPlayer(button.dataset.kick); }; });
-  E.players.querySelectorAll("[data-target-id]").forEach((seat) => {
-    const choose = () => chooseTarget(seat.dataset.targetId);
-    seat.onclick = choose;
-    seat.onkeydown = (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); choose(); } };
+    const renderKey = JSON.stringify([item,index,x,y,active,targetable,responseState,voted,badges,view.selfId,view.phase,view.permissions.canManage]);
+    let seat = existing.get(item.id);
+    if (!seat) { seat = document.createElement("article"); seat.dataset.playerId = item.id; }
+    if (seat.dataset.renderKey !== renderKey) {
+      const presentationFocus = seat.classList.contains("presentation-focus");
+      seat.dataset.renderKey = renderKey; seat.dataset.nodeIndex = String(index);
+      seat.style.setProperty("--node-x", `${x}%`); seat.style.setProperty("--node-y", `${y}%`);
+      seat.className = `player-seat agent-node ${item.id === view.selfId ? "self" : ""} ${!item.connected ? "offline" : ""} ${active ? "active" : ""} ${targetable ? "targetable" : ""} ${responseState} ${voted ? "responded" : ""}`;
+      if (presentationFocus) seat.classList.add("presentation-focus");
+      seat.innerHTML = `<div class="seat-head"><div><b>${escapeHtml(item.name)}${item.id === view.selfId ? " · 你" : ""}</b><small>${item.isHost ? "房主 · " : ""}${item.connected ? "在线" : "离线"} · ${item.score}分</small></div>${view.permissions.canManage && view.phase === "lobby" && !item.isHost ? `<button class="small" data-kick="${escapeHtml(item.id)}" type="button">移出</button>` : ""}</div><div class="seat-badges">${badges || '<span class="badge">身份保密</span>'}</div>`;
+      const kick = seat.querySelector("[data-kick]");
+      if (kick) kick.onclick = (event) => { event.stopPropagation(); kickPlayer(kick.dataset.kick); };
+      if (targetable) {
+        seat.setAttribute("data-target-id", item.id); seat.setAttribute("role", "button"); seat.tabIndex = 0;
+        const choose = () => chooseTarget(seat.dataset.targetId);
+        seat.onclick = choose;
+        seat.onkeydown = (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); choose(); } };
+      } else {
+        seat.removeAttribute("data-target-id"); seat.removeAttribute("role"); seat.removeAttribute("tabindex"); seat.onclick = null; seat.onkeydown = null;
+      }
+    }
+    const expected = E.players.children[index];
+    if (expected !== seat) E.players.insertBefore(seat, expected || null);
+    existing.delete(item.id);
   });
+  existing.forEach((seat) => seat.remove());
 }
 
 function addButton(text, handler, className = "", disabled = false) {
@@ -260,8 +288,7 @@ function addButton(text, handler, className = "", disabled = false) {
 
 function beginSelection(kind) {
   selectionMode = selectionMode === kind ? null : kind;
-  renderPlayers();
-  renderActions(view.memberRole || "player");
+  render();
 }
 
 function addLocationGuess() {
@@ -311,7 +338,6 @@ function renderSecret(memberRole) {
 
 function renderActions(memberRole) {
   E.actionButtons.innerHTML = "";
-  renderSecret(memberRole);
   if (memberRole === "spectator") {
     E.actionTitle.textContent = view.phase === "lobby" ? "正在旁观准备阶段" : `正在旁观：${PHASE_LABEL[view.phase]}`;
     E.actionHint.textContent = view.phase === "roundEnd" ? "本轮秘密已经公开。" : "旁观者只接收公开流程，不会获得地点、间谍身份或未结算投票。";
@@ -400,17 +426,19 @@ function renderFocus() {
   E.focusHint.textContent = view.result.reason;
 }
 
-function renderSidebar() {
+function renderLocations() {
   E.locationList.innerHTML = view.locations.map((item) => `<span class="location-chip">${escapeHtml(item.name)}</span>`).join("");
+}
+
+function renderScoreboard() {
   E.scoreboard.innerHTML = [...view.players].sort((a, b) => b.score - a.score).map((item) => `<div class="score-row"><span>${escapeHtml(item.name)}</span><b>${item.score}分</b></div>`).join("");
+}
+
+function renderLog() {
   E.logList.innerHTML = view.logs.map((entry) => `<div class="log-item">${escapeHtml(entry.text)}</div>`).join("") || '<p class="muted">暂无公开记录</p>';
 }
 
-function render() {
-  if (!view) return;
-  const model = spectatorUi.render(view);
-  const memberRole = model.memberRole;
-  view.memberRole = memberRole;
+function renderRoom() {
   setHidden(E.hostTools, !view.permissions.canManage);
   setHidden(E.startGameButton, !view.permissions.canStart);
   setHidden(E.nextRoundButton, !view.permissions.canNextRound);
@@ -419,16 +447,43 @@ function render() {
   E.nextRoundButton.disabled = view.players.some((item) => !item.connected);
   E.roomPlayerCountSelect.value = String(view.capacity);
   E.roomPlayerCountSelect.disabled = !view.permissions.canSetCapacity;
+}
+
+function renderStatus(model) {
   E.phaseTitle.textContent = PHASE_LABEL[view.phase] || "服务器结算中";
   E.roundNumber.textContent = String(view.round);
   E.notice.textContent = view.phase === "lobby" ? `等待玩家加入：${view.players.length}/${view.capacity}` : `第 ${view.round}/${view.matchRounds} 轮 · ${PHASE_LABEL[view.phase]} · 发牌者：${nameOf(view.dealerId)}`;
-  E.controlDock.dataset.role = memberRole;
-  renderPlayers();
-  renderFocus();
-  renderActions(memberRole);
-  renderSidebar();
+  E.controlDock.dataset.role = model.memberRole;
+}
+
+function renderCountdownPartition() {
   if (view.deadline) countdown.start(view.deadline, PHASE_MS[view.phase] || 30000);
   else { countdown.stop(); E.timerText.textContent = "--"; E.timerBar.style.width = "0"; }
+}
+
+partitionRenderer = createGame21PartitionRenderer({
+  room: renderRoom,
+  status: renderStatus,
+  network: renderNetworkWires,
+  players: renderPlayers,
+  focus: renderFocus,
+  secret: (model) => renderSecret(model.memberRole),
+  decision: (model) => renderActions(model.memberRole),
+  locations: renderLocations,
+  scoreboard: renderScoreboard,
+  log: renderLog,
+  countdown: renderCountdownPartition
+});
+
+function render() {
+  if (!view) return;
+  const model = spectatorUi.render(view);
+  partitionRenderer.render(createGame21RenderModel(view, {
+    memberRole: model.memberRole,
+    roomCode: room.snapshot().roomCode,
+    selectionMode,
+    spyLocationDraft
+  }));
 }
 
 presentation = createPresentationTimeline({

@@ -38,5 +38,22 @@ test("权威视图刷新时保留当前合法的市场操作草稿", () => {
   assert.match(script, /data-action-draft="sell:\$\{item\.id\}:normal"/);
   assert.match(script, /select\.dataset\.actionDraft = `bid:\$\{pile\.id\}`/);
   assert.match(script, /field\.tagName === "SELECT"/);
-  assert.match(script, /restoreActionDraft\(\); renderPrivate/);
+  assert.match(script, /function renderDecision\(model\) \{ renderActions\(model\.memberRole\); restoreActionDraft\(\); \}/);
+});
+
+test("权威视图按行情职责分区且市场草稿只在决策上下文变化时恢复", () => {
+  const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  const partitions = fs.readFileSync(path.join(__dirname, "render-partitions.mjs"), "utf8");
+  assert.match(script, /createGame17PartitionRenderer, createGame17RenderModel/);
+  assert.match(script, /partitionRenderer = createGame17PartitionRenderer\(\{/);
+  assert.match(script, /ticker: renderTicker/);
+  assert.match(script, /information: renderInformation/);
+  assert.match(script, /stockpiles: renderStockpiles/);
+  assert.match(script, /players: renderPlayers/);
+  assert.match(script, /decision: renderDecision/);
+  assert.match(script, /private: \(model\) => renderPrivate\(model\.memberRole\)/);
+  assert.match(script, /querySelectorAll\(":scope > \[data-company-id\]"\)/);
+  assert.match(script, /querySelectorAll\(":scope > \[data-pile-id\]"\)/);
+  assert.match(script, /querySelectorAll\(":scope > \[data-player-id\]"\)/);
+  assert.match(partitions, /"room","status","ticker","information","stockpiles","players","decision","private","log","countdown"/);
 });

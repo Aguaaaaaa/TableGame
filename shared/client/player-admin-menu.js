@@ -11,12 +11,19 @@ export function createSharedPlayerAdminMenu({room,getView=()=>null,notify=(messa
   if(!documentRef?.body||!room?.kick)return Object.freeze({close(){},refresh(){},destroy(){}});
   const style=documentRef.createElement("style");style.dataset.sharedPlayerAdminStyle="";style.textContent=`
     .shared-player-admin-trigger{min-width:26px!important;width:26px!important;height:24px!important;padding:0!important;font-size:.72rem!important;line-height:1!important;letter-spacing:.08em}
-    .shared-player-admin-anchor{cursor:context-menu}.shared-player-admin-anchor.shared-player-admin-open{outline:2px solid rgba(217,183,102,.72);outline-offset:2px}
-    .shared-player-admin-menu{position:fixed;z-index:1000;display:grid;gap:7px;width:176px;padding:10px;border:1px solid rgba(231,202,128,.76);border-radius:9px;color:#f4eddd;background:linear-gradient(145deg,rgba(42,47,48,.99),rgba(14,18,21,.99));box-shadow:0 14px 32px #000c,inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(10px)}
-    .shared-player-admin-menu[hidden]{display:none!important}.shared-player-admin-menu small{color:#d9b766;font:800 .5rem Georgia,serif;letter-spacing:.12em}.shared-player-admin-menu>b{overflow:hidden;font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}.shared-player-admin-menu button{width:100%;padding:7px 9px;color:#ffe8e8;border:1px solid #9e4650;border-radius:6px;background:linear-gradient(#7d303a,#521d25);font:800 .7rem sans-serif;cursor:pointer}`;
+    .shared-player-admin-anchor{cursor:context-menu}
+    .shared-player-admin-anchor.shared-player-admin-open{outline:2px solid var(--player-admin-accent,var(--accent,var(--primary,#66717d)));outline-offset:2px}
+    .shared-player-admin-menu{position:fixed;z-index:1000;display:grid;gap:var(--player-admin-gap,7px);width:var(--player-admin-width,176px);padding:var(--player-admin-padding,10px);border:1px solid var(--player-admin-border,var(--line,var(--border,#b8bdc2)));border-radius:var(--player-admin-radius,8px);color:var(--player-admin-text,var(--ink,var(--text,#202428)));background:var(--player-admin-bg,var(--panel,var(--surface,#f7f7f5)));box-shadow:var(--player-admin-shadow,0 12px 28px rgba(20,24,28,.22));font-family:var(--player-admin-font,inherit);backdrop-filter:var(--player-admin-backdrop-filter,none)}
+    .shared-player-admin-menu[hidden]{display:none!important}
+    .shared-player-admin-menu small{color:var(--player-admin-muted,var(--muted,var(--text-muted,#606870)));font:700 .58rem var(--player-admin-font,inherit);letter-spacing:.08em}
+    .shared-player-admin-menu>b{overflow:hidden;font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}
+    .shared-player-admin-menu button{width:100%;padding:7px 9px;color:var(--player-admin-danger-text,#fff);border:1px solid var(--player-admin-danger-border,var(--danger,#98434a));border-radius:var(--player-admin-button-radius,6px);background:var(--player-admin-danger-bg,var(--danger,#98434a));font:700 .7rem var(--player-admin-font,inherit);cursor:pointer}
+    .shared-player-admin-menu button:hover{filter:brightness(var(--player-admin-hover-brightness,.94))}
+    .shared-player-admin-menu button:focus-visible{outline:2px solid var(--player-admin-accent,var(--accent,var(--primary,#66717d)));outline-offset:2px}
+    .shared-player-admin-menu button:disabled{cursor:wait;opacity:.62}`;
   documentRef.head?.append(style);
   const menu=documentRef.createElement("div");menu.className="shared-player-admin-menu";menu.hidden=true;menu.setAttribute("role","menu");menu.setAttribute("aria-label","玩家管理菜单");
-  const kicker=documentRef.createElement("small");kicker.textContent="PLAYER MANAGEMENT";const title=documentRef.createElement("b");const remove=documentRef.createElement("button");remove.type="button";remove.setAttribute("role","menuitem");remove.textContent="移除该玩家";menu.append(kicker,title,remove);documentRef.body.append(menu);
+  const kicker=documentRef.createElement("small");kicker.textContent="玩家管理";const title=documentRef.createElement("b");const remove=documentRef.createElement("button");remove.type="button";remove.setAttribute("role","menuitem");remove.textContent="移除该玩家";menu.append(kicker,title,remove);documentRef.body.append(menu);
   let anchor=null,selectedId="";
 
   function close(){menu.hidden=true;selectedId="";anchor?.classList?.remove("shared-player-admin-open");anchor=null;}

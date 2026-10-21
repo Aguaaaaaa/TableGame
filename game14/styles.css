@@ -15,6 +15,11 @@
   --spectator-line: var(--line);
   --spectator-soft: #f5ead7;
   --spectator-muted: var(--muted);
+  --player-admin-bg: var(--paper);
+  --player-admin-accent: var(--green-dark);
+  --player-admin-danger-bg: var(--mud-dark);
+  --player-admin-danger-border: #4e3022;
+  --player-admin-radius: 14px;
 }
 
 * { box-sizing: border-box; }

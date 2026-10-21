@@ -282,3 +282,14 @@
   .access-form-shell{padding:13px}
   .station-fields{grid-template-columns:minmax(0,1fr) 92px}
 }
+
+/* Shared player administration follows the radio-intelligence shell. */
+:root{
+  --player-admin-bg:var(--paper2);
+  --player-admin-muted:#5f625e;
+  --player-admin-accent:var(--blue);
+  --player-admin-danger-bg:var(--red);
+  --player-admin-danger-border:#8f2f28;
+  --player-admin-radius:4px;
+  --player-admin-shadow:0 16px 36px #05070899;
+}

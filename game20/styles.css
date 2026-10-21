@@ -12,6 +12,11 @@
   --line: rgba(46, 43, 63, .17);
   --shadow: 0 15px 38px rgba(50, 39, 49, .14);
   font-family: Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --player-admin-bg: var(--paper);
+  --player-admin-accent: var(--navy);
+  --player-admin-danger-bg: var(--coral-dark);
+  --player-admin-danger-border: #652331;
+  --player-admin-radius: 12px;
 }
 
 * { box-sizing: border-box; }

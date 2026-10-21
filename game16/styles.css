@@ -1,6 +1,9 @@
 :root {
   --ink: #241b1a; --muted: #786966; --paper: #fffaf0; --wine: #7b2332; --wine-dark: #501520;
   --gold: #d3a84c; --gold-soft: #f3dfad; --line: rgba(103, 66, 47, .22); --shadow: 0 18px 45px rgba(62, 31, 26, .13);
+  --player-admin-bg: var(--paper); --player-admin-accent: var(--wine);
+  --player-admin-danger-bg: var(--wine); --player-admin-danger-border: var(--wine-dark);
+  --player-admin-radius: 10px; --player-admin-shadow: 0 16px 36px rgba(62,31,26,.25);
 }
 * { box-sizing: border-box; }
 body { margin: 0; color: var(--ink); background: radial-gradient(circle at 12% 8%, #f8e9c7, transparent 27%), radial-gradient(circle at 88% 14%, #e8c9c1, transparent 30%), #eee3d2; font-family: Inter, "Noto Sans SC", system-ui, sans-serif; }

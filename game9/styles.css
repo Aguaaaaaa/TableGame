@@ -11,6 +11,12 @@
   font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
   color: var(--ink);
   background: var(--paper);
+  --player-admin-bg: var(--cream);
+  --player-admin-border: var(--line);
+  --player-admin-accent: var(--green);
+  --player-admin-danger-bg: var(--coral);
+  --player-admin-danger-border: #c34a36;
+  --player-admin-radius: 12px;
 }
 
 * { box-sizing: border-box; }

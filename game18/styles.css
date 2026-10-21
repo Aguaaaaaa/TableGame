@@ -11,6 +11,15 @@
   --green-soft: #e8f2eb;
   --shadow: 0 16px 40px rgba(63, 42, 28, 0.14);
   font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  --player-admin-bg: #dedbd4;
+  --player-admin-text: #262626;
+  --player-admin-muted: #68615d;
+  --player-admin-border: #8e7b62;
+  --player-admin-accent: var(--green);
+  --player-admin-danger-bg: var(--red-dark);
+  --player-admin-danger-border: #5e1a18;
+  --player-admin-radius: 5px;
+  --player-admin-shadow: 0 18px 42px rgba(15,16,16,.38);
 }
 
 * { box-sizing: border-box; }

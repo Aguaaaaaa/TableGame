@@ -9,7 +9,13 @@
     --green: #31a85b;
     --blue: #3182d8;
     --purple: #663399;
-    --shadow: 0 17px 45px #0004
+    --shadow: 0 17px 45px #0004;
+    --player-admin-bg: var(--panel);
+    --player-admin-accent: var(--purple);
+    --player-admin-danger-bg: var(--red);
+    --player-admin-danger-border: #ad2927;
+    --player-admin-radius: 12px;
+    --player-admin-shadow: 0 15px 34px #0008
 }
 
 * {

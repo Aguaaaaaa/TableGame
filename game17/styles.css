@@ -2,6 +2,9 @@
   --ink: #19372e; --muted: #687971; --paper: #fbf7ea; --cream: #f1ead8; --green: #164c3c;
   --green-2: #236b52; --gold: #c9973c; --red: #b94d42; --line: rgba(31, 73, 58, .18);
   --shadow: 0 18px 42px rgba(31, 58, 45, .12);
+  --player-admin-bg: var(--paper); --player-admin-accent: var(--green);
+  --player-admin-danger-bg: var(--red); --player-admin-danger-border: #8f3932;
+  --player-admin-radius: 9px;
 }
 * { box-sizing: border-box; }
 body { margin: 0; color: var(--ink); background: radial-gradient(circle at 12% 5%, #fff3cc, transparent 26%), radial-gradient(circle at 88% 10%, #d8eadc, transparent 30%), #e8e7d9; font-family: Inter, "Noto Sans SC", system-ui, sans-serif; }

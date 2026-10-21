@@ -1,4 +1,4 @@
-:root { color-scheme: light; --ink:#17332c; --muted:#6a7d75; --paper:#f5f0dd; --green:#285f4c; --orange:#e76f3c; --line:rgba(23,51,44,.15); font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif; }
+:root { color-scheme: light; --ink:#17332c; --muted:#6a7d75; --paper:#f5f0dd; --green:#285f4c; --orange:#e76f3c; --line:rgba(23,51,44,.15); font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif; --player-admin-bg:#fffaf0; --player-admin-accent:var(--green); --player-admin-danger-bg:var(--orange); --player-admin-danger-border:#bb4f27; --player-admin-radius:12px; }
 * { box-sizing:border-box; }
 body { margin:0; min-height:100vh; color:var(--ink); background:radial-gradient(circle at 50% 0,#fff9dc 0,transparent 34%),linear-gradient(150deg,#dce8d2,#f4edd8 55%,#d9e4d4); }
 button,input,select { font:inherit; }

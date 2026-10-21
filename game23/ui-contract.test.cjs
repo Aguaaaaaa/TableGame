@@ -38,3 +38,5 @@ test("权威视图按房间舞台画廊手牌和决策分区更新",()=>{
   assert.match(partitions,/"room", "status", "players", "stage", "gallery", "hand"/);
   assert.match(partitions,/"decision", "decisionFacts", "log", "countdown"/);
 });
+
+test("准备大厅房主可通过统一菜单管理其他旅人",()=>{const script=read("app.js");assert.match(script,/data-kick/);assert.match(script,/current\.phase!=="lobby"/);assert.match(script,/!current\.permissions\.canManage/);assert.match(script,/item\.isHost/);});

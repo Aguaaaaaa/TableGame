@@ -102,3 +102,5 @@ test("权威视图按私人情报、传讯、编辑器、比分和档案分区�
   assert.match(partitions,/"decision", "decisionFacts", "scores", "history", "result", "countdown"/);
   assert.match(script,/当前组合包含重复数字，尚未保存/);
 });
+
+test("准备大厅房主可从队伍席和未入座区打开玩家管理菜单",()=>{const script=read("app.js");assert.match(script,/data-kick=/);assert.match(script,/current\.permissions\?\.canKick&&!player\.isHost/);assert.ok((script.match(/data-kick=/g)||[]).length>=2);});

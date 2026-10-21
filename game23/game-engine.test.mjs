@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   addPlayer, applyAction, buildSpectatorView, buildView, createLobby,
-  handleTimeout, restoreState, serializeState
+  handleTimeout, removePlayer, restoreState, serializeState
 } from "./server/game-engine.mjs";
 
 const fixedRandom = () => .314159;
@@ -17,6 +17,12 @@ function submitStory(state, now = 2000) {
   applyAction(state, teller.id, { type: "submitStory", cardId: teller.hand[0].id, clueMode: "text", clueText: "倒着生长的月亮" }, { now, random: fixedRandom });
   return teller;
 }
+
+test("host can remove another traveler only before the gallery opens",()=>{
+  const lobby=createLobby({capacity:3,host:{id:"p1",name:"一号"}});addPlayer(lobby,{id:"p2",name:"二号"});addPlayer(lobby,{id:"p3",name:"三号"});
+  removePlayer(lobby,"p1","p2");assert.equal(lobby.players.some((player)=>player.id==="p2"),false);assert.throws(()=>removePlayer(lobby,"p1","p1"),/不能移出/);
+  const active=setup(3);assert.throws(()=>removePlayer(active,"p1","p2"),/游戏开始后/);assert.equal(active.players.length,3);
+});
 
 test("authoritative flow hides submissions and reveals owners only at resolution", () => {
   const state = setup(4); const teller = submitStory(state);

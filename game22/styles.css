@@ -16,6 +16,34 @@
 @media(max-width:520px){.shell{width:calc(100% - 10px)}.hero{padding:10px}.hero>div:first-child>p:last-child{display:none}.host-tools{display:grid;grid-template-columns:1fr 1fr;width:100%}.quest-banner{display:grid;gap:8px}.rejection-council{justify-content:space-between;width:100%}.knights-roster{display:block}.roster-heading{display:flex;align-items:baseline;gap:8px;border-right:0;border-bottom:1px solid var(--line)}.players{grid-auto-columns:132px}.player-seat{grid-template-columns:36px minmax(0,1fr);min-height:64px}.player-avatar{width:34px;height:41px}.round-table{height:330px;border-radius:7px 7px 18px 18px}.map-controls{right:8px;bottom:8px;grid-template-columns:34px 72px 34px}.map-gesture-hint{top:8px;bottom:auto;left:8px}.control-dock{bottom:0}.archive-grid>.panel{padding:12px}.ceremony-stage{width:96%;min-height:92%;padding:12px}.ceremony-stage h2{margin:4px 0}.ceremony-cast{min-height:82px;margin-top:6px;gap:18px}.ceremony-person{min-width:88px}.ceremony-person>span{width:52px}.ceremony-cards{min-height:88px;gap:5px}.quest-reveal-card{width:min(12vw,50px)}.ceremony-blade{font-size:2.5rem}}
 @media(prefers-reduced-motion:reduce){.player-seat.targetable,.quest-node.active,.presentation-token,.ceremony-vignette,.ceremony-person.entering,.quest-reveal-card:not(.sealed),.critical-ceremony[data-stage="strike"] .ceremony-blade,.ceremony-verdict{animation:none}.quest-reveal-card>div{transition:none}}
 
+/* Avalon heraldry: explicit, ordered state badges replace ambiguous letter dots. */
+.player-seat{min-height:82px;padding-bottom:27px;overflow:visible}
+.player-avatar{border-color:var(--player-accent,#9d8650);box-shadow:inset 0 0 0 3px rgba(12,15,18,.55),0 3px 10px #0008,0 0 10px color-mix(in srgb,var(--player-accent,#9d8650) 35%,transparent)}
+.player-badges{position:absolute;right:5px;bottom:5px;left:52px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;min-height:19px;pointer-events:none}
+.player-badge{display:grid;place-items:center;width:18px;height:18px;border:1px solid rgba(255,255,255,.26);border-radius:50%;color:#fff;background:#2b3032;box-shadow:0 2px 6px #0009,inset 0 1px rgba(255,255,255,.16);font-style:normal}
+.player-badge svg{width:11px;height:11px;fill:currentColor;filter:drop-shadow(0 1px 1px #0008)}
+.badge-leader{color:#2b1d08;border-color:#ffe5a1;background:linear-gradient(#ffe9a8,#ba8130);box-shadow:0 0 10px #e5bb5899}
+.badge-known-evil{color:#ffd6d9;border-color:#dc7a82;background:radial-gradient(circle,#9e3442,#47151d)}
+.badge-merlin-candidate{color:#f0dcff;border-color:#c49adc;background:radial-gradient(circle,#76528d,#32223d)}
+.badge-expedition{color:#e3fbff;border-color:#8ed4df;background:radial-gradient(circle,#477c87,#19343a)}
+.badge-vote-sealed{color:#ffe5c5;border-color:#d39a75;background:radial-gradient(circle,#9e4d43,#4b201e)}
+.badge-quest-sealed{color:#fff5bd;border-color:#e6d071;background:radial-gradient(circle,#7b7a3c,#343516)}
+.badge-vote-yes{color:#edffe8;border-color:#8ed483;background:radial-gradient(circle,#508b49,#1e421e)}
+.badge-vote-no{color:#ffe5e5;border-color:#e27a7e;background:radial-gradient(circle,#a33842,#48181e)}
+.role-badge{color:#fff1b5;border-color:#e1c46f;background:radial-gradient(circle,#846b37,#372a16)}
+.player-badge[class*="role-evil"]{color:#ffd7da;border-color:#d4777f;background:radial-gradient(circle,#87313d,#341319)}
+
+.quest-node{appearance:none;font:inherit;cursor:default}
+.quest-node.success,.quest-node.fail{cursor:pointer}
+.quest-node.success:hover,.quest-node.fail:hover{filter:brightness(1.12)}
+.quest-node:disabled{opacity:1}
+.quest-participants{position:absolute;top:calc(100% + 9px);left:50%;display:flex;justify-content:center;gap:3px;min-width:120px;transform:translateX(-50%)}
+.quest-participant{display:grid;place-items:center;width:20px;height:20px;border:2px solid color-mix(in srgb,var(--participant-color) 82%,#fff);border-radius:50%;color:#fff8e7;background:color-mix(in srgb,var(--participant-color) 64%,#15191b);box-shadow:0 3px 8px #000b;font-size:.55rem;font-style:normal;font-weight:900;text-shadow:0 1px 2px #000}
+.quest-archive{position:absolute;z-index:17;right:78px;bottom:16px;width:min(390px,calc(100% - 32px));padding:15px 42px 15px 17px;border:1px solid rgba(224,196,124,.72);border-radius:8px;color:var(--ink);background:linear-gradient(135deg,rgba(43,48,48,.97),rgba(13,17,20,.97));box-shadow:0 16px 36px #000c,inset 0 1px rgba(255,255,255,.07);backdrop-filter:blur(10px)}
+.quest-archive>small{color:var(--gold);font:800 .55rem Georgia,serif;letter-spacing:.16em}.quest-archive h2{margin:4px 0 2px;font:700 1.08rem Georgia,"Noto Serif SC",serif}.quest-archive>p{margin:0;color:var(--muted);font-size:.68rem}.quest-archive-close{position:absolute;top:8px;right:8px;display:grid;place-items:center;width:28px;height:28px;min-width:0;padding:0;border-radius:50%;font-size:1.1rem}
+.quest-archive-players{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.quest-archive-player{display:flex;align-items:center;gap:5px;padding:4px 8px 4px 4px;border:1px solid color-mix(in srgb,var(--participant-color) 48%,#4b4b43);border-radius:18px;background:rgba(0,0,0,.25);font-size:.66rem}.quest-archive-player i{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;color:#fff;background:var(--participant-color);font-style:normal;font-weight:900;text-shadow:0 1px 2px #000}.quest-archive-player b{font-weight:700}
+@media(max-width:520px){.player-seat{min-height:76px;padding-bottom:25px}.player-badges{left:43px}.player-badge{width:17px;height:17px}.quest-archive{right:8px;bottom:54px;width:calc(100% - 16px);padding:13px 38px 13px 13px}.quest-participant{width:18px;height:18px}.quest-participants{top:calc(100% + 7px)}}
+
 /* Entry shell: the oath antechamber before players reach the expedition map. */
 .oath-arrival{
   position:relative;

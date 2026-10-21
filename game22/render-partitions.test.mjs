@@ -8,12 +8,12 @@ function baseView(){return{
   selfId:"p1",phase:"teamVote",capacity:5,preset:"classic",ladyEnabled:false,paceMode:"standard",timers:{},deadline:5000,deadlineDurationSeconds:45,matchNumber:1,
   questIndex:0,leaderId:"p2",proposalNumber:1,proposedTeam:["p1","p2"],teamVoteProgress:[],lastTeamVoteResult:null,questProgress:[],questResults:[],goodQuests:0,evilQuests:0,
   requiredTeamSize:2,requiredFails:1,ladyHolderId:null,ladyHistory:[],assassinId:null,knownEvilIds:[],percivalCandidates:[],selfRole:"loyal",myTeamVote:null,myQuestCard:null,myLadyFinding:null,
-  proposalExtension:{requested:false,used:false,granted:false,voteProgress:[],yes:0,no:0,required:3},result:null,stats:{},logs:[],presentationEvents:[],
+  proposalExtension:{requested:false,used:false,granted:false,voteProgress:[],yes:0,no:0,required:3},ceremony:null,result:null,stats:{},logs:[],presentationEvents:[],
   players:[player("p1"),player("p2"),player("p3"),player("p4"),player("p5")],
   permissions:{canManage:true,canConfigure:false,canStart:false,canAcknowledge:false,canPropose:false,canRequestExtension:false,canVoteExtension:false,canTeamVote:true,canQuest:false,canFailQuest:false,canUseLady:false,ladyTargetIds:[],canAssassinate:false,canNextMatch:false,canEnd:true}
 };}
-function harness(){const calls=[],nodes={players:null,decision:null,quests:null,secret:null};let sequence=0;const renderer=createGame22PartitionRenderer(Object.fromEntries(
-  ["room","status","quests","players","focus","secret","decision","log","countdown"].map((name)=>[name,()=>{calls.push(name);if(name in nodes)nodes[name]={id:++sequence};}])));
+function harness(){const calls=[],nodes={players:null,decision:null,quests:null,secret:null,ceremony:null};let sequence=0;const renderer=createGame22PartitionRenderer(Object.fromEntries(
+  ["room","status","quests","players","focus","secret","decision","ceremony","log","countdown"].map((name)=>[name,()=>{calls.push(name);if(name in nodes)nodes[name]={id:++sequence};}])));
   return{calls,nodes,draw(view,teamDraft=[]){return renderer.render(createGame22RenderModel(view,{memberRole:"player",roomCode:"AVAL",teamDraft}));},clear(){calls.length=0;}};}
 
 test("旁观者与演出广播不替换投票决策或地图锚点",()=>{const h=harness(),view=baseView();h.draw(view);const saved={...h.nodes};h.clear();const next=clone(view);next.spectators=[{id:"s1"}];next.presentationEvents=[{id:"e1"}];assert.deepEqual(h.draw(next),[]);assert.deepEqual(h.nodes,saved);});
@@ -25,4 +25,5 @@ test("其他任务牌与延时表决只推进公共状态",()=>{const h=harness(
 test("任务轨迹改变不会重建仍在使用的投票区",()=>{const h=harness(),view=baseView();h.draw(view);const decision=h.nodes.decision;h.clear();const next=clone(view);next.questResults.push({success:true});assert.deepEqual(h.draw(next),["quests"]);assert.strictEqual(h.nodes.decision,decision);});
 test("湖中仙女私密结果只更新私密情报",()=>{const h=harness(),view=baseView();h.draw(view);h.clear();const next=clone(view);next.myLadyFinding={targetId:"p3",displayedAlignment:"evil"};assert.deepEqual(h.draw(next),["secret"]);});
 test("进入新的权威阶段才替换旧决策区",()=>{const h=harness(),view=baseView();h.draw(view);h.clear();const next=clone(view);next.phase="questAction";next.permissions.canTeamVote=false;next.permissions.canQuest=true;assert.ok(h.draw(next).includes("decision"));assert.notStrictEqual(h.nodes.decision,null);});
+test("逐张任务揭晓只推进关键仪式分区，普通广播不会重启仪式",()=>{const h=harness(),view=baseView();view.phase="questReveal";view.permissions.canTeamVote=false;view.ceremony={id:"quest_1_1",kind:"quest",stage:"sealed",questNumber:1,teamIds:["p1","p2"],cardCount:2,revealedCards:[],requiredFails:1,success:null,failCount:null};h.draw(view);const ceremony=h.nodes.ceremony;h.clear();const logged=clone(view);logged.logs.push({text:"等待揭晓"});assert.deepEqual(h.draw(logged),["log"]);assert.strictEqual(h.nodes.ceremony,ceremony);h.clear();logged.ceremony.stage="cards";logged.ceremony.revealedCards=["success"];assert.deepEqual(h.draw(logged),["ceremony"]);});
 

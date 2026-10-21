@@ -9,7 +9,9 @@ import { appendPresentationEvent, normalizePresentationState, validatePresentati
 export const STATE_VERSION = 1;
 export const SUPPORTS_SPECTATORS = true;
 export const ACTION_SECONDS = normalizeTimers(PACE.STANDARD).teamProposal;
-const PHASES = new Set(["lobby", "secretReveal", "teamProposal", "teamVote", "questAction", "ladyInspect", "assassination", "ended"]);
+const PHASES = new Set(["lobby", "secretReveal", "teamProposal", "teamVote", "questAction", "questReveal", "ladyInspect", "assassination", "assassinationReveal", "ended"]);
+const QUEST_SEAL_MS = 1000, QUEST_CARD_MS = 650, QUEST_VERDICT_MS = 1400;
+const ASSASSINATION_APPROACH_MS = 1800, ASSASSINATION_STRIKE_MS = 900, ASSASSINATION_VERDICT_MS = 1800;
 const clone = (value) => structuredClone(value);
 const byId = (state, id) => state.players.find((player) => player.id === String(id)) || null;
 
@@ -32,6 +34,7 @@ function checkedPreset(value) { try { return assertPreset(value); } catch { thro
 function checkedPace(value) { try { return assertPace(value); } catch { throw new GameRuleError("invalid_pace", "节奏预设无效。"); } }
 function checkedTimers(pace, values) { try { return normalizeTimers(pace, values); } catch { throw new GameRuleError("invalid_timers", "自定义时长无效，请检查各阶段允许的秒数范围。"); } }
 function setDeadline(state, seconds, now) { state.deadlineDurationSeconds = seconds; state.deadline = now + seconds * 1000; }
+function setDeadlineMs(state, milliseconds, now) { state.deadlineDurationSeconds = milliseconds / 1000; state.deadline = now + milliseconds; }
 function clearDeadline(state) { state.deadline = 0; state.deadlineDurationSeconds = 0; }
 
 function normalizeTimingState(state) {
@@ -60,7 +63,7 @@ function resetMatchState(state) {
     leaderId: null, startingLeaderId: null, proposalNumber: 1, proposedTeam: [], teamVotes: {},
     lastTeamVoteResult: null, questCards: {}, questResults: [], goodQuests: 0, evilQuests: 0,
     ladyHolderId: null, ladyHistory: [], ladyFindings: [], assassinId: null, merlinId: null,
-    result: null, presentationEvents: [],
+    result: null, pendingCeremony: null, presentationEvents: [],
     proposalExtension: { used: false, requested: false, granted: false, votes: {}, originalDeadline: 0 }
   });
   state.players.forEach((player) => { player.role = null; player.secretAcknowledged = false; });
@@ -116,11 +119,13 @@ function requestExtension(state, actorId, now) {
 }
 
 function finishGame(state, winner, reason, now, extra = {}, sceneId = null) {
+  const { ceremony: presentationCeremony = null, ...resultExtra } = extra;
   state.phase = "ended"; clearDeadline(state);
-  state.result = { winner, reason, ...extra };
+  state.result = { winner, reason, ...resultExtra };
   state.stats[winner === ALIGNMENT.GOOD ? "goodWins" : "evilWins"] += 1;
   addLog(state, `${winner === ALIGNMENT.GOOD ? "正义" : "邪恶"}阵营获胜：${reason}`, now);
-  present(state, "game-result", `${winner === ALIGNMENT.GOOD ? "正义" : "邪恶"}阵营获胜`, now, { priority: 5, winner, reason, ...extra }, sceneId);
+  present(state, "game-result", `${winner === ALIGNMENT.GOOD ? "正义" : "邪恶"}阵营获胜`, now,
+    { priority: 5, winner, reason, ...resultExtra, ...(presentationCeremony ? { ceremony: presentationCeremony } : {}) }, sceneId);
 }
 
 function submitTeam(state, actorId, memberIds, now, automatic = false) {
@@ -165,33 +170,74 @@ function continueAfterQuest(state, now) {
   beginProposal(state, now);
 }
 
-function resolveQuest(state, now) {
-  const cards = Object.values(state.questCards);
+function beginQuestReveal(state, now, random) {
+  const cards = shuffle(Object.values(state.questCards), random);
   const failCount = cards.filter((card) => card === "fail").length;
   const required = failsRequired(state.capacity, state.questIndex);
   const success = failCount < required;
-  const completedIndex = state.questIndex;
+  state.phase = "questReveal";
+  state.pendingCeremony = { id: `quest_${state.matchNumber}_${state.questIndex + 1}`, kind: "quest", stage: "sealed", questIndex: state.questIndex,
+    questNumber: state.questIndex + 1, teamIds: [...state.proposedTeam], cards, revealedCount: 0, failCount, success, requiredFails: required };
+  setDeadlineMs(state, QUEST_SEAL_MS, now);
+}
+
+function finishQuestReveal(state, now) {
+  const ceremony = state.pendingCeremony;
+  const { cards, failCount, success } = ceremony;
+  const completedIndex = ceremony.questIndex;
   state.questResults.push({ questNumber: completedIndex + 1, success, failCount, successCount: cards.length - failCount, team: [...state.proposedTeam] });
   if (success) state.goodQuests += 1; else state.evilQuests += 1;
   state.questIndex += 1;
   clearDeadline(state);
   const sid = scene(state);
   addLog(state, `第${completedIndex + 1}次远征${success ? "成功" : "失败"}：${failCount}张失败牌。`, now);
-  present(state, "quest-result", `第${completedIndex + 1}次远征${success ? "成功" : "失败"}`, now, { priority: 5, success, failCount, targetIds: state.proposedTeam, questNumber: completedIndex + 1 }, sid);
-  if (state.evilQuests >= 3) return finishGame(state, ALIGNMENT.EVIL, "三次远征失败。", now, {}, sid);
+  present(state, "quest-result", `第${completedIndex + 1}次远征${success ? "成功" : "失败"}`, now, { priority: 5, success, failCount, targetIds: state.proposedTeam, questNumber: completedIndex + 1, ceremony: "quest" }, sid);
+  if (state.evilQuests >= 3) return finishGame(state, ALIGNMENT.EVIL, "三次远征失败。", now, { ceremony: "quest" }, sid);
   if (state.goodQuests >= 3) {
+    state.pendingCeremony = null;
     state.phase = "assassination"; setDeadline(state, state.timers.assassination, now);
     addLog(state, `三次远征成功，刺客${playerName(state, state.assassinId)}现身并寻找梅林。`, now);
     present(state, "assassination-start", `${playerName(state, state.assassinId)}以刺客身份现身`, now, { priority: 5, actorId: state.assassinId }, sid);
     return;
   }
   if (state.ladyEnabled && [1, 2, 3].includes(completedIndex) && ladyTargets(state).length) {
+    state.pendingCeremony = null;
     state.phase = "ladyInspect"; setDeadline(state, state.timers.ladyInspect, now);
     addLog(state, `湖中仙女由${playerName(state, state.ladyHolderId)}持有，等待秘密查验。`, now);
     present(state, "lady-ready", `${playerName(state, state.ladyHolderId)}即将使用湖中仙女`, now, { priority: 3, actorId: state.ladyHolderId }, sid);
     return;
   }
+  state.pendingCeremony = null;
   continueAfterQuest(state, now);
+}
+
+function advanceQuestReveal(state, now) {
+  const ceremony = state.pendingCeremony;
+  fail(state.phase !== "questReveal" || ceremony?.kind !== "quest", "invalid_quest_reveal", "远征揭晓状态无效。", 409);
+  if (ceremony.stage === "sealed") { ceremony.stage = "cards"; ceremony.revealedCount = 1; setDeadlineMs(state, QUEST_CARD_MS, now); return; }
+  if (ceremony.stage === "cards" && ceremony.revealedCount < ceremony.cards.length) { ceremony.revealedCount += 1; setDeadlineMs(state, QUEST_CARD_MS, now); return; }
+  if (ceremony.stage === "cards") { ceremony.stage = "verdict"; setDeadlineMs(state, QUEST_VERDICT_MS, now); return; }
+  finishQuestReveal(state, now);
+}
+
+function beginAssassinationReveal(state, target, now) {
+  state.phase = "assassinationReveal";
+  state.pendingCeremony = { id: `assassination_${state.matchNumber}`, kind: "assassination", stage: "approach", assassinId: state.assassinId,
+    targetId: target.id, hit: target.id === state.merlinId };
+  setDeadlineMs(state, ASSASSINATION_APPROACH_MS, now);
+  addLog(state, `刺客${playerName(state, state.assassinId)}锁定了${target.name}，王国等待最终裁决。`, now);
+  present(state, "assassination-targeted", `${playerName(state, state.assassinId)}锁定了${target.name}`, now,
+    { priority: 5, actorId: state.assassinId, targetId: target.id, ceremony: "assassination" });
+}
+
+function advanceAssassinationReveal(state, now) {
+  const ceremony = state.pendingCeremony;
+  fail(state.phase !== "assassinationReveal" || ceremony?.kind !== "assassination", "invalid_assassination_reveal", "刺杀揭晓状态无效。", 409);
+  if (ceremony.stage === "approach") { ceremony.stage = "strike"; setDeadlineMs(state, ASSASSINATION_STRIKE_MS, now); return; }
+  if (ceremony.stage === "strike") { ceremony.stage = "verdict"; setDeadlineMs(state, ASSASSINATION_VERDICT_MS, now); return; }
+  const hit = ceremony.hit;
+  finishGame(state, hit ? ALIGNMENT.EVIL : ALIGNMENT.GOOD, hit ? "刺客成功辨认并刺杀了梅林。" : "刺客未能找出梅林。", now,
+    { assassinTargetId: ceremony.targetId, merlinId: state.merlinId, ceremony: "assassination" });
 }
 
 function inspectLady(state, actorId, targetId, now, automatic = false) {
@@ -281,7 +327,7 @@ export function applyAction(state, actorId, action, { now = Date.now(), random =
       fail(card === "fail" && alignmentOf(actor.role) !== ALIGNMENT.EVIL, "good_cannot_fail", "正义角色只能提交成功。", 403);
       state.questCards[actorId] = card;
       present(state, "quest-card-sealed", `${actor.name}将任务牌投入圣杯`, now, { priority: 1, actorId });
-      if (state.proposedTeam.every((id) => Object.hasOwn(state.questCards, id))) resolveQuest(state, now);
+      if (state.proposedTeam.every((id) => Object.hasOwn(state.questCards, id))) beginQuestReveal(state, now, random);
       break;
     }
     case "ladyInspect": inspectLady(state, actorId, action.targetId, now); break;
@@ -289,8 +335,7 @@ export function applyAction(state, actorId, action, { now = Date.now(), random =
       fail(state.phase !== "assassination", "wrong_phase", "现在不能进行刺杀。", 409);
       fail(actorId !== state.assassinId, "assassin_required", "只有刺客可以选择目标。", 403);
       const target = byId(state, action.targetId); fail(!target || target.id === actorId, "invalid_assassination_target", "刺杀目标无效。");
-      const hit = target.id === state.merlinId;
-      finishGame(state, hit ? ALIGNMENT.EVIL : ALIGNMENT.GOOD, hit ? "刺客成功辨认并刺杀了梅林。" : "刺客未能找出梅林。", now, { assassinTargetId: target.id, merlinId: state.merlinId });
+      beginAssassinationReveal(state, target, now);
       break;
     }
     case "end": requireHost(state, actorId); fail(state.phase === "lobby", "game_not_started", "当前没有可结束的游戏。", 409); resetMatchState(state); addLog(state, "房主结束了当前密议，所有骑士返回准备大厅。", now); break;
@@ -306,9 +351,11 @@ export function handleTimeout(state, { now = Date.now(), random = Math.random } 
   else if (state.phase === "teamProposal" && state.proposalExtension.requested) resolveExtensionVote(state, now, true);
   else if (state.phase === "teamProposal") submitTeam(state, state.leaderId, shuffle(state.players.map((player) => player.id), random).slice(0, questSize(state.capacity, state.questIndex)), now, true);
   else if (state.phase === "teamVote") { state.players.forEach((player) => { if (!Object.hasOwn(state.teamVotes, player.id)) state.teamVotes[player.id] = false; }); resolveTeamVote(state, now); }
-  else if (state.phase === "questAction") { state.proposedTeam.forEach((id) => { if (!Object.hasOwn(state.questCards, id)) state.questCards[id] = "success"; }); resolveQuest(state, now); }
+  else if (state.phase === "questAction") { state.proposedTeam.forEach((id) => { if (!Object.hasOwn(state.questCards, id)) state.questCards[id] = "success"; }); beginQuestReveal(state, now, random); }
+  else if (state.phase === "questReveal") advanceQuestReveal(state, now);
   else if (state.phase === "ladyInspect") { const target = randomChoice(ladyTargets(state), random); if (target) inspectLady(state, state.ladyHolderId, target.id, now, true); else continueAfterQuest(state, now); }
   else if (state.phase === "assassination") { const targets = state.players.filter((player) => player.id !== state.assassinId); const target = randomChoice(targets, random); applyAction(state, state.assassinId, { type: "assassinate", targetId: target.id }, { now, random }); }
+  else if (state.phase === "assassinationReveal") advanceAssassinationReveal(state, now);
   else return false;
   validateState(state); return true;
 }
@@ -327,6 +374,12 @@ function buildPublicView(state, viewer = null) {
   const teamVoteDone = state.lastTeamVoteResult;
   const myFinding = viewer ? [...state.ladyFindings].reverse().find((item) => item.viewerId === viewer.id) || null : null;
   const knowledge = knowledgeFor(state, viewer);
+  const ceremony = state.pendingCeremony ? { id: state.pendingCeremony.id, kind: state.pendingCeremony.kind, stage: state.pendingCeremony.stage } : null;
+  if (ceremony?.kind === "quest") Object.assign(ceremony, { questNumber: state.pendingCeremony.questNumber, teamIds: [...state.pendingCeremony.teamIds], cardCount: state.pendingCeremony.cards.length,
+    revealedCards: state.pendingCeremony.stage === "sealed" ? [] : state.pendingCeremony.cards.slice(0, state.pendingCeremony.revealedCount), requiredFails: state.pendingCeremony.requiredFails,
+    success: state.pendingCeremony.stage === "verdict" ? state.pendingCeremony.success : null, failCount: state.pendingCeremony.stage === "verdict" ? state.pendingCeremony.failCount : null });
+  if (ceremony?.kind === "assassination") Object.assign(ceremony, { assassinId: state.pendingCeremony.assassinId, targetId: state.pendingCeremony.targetId,
+    hit: state.pendingCeremony.stage === "verdict" ? state.pendingCeremony.hit : null });
   return {
     stateVersion: state.stateVersion, capacity: state.capacity, preset: state.preset, ladyEnabled: state.ladyEnabled,
     paceMode: state.paceMode, timers: clone(state.timers),
@@ -336,8 +389,9 @@ function buildPublicView(state, viewer = null) {
     questProgress: Object.keys(state.questCards), questResults: clone(state.questResults), goodQuests: state.goodQuests, evilQuests: state.evilQuests,
     requiredTeamSize: state.questIndex < 5 ? questSize(state.capacity, state.questIndex) : 0,
     requiredFails: state.questIndex < 5 ? failsRequired(state.capacity, state.questIndex) : 0,
-    ladyHolderId: state.ladyHolderId, ladyHistory: [...state.ladyHistory], assassinId: state.phase === "assassination" || ended ? state.assassinId : null,
-    players: state.players.map((player) => ({ id: player.id, name: player.name, isHost: player.isHost, connected: player.connected, role: ended ? player.role : state.phase === "assassination" && player.id === state.assassinId ? ROLE.ASSASSIN : null, alignment: ended ? alignmentOf(player.role) : null, secretAcknowledged: player.secretAcknowledged })),
+    ladyHolderId: state.ladyHolderId, ladyHistory: [...state.ladyHistory], assassinId: ["assassination", "assassinationReveal"].includes(state.phase) || ended ? state.assassinId : null,
+    ceremony,
+    players: state.players.map((player) => ({ id: player.id, name: player.name, isHost: player.isHost, connected: player.connected, role: ended ? player.role : ["assassination", "assassinationReveal"].includes(state.phase) && player.id === state.assassinId ? ROLE.ASSASSIN : null, alignment: ended ? alignmentOf(player.role) : null, secretAcknowledged: player.secretAcknowledged })),
     selfId: viewer?.id || null, selfRole: viewer?.role || null, selfAlignment: viewer?.role ? alignmentOf(viewer.role) : null,
     knownEvilIds: knowledge.knownEvilIds, percivalCandidates: knowledge.percivalCandidates,
     myTeamVote: viewer && Object.hasOwn(state.teamVotes, viewer.id) ? state.teamVotes[viewer.id] : null,
@@ -381,6 +435,7 @@ export function validateState(state) {
   fail(!Array.isArray(state.players) || new Set(state.players.map((player) => player.id)).size !== state.players.length, "invalid_players", "玩家状态无效。");
   fail(state.players.length > state.capacity, "too_many_players", "玩家数量超过容量。");
   fail(!Array.isArray(state.questResults) || state.questResults.length > 5, "invalid_quests", "任务记录无效。");
+  fail(["questReveal", "assassinationReveal"].includes(state.phase) && !state.pendingCeremony, "missing_ceremony", "关键演出状态缺失。");
   fail(!Number.isInteger(state.presentationSceneSequence) || state.presentationSceneSequence < 0, "invalid_presentation_scene", "演出场景无效。");
   if (state.phase !== "lobby") {
     fail(!byId(state, state.leaderId), "invalid_leader", "队长无效。");
@@ -394,6 +449,7 @@ export function restoreState(serialized) {
   fail(serialized?.stateVersion !== STATE_VERSION, "invalid_state_version", "无法恢复不兼容的房间状态。");
   const state = clone(serialized); normalizePresentationState(state, { idPrefix: "avalon_event", limit: 70 });
   normalizeTimingState(state);
+  if (!("pendingCeremony" in state)) state.pendingCeremony = null;
   state.presentationSceneSequence = Number.isInteger(state.presentationSceneSequence) ? state.presentationSceneSequence : 0;
   validateState(state); return state;
 }

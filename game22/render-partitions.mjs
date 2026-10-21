@@ -1,6 +1,6 @@
 "use strict";
 
-const PARTITIONS=Object.freeze(["room","status","quests","players","focus","secret","decision","log","countdown"]);
+const PARTITIONS=Object.freeze(["room","status","quests","players","focus","secret","decision","ceremony","log","countdown"]);
 const key=(value)=>JSON.stringify(value);
 
 function playerNames(players){return players.map((player)=>[player.id,player.name]);}
@@ -41,6 +41,7 @@ export function createGame22RenderModel(view,{memberRole="player",roomCode="",te
     decision:key([memberRole,view.phase,view.capacity,players.length,view.leaderId,view.questIndex,view.proposalNumber,
       view.requiredTeamSize,view.requiredFails,view.proposedTeam,view.ladyHolderId,view.result,
       decisionPermissions,decisionProgress,draft,playerNames(players)]),
+    ceremony:key(view.ceremony||null),
     log:key(view.logs||[]),
     countdown:key([view.phase,view.deadline||0,view.deadlineDurationSeconds||0])
   }};

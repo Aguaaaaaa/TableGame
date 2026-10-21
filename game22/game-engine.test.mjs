@@ -6,9 +6,29 @@ import * as engine from "./server/game-engine.mjs";
 function lobby(count=5){const state=engine.createLobby({capacity:count,host:{id:"p1",name:"玩家1"}});for(let i=2;i<=count;i+=1)engine.addPlayer(state,{id:`p${i}`,name:`玩家${i}`});return state;}
 function act(state,id,action,now=1000){engine.applyAction(state,id,action,{now,random:()=>0});}
 function start(state){act(state,"p1",{type:"start"});for(const player of state.players)act(state,player.id,{type:"acknowledgeSecret"},1100);}
-function approveQuest(state,cards=null,now=2000){const size=questSize(state.capacity,state.questIndex);const team=state.players.slice(0,size).map((p)=>p.id);act(state,state.leaderId,{type:"proposeTeam",memberIds:team},now);for(const p of state.players)act(state,p.id,{type:"submitTeamVote",approve:true},now+1);team.forEach((id,index)=>act(state,id,{type:"submitQuestCard",card:cards?.[index]||"success"},now+2));}
+function drainPhase(state,phase){while(state.phase===phase)assert.equal(engine.handleTimeout(state,{now:state.deadline,random:()=>0}),true);}
+function approveQuest(state,cards=null,now=2000){const size=questSize(state.capacity,state.questIndex);const team=state.players.slice(0,size).map((p)=>p.id);act(state,state.leaderId,{type:"proposeTeam",memberIds:team},now);for(const p of state.players)act(state,p.id,{type:"submitTeamVote",approve:true},now+1);team.forEach((id,index)=>act(state,id,{type:"submitQuestCard",card:cards?.[index]||"success"},now+2));drainPhase(state,"questReveal");}
 
-test("三次成功后进入刺杀并由刺杀结果决定胜负",()=>{const state=lobby();start(state);approveQuest(state,null,2000);approveQuest(state,null,3000);approveQuest(state,null,4000);assert.equal(state.phase,"assassination");const miss=state.players.find((p)=>p.id!==state.assassinId&&p.id!==state.merlinId);act(state,state.assassinId,{type:"assassinate",targetId:miss.id},5000);assert.equal(state.result.winner,ALIGNMENT.GOOD);assert.ok(engine.buildView(state,"p1").players.every((p)=>p.role));});
+test("三次成功后进入刺杀并由刺杀结果决定胜负",()=>{const state=lobby();start(state);approveQuest(state,null,2000);approveQuest(state,null,3000);approveQuest(state,null,4000);assert.equal(state.phase,"assassination");const miss=state.players.find((p)=>p.id!==state.assassinId&&p.id!==state.merlinId);act(state,state.assassinId,{type:"assassinate",targetId:miss.id},5000);assert.equal(state.phase,"assassinationReveal");assert.equal(state.result,null);drainPhase(state,"assassinationReveal");assert.equal(state.result.winner,ALIGNMENT.GOOD);assert.ok(engine.buildView(state,"p1").players.every((p)=>p.role));});
+
+test("任务牌由服务器逐张匿名揭晓且裁决前不会提前泄露结果",()=>{
+  const state=lobby();start(state);const size=questSize(state.capacity,state.questIndex),evil=state.players.find((p)=>p.role===ROLE.ASSASSIN),other=state.players.find((p)=>p.id!==evil.id),team=[evil.id,other.id].slice(0,size);
+  act(state,state.leaderId,{type:"proposeTeam",memberIds:team},2000);for(const p of state.players)act(state,p.id,{type:"submitTeamVote",approve:true},2001);
+  for(const id of team)act(state,id,{type:"submitQuestCard",card:id===evil.id?"fail":"success"},2002);
+  assert.equal(state.phase,"questReveal");let publicView=engine.buildSpectatorView(state);assert.equal(publicView.ceremony.stage,"sealed");assert.deepEqual(publicView.ceremony.revealedCards,[]);assert.equal(publicView.ceremony.success,null);assert.equal(publicView.questResults.length,0);assert.ok(!JSON.stringify(publicView).includes('"cards"'));
+  engine.handleTimeout(state,{now:state.deadline,random:()=>0});publicView=engine.buildView(state,"p1");assert.equal(publicView.ceremony.revealedCards.length,1);assert.equal(publicView.ceremony.success,null);
+  while(state.pendingCeremony.stage!=="verdict")engine.handleTimeout(state,{now:state.deadline,random:()=>0});publicView=engine.buildSpectatorView(state);assert.equal(publicView.ceremony.revealedCards.length,size);assert.equal(publicView.ceremony.failCount,1);assert.equal(publicView.ceremony.success,false);assert.equal(publicView.questResults.length,0);
+  const restored=engine.restoreState(engine.serializeState(state));assert.deepEqual(engine.buildSpectatorView(restored).ceremony,publicView.ceremony);
+  engine.handleTimeout(state,{now:state.deadline,random:()=>0});assert.equal(state.questResults[0].failCount,1);
+});
+
+test("刺杀目标先进入中央且命中结果只在权威裁决阶段公开",()=>{
+  const state=lobby();start(state);approveQuest(state,null,2000);approveQuest(state,null,3000);approveQuest(state,null,4000);const miss=state.players.find((p)=>p.id!==state.assassinId&&p.id!==state.merlinId);
+  act(state,state.assassinId,{type:"assassinate",targetId:miss.id},5000);let publicView=engine.buildSpectatorView(state);assert.equal(publicView.ceremony.stage,"approach");assert.equal(publicView.ceremony.targetId,miss.id);assert.equal(publicView.ceremony.hit,null);assert.ok(publicView.players.filter((p)=>p.role).every((p)=>p.role===ROLE.ASSASSIN));
+  engine.handleTimeout(state,{now:state.deadline});publicView=engine.buildSpectatorView(state);assert.equal(publicView.ceremony.stage,"strike");assert.equal(publicView.ceremony.hit,null);
+  engine.handleTimeout(state,{now:state.deadline});publicView=engine.buildSpectatorView(state);assert.equal(publicView.ceremony.stage,"verdict");assert.equal(publicView.ceremony.hit,false);assert.equal(publicView.result,null);
+  engine.handleTimeout(state,{now:state.deadline});assert.equal(state.phase,"ended");assert.equal(state.result.winner,ALIGNMENT.GOOD);
+});
 
 test("组队票结算前保密、结算后持续公开且五次否决判邪恶胜利",()=>{const state=lobby();start(state);for(let round=1;round<=5;round+=1){const team=state.players.slice(0,2).map((p)=>p.id);act(state,state.leaderId,{type:"proposeTeam",memberIds:team},2000+round);act(state,"p1",{type:"submitTeamVote",approve:false},2100+round);assert.equal(engine.buildView(state,"p2").myTeamVote,null);for(const p of state.players.slice(1))act(state,p.id,{type:"submitTeamVote",approve:false},2200+round);assert.equal(engine.buildView(state,"p2").lastTeamVoteResult.votes.p1,false);if(round<5)assert.equal(state.phase,"teamProposal");}assert.equal(state.phase,"ended");assert.equal(state.result.winner,ALIGNMENT.EVIL);});
 

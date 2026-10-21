@@ -58,6 +58,10 @@
       <section class="table-focus"><small id="focusLabel">COUNCIL STATUS</small><strong id="focusText">圆桌尚未召开</strong><span id="focusHint">等待所有骑士加入</span></section>
     </div>
     <div id="presentationEffects" class="presentation-effects" aria-live="polite"><svg class="trail-layer"><path id="presentationTrail" class="presentation-trail"></path></svg><div id="presentationAnnouncement" class="announcement"><small id="presentationLabel"></small><strong id="presentationText"></strong></div></div>
+    <div id="criticalCeremony" class="critical-ceremony hidden" aria-live="assertive" aria-atomic="true">
+      <div class="ceremony-vignette" aria-hidden="true"></div>
+      <section class="ceremony-stage"><small id="ceremonyKicker"></small><h2 id="ceremonyTitle"></h2><p id="ceremonyHint"></p><div id="ceremonyCast" class="ceremony-cast"></div><div id="ceremonyCards" class="ceremony-cards"></div><strong id="ceremonyVerdict" class="ceremony-verdict"></strong></section>
+    </div>
     <div id="mapControls" class="map-controls" aria-label="地图缩放控制"><button id="mapZoomOutButton" type="button" aria-label="缩小地图">−</button><button id="mapResetButton" type="button" aria-label="显示完整地图"><span id="mapZoomText">100%</span><small>完整地图</small></button><button id="mapZoomInButton" type="button" aria-label="放大地图">＋</button></div>
     <p class="map-gesture-hint">双指缩放 · 放大后拖动 · 双击聚焦</p>
   </section>

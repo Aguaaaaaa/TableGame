@@ -2,6 +2,7 @@ export * from "./host-timer.js";
 export * from "./authoritative-room-client.js";
 export * from "./protocol.js";
 export * from "./presentation-events.js";
+export * from "./player-admin-menu.js";
 export * from "./room-client.js";
 export * from "./server-clock.js";
 export * from "./session-store.js";

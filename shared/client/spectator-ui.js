@@ -1,6 +1,7 @@
 "use strict";
 
 import { setHidden } from "./ui.js";
+import { createSharedPlayerAdminMenu } from "./player-admin-menu.js";
 
 export const SPECTATOR_ERROR_MESSAGES = Object.freeze({
   spectators_unavailable: "当前游戏尚未开放旁观功能。",
@@ -85,6 +86,7 @@ export function createSpectatorUi({
   }
   let config = { spectatorsEnabled: false, spectatorLimit: 10 };
   let lastModel = null;
+  const playerAdminMenu=createSharedPlayerAdminMenu({room,getView,notify,confirmAction});
 
   function applyConfig(nextConfig = {}) {
     config = { ...config, ...nextConfig };
@@ -203,10 +205,12 @@ export function createSpectatorUi({
       elements.spectatorCountBadge.textContent = `${model.spectatorCount} / ${model.spectatorLimit}`;
     }
     renderSpectatorList(model, Boolean(view.permissions?.canManage));
+    queueMicrotask(()=>playerAdminMenu.refresh());
     return model;
   }
 
   function handleSessionEnded(kind) {
+    playerAdminMenu.close();
     const message = kind === "room_expired"
       ? SPECTATOR_ERROR_MESSAGES.room_expired
       : SPECTATOR_ERROR_MESSAGES.kicked;

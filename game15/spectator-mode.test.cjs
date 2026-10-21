@@ -225,7 +225,7 @@ test("game15 page consumes shared spectator UI and hides its rack editor", () =>
   assert.match(html, /shared\/styles\/spectator\.css/);
   assert.match(script, /createSpectatorUi/);
   assert.match(script, /spectatorUi\.render\(view\)/);
-  assert.match(script, /setHidden\(E\.handZone, memberRole === "spectator"\)/);
+  assert.match(script, /setHidden\(E\.handZone, model\.memberRole === "spectator"\)/);
   assert.match(script, /spectator-action-note/);
   assert.doesNotMatch(script, /async function changeSeat/);
   assert.match(styles, /control-dock\[data-role="spectator"\]/);

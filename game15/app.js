@@ -15,6 +15,7 @@ import {
   setModeVisibility
 } from "/shared/client/index.js";
 import { COLOR_LABELS, COLORS, validateMeld } from "./rules.mjs";
+import { createGame15PartitionRenderer, createGame15RenderModel } from "./render-partitions.mjs";
 
 const PROTOCOL_VERSION = 3;
 const ACTION_SECONDS = 90;
@@ -315,8 +316,25 @@ function sortedHandIds() {
 function renderHand() {
   const map = tileMap();
   const ids = sortedHandIds();
-  E.hand.innerHTML = ids.map((id) => tileHtml(map.get(id), { source: "hand" })).join("")
-    || '<p class="waiting">牌架已经清空。</p>';
+  const existing = new Map([...E.hand.querySelectorAll(":scope > [data-tile-id]")].map((node) => [node.dataset.tileId, node]));
+  E.hand.querySelector(":scope > .waiting")?.remove();
+  ids.forEach((id) => {
+    const tile = map.get(id);
+    const renderKey = JSON.stringify([tile, selectedTileId === id]);
+    let node = existing.get(id);
+    if (!node || node.dataset.renderKey !== renderKey) {
+      const template = document.createElement("template");
+      template.innerHTML = tileHtml(tile, { source: "hand" }).trim();
+      const replacement = template.content.firstElementChild;
+      replacement.dataset.renderKey = renderKey;
+      if (node) node.replaceWith(replacement);
+      node = replacement;
+    }
+    E.hand.append(node);
+    existing.delete(id);
+  });
+  existing.forEach((node) => node.remove());
+  if (!ids.length) E.hand.innerHTML = '<p class="waiting">牌架已经清空。</p>';
   E.handHint.textContent = view.phase === "playing"
     ? `${ids.length}张 · ${view.players.find((player) => player.id === view.selfId)?.opened ? "已完成开牌" : "尚未完成30分开牌"}`
     : "开局获得14张牌";
@@ -387,7 +405,7 @@ function renderActions(memberRole) {
     : "拖动牌块，或先点一张牌再点目标位置。草稿只有你能看到。";
   addAction("撤销一步", undoDraft, "", !draft.undo.length);
   addAction("重置本回合", resetDraft, "", !status.changed);
-  addAction(handSort === "color" ? "手牌改按数字整理" : "手牌改按颜色整理", () => { handSort = handSort === "color" ? "number" : "color"; renderHand(); });
+  addAction(handSort === "color" ? "手牌改按数字整理" : "手牌改按颜色整理", () => { handSort = handSort === "color" ? "number" : "color"; render(); });
   const ready = status.changed && status.valid && status.used > 0 && (self.opened || status.score >= 30) && view.turnEdited && !markRequested;
   addAction("确认并公布牌桌", () => submit({ type: "commitLayout", layout: draft.table }), "primary", !ready);
   if (view.permissions.canDraw) addAction("摸1张并结束回合", () => {
@@ -399,12 +417,24 @@ function renderActions(memberRole) {
 }
 
 function renderScoreboard() {
-  E.scoreboard.innerHTML = view.players.map((player) => `<div class="score-row ${player.id === view.currentPlayerId && view.phase === "playing" ? "current" : ""}">
-    <span><b>${escapeHtml(player.name)}</b><small>${player.connected ? "在线" : "离线"}${player.opened ? " · 已开牌" : ""}</small></span>
-    <span><b>${player.score}</b><small>${player.wins}胜 · 手牌${player.handCount}</small></span>
-    ${view.permissions.canKick && !player.isHost ? `<button type="button" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}
-  </div>`).join("");
-  E.scoreboard.querySelectorAll("[data-kick]").forEach((button) => button.addEventListener("click", () => kickPlayer(button.dataset.kick)));
+  const existing = new Map([...E.scoreboard.querySelectorAll(":scope > [data-player-id]")].map((node) => [node.dataset.playerId, node]));
+  view.players.forEach((player) => {
+    const className = `score-row ${player.id === view.currentPlayerId && view.phase === "playing" ? "current" : ""}`;
+    const renderKey = JSON.stringify([player, className, view.permissions.canKick]);
+    let node = existing.get(player.id);
+    if (!node) { node = document.createElement("div"); node.dataset.playerId = player.id; }
+    if (node.dataset.renderKey !== renderKey) {
+      node.dataset.renderKey = renderKey;
+      node.className = className;
+      node.innerHTML = `<span><b>${escapeHtml(player.name)}</b><small>${player.connected ? "在线" : "离线"}${player.opened ? " · 已开牌" : ""}</small></span>
+        <span><b>${player.score}</b><small>${player.wins}胜 · 手牌${player.handCount}</small></span>
+        ${view.permissions.canKick && !player.isHost ? `<button type="button" data-kick="${escapeHtml(player.id)}">移出</button>` : ""}`;
+      node.querySelector("[data-kick]")?.addEventListener("click", () => kickPlayer(player.id));
+    }
+    E.scoreboard.append(node);
+    existing.delete(player.id);
+  });
+  existing.forEach((node) => node.remove());
 }
 
 function renderChangeNotice() {
@@ -415,7 +445,10 @@ function renderChangeNotice() {
   if (!active) return;
   const actor = view.players.find((player) => player.id === change.actorId);
   E.changeNotice.textContent = `${actor?.name || "一名玩家"}刚刚更新了牌桌，高亮牌块为本次发生变化的位置。`;
-  changeTimer = setTimeout(() => { setHidden(E.changeNotice, true); renderTable(); }, Math.max(0, change.until - serverNow()));
+  changeTimer = setTimeout(() => {
+    setHidden(E.changeNotice, true);
+    E.table.querySelectorAll(".recently-changed").forEach((node) => node.classList.remove("recently-changed"));
+  }, Math.max(0, change.until - serverNow()));
 }
 
 function renderResult() {
@@ -434,11 +467,7 @@ function renderLog() {
   E.logList.innerHTML = view.logs.map((entry) => `<div class="log-item">${escapeHtml(entry.text)}</div>`).join("") || '<p class="waiting">暂无记录</p>';
 }
 
-function render() {
-  if (!view) return;
-  const spectatorModel = spectatorUi.render(view);
-  const memberRole = spectatorModel.memberRole;
-  const current = view.players.find((player) => player.id === view.currentPlayerId);
+function renderRoom(model) {
   setHidden(E.hostTools, !view.permissions.canManage);
   setHidden(E.startGameButton, !view.permissions.canStart);
   setHidden(E.nextGameButton, !view.permissions.canNextGame);
@@ -449,26 +478,59 @@ function render() {
   E.restartMatchButton.disabled = view.players.some((player) => !player.connected);
   E.roomPlayerCountSelect.value = String(view.capacity);
   E.roomPlayerCountSelect.disabled = !view.permissions.canSetCapacity;
+  E.roomCodeDisplay.textContent = model.roomCode;
+}
+
+function renderStatus(model) {
+  const current = model.current;
   E.gameNumber.textContent = String(view.gameNumber);
   E.totalGames.textContent = String(view.totalGames);
   E.poolCount.textContent = String(view.poolCount);
-  E.notice.textContent = memberRole === "spectator" && view.phase === "lobby"
+  E.notice.textContent = model.memberRole === "spectator" && view.phase === "lobby"
     ? "你正在旁观准备阶段，可在有空位时主动进入玩家席"
     : view.phase === "lobby" ? `等待玩家加入：${view.players.length}/${view.capacity}`
     : view.phase === "playing" ? `当前行动：${current?.name || "玩家"}${view.turnEdited ? " · 正在整理草稿" : ""}`
       : view.phase === "gameEnd" ? `第${view.gameNumber}局结束，等待下一局` : "固定局数比赛已经结束";
   E.controlDock.dataset.expanded = String(Boolean(view.permissions.canAct));
-  E.controlDock.dataset.role = memberRole;
-  setHidden(E.handZone, memberRole === "spectator");
-  renderScoreboard();
-  renderActions(memberRole);
-  renderHand();
-  renderTable();
-  renderChangeNotice();
-  renderResult();
-  renderLog();
+  E.controlDock.dataset.role = model.memberRole;
+  setHidden(E.handZone, model.memberRole === "spectator");
+}
+
+function renderCountdownPartition() {
   if (view.deadline) countdown.start(view.deadline, ACTION_SECONDS * 1000);
   else { countdown.stop(); E.timerText.textContent = "--"; E.timerBar.style.width = "0"; }
+}
+
+const partitionRenderer = createGame15PartitionRenderer({
+  room: renderRoom,
+  status: renderStatus,
+  scoreboard: renderScoreboard,
+  hand: renderHand,
+  table: renderTable,
+  decision: (model) => renderActions(model.memberRole),
+  changeNotice: renderChangeNotice,
+  result: renderResult,
+  log: renderLog,
+  countdown: renderCountdownPartition
+});
+
+function render() {
+  if (!view) return;
+  const spectatorModel = spectatorUi.render(view);
+  const draftModel = draft ? {
+    turnId: draft.turnId,
+    base: draft.base,
+    table: draft.table,
+    handIds: draft.handIds,
+    undoLength: draft.undo.length
+  } : null;
+  partitionRenderer.render(createGame15RenderModel(view, {
+    memberRole: spectatorModel.memberRole,
+    roomCode: room.snapshot().roomCode,
+    draft: draftModel,
+    selectedTileId,
+    handSort
+  }));
 }
 
 function handleTileClick(id) {

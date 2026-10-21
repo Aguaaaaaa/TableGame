@@ -197,7 +197,7 @@ test("game8 page consumes the shared spectator UI and hides its private trainer 
   assert.match(html, /shared\/styles\/spectator\.css/);
   assert.match(script, /createSpectatorUi/);
   assert.match(script, /spectatorUi\.render\(v\)/);
-  assert.match(script, /setHidden\(E\.trainerBoard,isSpectator\)/);
+  assert.match(script, /setHidden\(E\.trainerBoard,model\.isSpectator\)/);
   assert.match(script, /spectator-action-note/);
   assert.match(styles, /spectator-action-note/);
 });

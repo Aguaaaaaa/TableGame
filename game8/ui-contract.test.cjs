@@ -101,3 +101,11 @@ test("game8 keeps legal local choices until the server accepts or invalidates th
   assert.match(script, /legalCardIds\.has\(selectedCardId\)/);
   assert.match(script, /g\.supply\[color\]>0/);
 });
+
+test("game8 authoritative view is partitioned without replacing unrelated decisions", () => {
+  assert.match(script, /createGame8PartitionRenderer/);
+  assert.match(script, /createGame8RenderModel/);
+  assert.match(script, /dataset\.renderKey/);
+  assert.match(script, /function reconcileCardList/);
+  assert.match(script, /const partitionRenderer=/);
+});

@@ -10,5 +10,7 @@ test("马尼拉前端仅提交意图并具备权威协议、旁观和固定地�
   assert.match(server,/protocolVersion:3/);assert.match(server,/createSqliteRoomStore/);assert.match(server,/GAME7_DB_PATH/);
   assert.match(html,/class="setup harbor-gate"/);assert.match(html,/class="harbor-office"/);assert.match(html,/驶入财富交汇的海湾/);
   assert.match(styles,/manila-bay-arrival-v1\.png/);assert.match(styles,/@media\(max-width:720px\)/);assert.ok(fs.existsSync(path.join(__dirname,"assets","manila-bay-arrival-v1.png")));
+  assert.match(script,/createGame7PartitionRenderer/);assert.match(script,/createGame7RenderModel/);assert.match(script,/const partitionRenderer=createGame7PartitionRenderer/);assert.match(script,/dataset\.renderKey/);
+  assert.ok(fs.existsSync(path.join(__dirname,"render-partitions.mjs")));
 });
 

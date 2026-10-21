@@ -51,3 +51,12 @@ test("移动端优先展示牌桌并保留吸附操作牌架", () => {
   assert.match(css, /\.rule-details\s*\{[^}]*max-height:\s*58vh;[^}]*overflow:\s*auto;/s);
   assert.doesNotMatch(css, /\.rule-card\s*\{[^}]*display:\s*none|\.log-card\s*\{[^}]*display:\s*none/);
 });
+
+test("拉密权威视图按牌架、草稿牌桌、决策和倒计时分区更新", () => {
+  const script = read("app.js");
+  assert.match(script, /createGame15PartitionRenderer/);
+  assert.match(script, /createGame15RenderModel/);
+  assert.match(script, /dataset\.renderKey/);
+  assert.match(script, /const partitionRenderer = createGame15PartitionRenderer/);
+  assert.match(script, /recently-changed"\)\.forEach/);
+});

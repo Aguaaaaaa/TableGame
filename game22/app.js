@@ -2,6 +2,7 @@
 import { bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown, createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus, renderCountdown, setHidden, setModeVisibility } from "/shared/client/index.js";
 import { createGame22PartitionRenderer, createGame22RenderModel } from "./render-partitions.mjs";
 import { createAvalonPlayerBadges } from "./player-badges.mjs";
+import { canOpenPlayerAdminMenu } from "./player-admin-menu.mjs";
 
 const PROTOCOL_VERSION=3;
 const ROLE_LABEL={merlin:"梅林",percival:"派西维尔",loyal:"亚瑟忠臣",assassin:"刺客",morgana:"莫甘娜",mordred:"莫德雷德",oberon:"奥伯伦",minion:"莫德雷德爪牙"};
@@ -22,7 +23,7 @@ const BADGE_ICONS={
   role:'<svg viewBox="0 0 24 24"><path d="M12 2 19 6v6c0 5-3 8-7 10-4-2-7-5-7-10V6l7-4Zm0 4-2 4-4 .5 3 3-.8 4.5 3.8-2 3.8 2-.8-4.5 3-3-4-.5-2-4Z"/></svg>'
 };
 const $=(id)=>document.getElementById(id);
-const ids=["hero","connectionStatus","roomHeaderTools","hostTools","roomCodeDisplay","roomPlayerCountSelect","roomPresetSelect","paceModeSelect","customPaceButton","customPaceDialog","closePaceDialogButton","saveCustomPaceButton","paceSecretInput","paceProposalInput","paceVoteInput","paceQuestInput","paceLadyInput","paceAssassinationInput","ladySettingButton","spectatorSettingButton","seatActionButton","startGameButton","nextMatchButton","endGameButton","setupPanel","roomPanel","hostModeButton","guestModeButton","hostSetup","guestSetup","hostNameInput","guestNameInput","playerCountSelect","createRoomButton","joinRoomButton","roomCodeInput","joinIntentField","phaseTitle","questTrack","rejectTrack","roundTable","questMapWorld","mapControls","mapZoomOutButton","mapResetButton","mapZoomInButton","mapZoomText","players","focusLabel","focusText","focusHint","presentationEffects","presentationTrail","presentationAnnouncement","presentationLabel","presentationText","criticalCeremony","ceremonyKicker","ceremonyTitle","ceremonyHint","ceremonyCast","ceremonyCards","ceremonyVerdict","questArchive","questArchiveClose","questArchiveKicker","questArchiveTitle","questArchiveSummary","questArchivePlayers","controlDock","actionTitle","actionHint","actionButtons","timerText","timerBar","secretPanel","secretRole","secretKnowledge","toggleLogButton","logList","spectatorPanel","spectatorCountBadge","spectatorList"];
+const ids=["hero","connectionStatus","roomHeaderTools","hostTools","roomCodeDisplay","roomPlayerCountSelect","roomPresetSelect","paceModeSelect","customPaceButton","customPaceDialog","closePaceDialogButton","saveCustomPaceButton","paceSecretInput","paceProposalInput","paceVoteInput","paceQuestInput","paceLadyInput","paceAssassinationInput","ladySettingButton","spectatorSettingButton","seatActionButton","startGameButton","nextMatchButton","endGameButton","setupPanel","roomPanel","hostModeButton","guestModeButton","hostSetup","guestSetup","hostNameInput","guestNameInput","playerCountSelect","createRoomButton","joinRoomButton","roomCodeInput","joinIntentField","phaseTitle","questTrack","rejectTrack","roundTable","questMapWorld","mapControls","mapZoomOutButton","mapResetButton","mapZoomInButton","mapZoomText","players","playerAdminMenu","playerAdminMenuTitle","removePlayerButton","focusLabel","focusText","focusHint","presentationEffects","presentationTrail","presentationAnnouncement","presentationLabel","presentationText","criticalCeremony","ceremonyKicker","ceremonyTitle","ceremonyHint","ceremonyCast","ceremonyCards","ceremonyVerdict","questArchive","questArchiveClose","questArchiveKicker","questArchiveTitle","questArchiveSummary","questArchivePlayers","controlDock","actionTitle","actionHint","actionButtons","timerText","timerBar","secretPanel","secretRole","secretKnowledge","toggleLogButton","logList","spectatorPanel","spectatorCountBadge","spectatorList"];
 const E=Object.fromEntries(ids.map((id)=>[id,$(id)]));
 let mode="host",view=null,spectatorUi=null,presentation=null;
 let teamDraft=new Set(),draftContext="",lastCountdownSeconds=0;
@@ -63,6 +64,23 @@ async function joinRoom(){E.joinRoomButton.disabled=true;try{const result=await 
 function targetable(id){if(view.permissions.canPropose)return true;if(view.permissions.canUseLady)return view.permissions.ladyTargetIds.includes(id);if(view.permissions.canAssassinate)return id!==view.selfId;return false;}
 function choosePlayer(id){if(view.permissions.canPropose){if(teamDraft.has(id))teamDraft.delete(id);else if(teamDraft.size<view.requiredTeamSize)teamDraft.add(id);render();return;}if(view.permissions.canUseLady&&view.permissions.ladyTargetIds.includes(id)){if(confirm(`让湖中仙女查验 ${nameOf(id)} 吗？`))submit({type:"ladyInspect",targetId:id});return;}if(view.permissions.canAssassinate&&id!==view.selfId&&confirm(`刺杀 ${nameOf(id)}？选择后立即结算。`))submit({type:"assassinate",targetId:id});}
 
+function canManagePlayer(id){return canOpenPlayerAdminMenu({phase:view?.phase,canManage:view?.permissions?.canManage,selfId:view?.selfId,targetId:id});}
+function closePlayerAdminMenu(){setHidden(E.playerAdminMenu,true);delete E.playerAdminMenu.dataset.targetId;E.players.querySelector(".admin-menu-open")?.classList.remove("admin-menu-open");}
+function positionPlayerAdminMenu(anchor){
+  const rect=anchor.getBoundingClientRect();setHidden(E.playerAdminMenu,false);E.playerAdminMenu.style.visibility="hidden";
+  const width=E.playerAdminMenu.offsetWidth,height=E.playerAdminMenu.offsetHeight,gap=7,margin=8;
+  const left=Math.max(margin,Math.min(window.innerWidth-width-margin,rect.left+rect.width/2-width/2));
+  const below=rect.bottom+gap,top=below+height<=window.innerHeight-margin?below:Math.max(margin,rect.top-height-gap);
+  E.playerAdminMenu.style.left=`${left}px`;E.playerAdminMenu.style.top=`${top}px`;E.playerAdminMenu.style.visibility="";
+}
+function openPlayerAdminMenu(id,anchor){if(!canManagePlayer(id)){closePlayerAdminMenu();choosePlayer(id);return;}closePlayerAdminMenu();E.playerAdminMenu.dataset.targetId=id;E.playerAdminMenuTitle.textContent=nameOf(id);anchor.classList.add("admin-menu-open");positionPlayerAdminMenu(anchor);E.removePlayerButton.focus({preventScroll:true});}
+async function removeManagedPlayer(){
+  const targetId=E.playerAdminMenu.dataset.targetId,target=player(targetId);if(!target||!canManagePlayer(targetId)){closePlayerAdminMenu();return;}
+  if(!confirm(`确定将 ${target.name} 移出房间吗？\n该玩家当前的重连身份将失效，空出的席位可以由其他玩家加入。`))return;
+  E.removePlayerButton.disabled=true;closePlayerAdminMenu();
+  try{await room.kick(targetId);}catch(error){alert(`移出失败：${error.message}`);}finally{E.removePlayerButton.disabled=false;}
+}
+
 function closeQuestArchive(){setHidden(E.questArchive,true);delete E.questArchive.dataset.quest;}
 function openQuestArchive(index,result){
   E.questArchive.dataset.quest=String(index+1);E.questArchiveKicker.textContent=`QUEST ${index+1} · EXPEDITION ARCHIVE`;E.questArchiveTitle.textContent=result.success?"远征凯旋":"远征覆灭";
@@ -80,8 +98,9 @@ function renderQuests(){
 }
 function renderPlayers(){
   const existing=new Map([...E.players.querySelectorAll(":scope > [data-id]")].map((node)=>[node.dataset.id,node]));
-  view.players.forEach((p,index)=>{const badges=createAvalonPlayerBadges({player:p,phase:view.phase,leaderId:view.leaderId,proposedTeam:view.proposedTeam,teamVoteProgress:view.teamVoteProgress,questProgress:view.questProgress,knownEvilIds:view.knownEvilIds,percivalCandidates:view.percivalCandidates,lastTeamVoteResult:view.lastTeamVoteResult});const inActiveExpedition=["questAction","questReveal"].includes(view.phase)&&view.proposedTeam.includes(p.id);const cls=["player-seat",p.id===view.leaderId?"leader":"",teamDraft.has(p.id)||inActiveExpedition?"selected":"",targetable(p.id)?"targetable":"",p.connected?"":"offline"].join(" ");const renderKey=JSON.stringify([p,index,view.selfId,cls,badges]);let node=existing.get(p.id);if(!node){node=document.createElement("button");node.type="button";node.dataset.id=p.id;}if(node.dataset.renderKey!==renderKey){const presentationFocus=node.classList.contains("presentation-focus"),initial=escapeHtml([...p.name][0]||"骑");node.dataset.renderKey=renderKey;node.className=cls;if(presentationFocus)node.classList.add("presentation-focus");node.style.setProperty("--seat-index",String(index));node.style.setProperty("--player-accent",playerAccent(p.id));node.innerHTML=`<span class="player-avatar" aria-hidden="true"><i>${initial}</i></span><span class="player-copy"><h3>${escapeHtml(p.name)}${p.id===view.selfId?" · 你":""}</h3><p>${p.connected?"在线":"离线"}${p.isHost?" · 房主":""}</p><small>${badges.map((badge)=>escapeHtml(badge.label)).join(" · ")||"身份隐藏"}</small></span><span class="player-badges">${badges.map(badgeHtml).join("")}</span>`;node.onclick=()=>choosePlayer(p.id);}E.players.append(node);existing.delete(p.id);});
+  view.players.forEach((p,index)=>{const badges=createAvalonPlayerBadges({player:p,phase:view.phase,leaderId:view.leaderId,proposedTeam:view.proposedTeam,teamVoteProgress:view.teamVoteProgress,questProgress:view.questProgress,knownEvilIds:view.knownEvilIds,percivalCandidates:view.percivalCandidates,lastTeamVoteResult:view.lastTeamVoteResult});const inActiveExpedition=["questAction","questReveal"].includes(view.phase)&&view.proposedTeam.includes(p.id),manageable=canManagePlayer(p.id);const cls=["player-seat",p.id===view.leaderId?"leader":"",teamDraft.has(p.id)||inActiveExpedition?"selected":"",targetable(p.id)?"targetable":"",manageable?"manageable":"",p.connected?"":"offline"].join(" ");const renderKey=JSON.stringify([p,index,view.selfId,cls,badges]);let node=existing.get(p.id);if(!node){node=document.createElement("button");node.type="button";node.dataset.id=p.id;}if(node.dataset.renderKey!==renderKey){const presentationFocus=node.classList.contains("presentation-focus"),menuOpen=E.playerAdminMenu.dataset.targetId===p.id,initial=escapeHtml([...p.name][0]||"骑");node.dataset.renderKey=renderKey;node.className=cls;if(presentationFocus)node.classList.add("presentation-focus");if(menuOpen)node.classList.add("admin-menu-open");node.style.setProperty("--seat-index",String(index));node.style.setProperty("--player-accent",playerAccent(p.id));node.setAttribute("aria-haspopup",manageable?"menu":"false");node.innerHTML=`<span class="player-avatar" aria-hidden="true"><i>${initial}</i></span><span class="player-copy"><h3>${escapeHtml(p.name)}${p.id===view.selfId?" · 你":""}</h3><p>${p.connected?"在线":"离线"}${p.isHost?" · 房主":""}</p><small>${badges.map((badge)=>escapeHtml(badge.label)).join(" · ")||"身份隐藏"}</small></span><span class="player-badges">${badges.map(badgeHtml).join("")}</span>`;node.onclick=(event)=>openPlayerAdminMenu(p.id,event.currentTarget);}E.players.append(node);existing.delete(p.id);});
   existing.forEach((node)=>node.remove());
+  const managedId=E.playerAdminMenu.dataset.targetId;if(managedId&&(!player(managedId)||!canManagePlayer(managedId)))closePlayerAdminMenu();
 }
 
 function renderFocus(){
@@ -147,6 +166,10 @@ function selectMode(next){mode=next;setModeVisibility(mode,{hostButton:E.hostMod
 async function init(){
   fillCounts(E.playerCountSelect);fillCounts(E.roomPlayerCountSelect);bindRoomCodeInput(E.roomCodeInput);bindMapNavigation();
   E.questArchiveClose.onclick=closeQuestArchive;
+  E.removePlayerButton.onclick=removeManagedPlayer;
+  document.addEventListener("pointerdown",(event)=>{if(!E.playerAdminMenu.classList.contains("hidden")&&!event.target.closest("#playerAdminMenu,.player-seat"))closePlayerAdminMenu();});
+  document.addEventListener("keydown",(event)=>{if(event.key==="Escape")closePlayerAdminMenu();});
+  window.addEventListener("resize",closePlayerAdminMenu);window.addEventListener("scroll",closePlayerAdminMenu,true);
   E.hostModeButton.onclick=()=>selectMode("host");E.guestModeButton.onclick=()=>selectMode("guest");E.createRoomButton.onclick=createRoom;E.joinRoomButton.onclick=joinRoom;
   E.roomPlayerCountSelect.onchange=()=>submit({type:"setCapacity",capacity:Number(E.roomPlayerCountSelect.value)});E.roomPresetSelect.onchange=()=>submit({type:"setPreset",preset:E.roomPresetSelect.value});
   E.paceModeSelect.onchange=async()=>{const paceMode=E.paceModeSelect.value;if(paceMode==="custom"){openCustomPaceDialog();return;}await submit({type:"setPace",paceMode});};

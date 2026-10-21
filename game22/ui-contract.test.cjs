@@ -5,6 +5,8 @@ test("阿瓦隆具有横向骑士席、可缩放远征地图与完整信息入�
 
 test("玩家状态使用有序图形徽记且已完成任务可查看参与者档案",()=>{const html=read("index.html"),css=read("styles.css"),script=read("app.js"),badges=read("player-badges.mjs");assert.match(html,/id="questArchive"/);assert.match(html,/id="questArchivePlayers"/);assert.match(css,/\.player-badges/);assert.match(css,/\.badge-leader/);assert.match(css,/\.badge-vote-sealed/);assert.match(css,/\.badge-quest-sealed/);assert.match(css,/\.quest-participants/);assert.match(css,/\.quest-archive/);assert.match(script,/createAvalonPlayerBadges/);assert.match(script,/class="player-badges"/);assert.match(script,/class="quest-participant"/);assert.match(script,/function openQuestArchive/);assert.doesNotMatch(script,/flags\.slice\(0,3\)/);assert.match(badges,/if\(player\.id===leaderId\)add\("leader"/);assert.match(badges,/if\(Object\.hasOwn\(votes,player\.id\)\)add/);});
 
+test("准备大厅为房主提供就近玩家管理菜单",()=>{const html=read("index.html"),css=read("styles.css"),script=read("app.js"),policy=read("player-admin-menu.mjs");assert.match(html,/id="playerAdminMenu"[^>]*role="menu"/);assert.match(html,/id="removePlayerButton"[^>]*role="menuitem"[^>]*>移除该玩家/);assert.match(css,/\.player-admin-menu\{position:fixed/);assert.match(css,/\.player-seat\.manageable/);assert.match(script,/function positionPlayerAdminMenu/);assert.match(script,/await room\.kick\(targetId\)/);assert.match(script,/event\.key==="Escape"/);assert.match(policy,/phase==="lobby"/);assert.match(policy,/targetId!==selfId/);});
+
 test("阿瓦隆入场页采用出征前夜外壳并保留联机契约",()=>{
   const html=read("index.html"),css=read("styles.css");
   const start=html.indexOf('id="setupPanel"'),end=html.indexOf('id="roomPanel"',start),setup=html.slice(start,end);

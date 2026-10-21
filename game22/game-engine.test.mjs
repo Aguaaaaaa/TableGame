@@ -40,6 +40,16 @@ test("序列化恢复保留秘密、绝对截止时间和演出序号",()=>{cons
 
 test("人数降到七人以下时自动关闭湖中仙女",()=>{const state=engine.createLobby({capacity:7,host:{id:"p1",name:"房主"}});act(state,"p1",{type:"setLadyEnabled",enabled:true});act(state,"p1",{type:"setCapacity",capacity:6});assert.equal(state.ladyEnabled,false);});
 
+test("房主只能在准备阶段移除其他正式玩家",()=>{
+  const state=lobby();
+  engine.removePlayer(state,"p1","p2");
+  assert.equal(state.players.some((player)=>player.id==="p2"),false);
+  assert.throws(()=>engine.removePlayer(state,"p1","p1"),/不能移出/);
+  const active=lobby();start(active);
+  assert.throws(()=>engine.removePlayer(active,"p1","p3"),/游戏开始后/);
+  assert.equal(active.players.some((player)=>player.id==="p3"),true);
+});
+
 test("只有房主能中止密议并清除全部秘密状态返回大厅",()=>{
   const state=lobby();start(state);
   const team=state.players.slice(0,questSize(state.capacity,state.questIndex)).map((player)=>player.id);

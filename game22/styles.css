@@ -32,6 +32,8 @@
 .badge-vote-no{color:#ffe5e5;border-color:#e27a7e;background:radial-gradient(circle,#a33842,#48181e)}
 .role-badge{color:#fff1b5;border-color:#e1c46f;background:radial-gradient(circle,#846b37,#372a16)}
 .player-badge[class*="role-evil"]{color:#ffd7da;border-color:#d4777f;background:radial-gradient(circle,#87313d,#341319)}
+.player-seat.manageable{cursor:context-menu}.player-seat.manageable::after{content:"•••";position:absolute;top:3px;right:6px;color:#d9b766;font-size:.58rem;letter-spacing:.08em;opacity:.62}.player-seat.manageable:hover::after,.player-seat.admin-menu-open::after{opacity:1}.player-seat.admin-menu-open{border-color:#f2d688;box-shadow:0 0 0 2px rgba(217,183,102,.2),0 0 18px rgba(217,183,102,.24)}
+.player-admin-menu{position:fixed;z-index:70;display:grid;gap:7px;width:174px;padding:10px;border:1px solid rgba(231,202,128,.72);border-radius:9px;color:var(--ink);background:linear-gradient(145deg,rgba(42,47,48,.99),rgba(14,18,21,.99));box-shadow:0 14px 32px #000c,inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(10px)}.player-admin-menu::before{content:"";position:absolute;top:-5px;left:calc(50% - 5px);width:9px;height:9px;border-top:1px solid rgba(231,202,128,.72);border-left:1px solid rgba(231,202,128,.72);background:#292e2f;transform:rotate(45deg)}.player-admin-menu small{color:var(--gold);font:800 .5rem Georgia,serif;letter-spacing:.12em}.player-admin-menu>b{overflow:hidden;font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}.player-admin-menu button{width:100%;padding:7px 9px;color:#ffe8e8;border-color:#9e4650;background:linear-gradient(#7d303a,#521d25);font-size:.7rem;font-weight:800}
 
 .quest-node{appearance:none;font:inherit;cursor:default}
 .quest-node.success,.quest-node.fail{cursor:pointer}

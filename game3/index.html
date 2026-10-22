@@ -33,36 +33,66 @@
         </div>
       </header>
 
-      <section id="setupPanel">
-        <div class="mode-grid">
-          <button class="mode-card active" id="hostModeButton" type="button">
-            <strong>创建房间</strong><span>担任房主并主持整场比赛</span>
-          </button>
-          <button class="mode-card" id="guestModeButton" type="button">
-            <strong>加入房间</strong><span>使用四位房间号加入好友</span>
-          </button>
+      <section class="dice-club-arrival" id="setupPanel">
+        <div class="club-briefing">
+          <p class="arrival-kicker">YACHT DICE CLUB · 今日牌桌</p>
+          <h2>摇出组合，<br>填满你的十三格计分表。</h2>
+          <p class="arrival-lead">每回合最多投掷三次。保留满意的骰子，把剩余机会留给更好的组合。</p>
+
+          <ol class="dice-route" aria-label="游戏流程">
+            <li><span>01</span><div><b>摇出五颗骰子</b><small>第一次投掷决定本回合的方向</small></div></li>
+            <li><span>02</span><div><b>保留并重投</b><small>锁住需要的点数，再搏一次组合</small></div></li>
+            <li><span>03</span><div><b>选择一格计分</b><small>十三轮后，总分最高者获胜</small></div></li>
+          </ol>
+
+          <p class="club-note"><span aria-hidden="true">●</span> 2—6 人 · 13 轮 · 骰子与计分全部公开</p>
         </div>
-        <div class="panel setup-card" id="hostSetup">
-          <div><p class="eyebrow">HOST A TABLE</p><h2>建立新牌桌</h2></div>
-          <label>你的昵称<input id="hostNameInput" maxlength="12" autocomplete="off" value="房主"></label>
-          <label>参与人数<select id="playerCountSelect">
-            <option value="2">2 人</option><option value="3">3 人</option>
-            <option value="4" selected>4 人</option><option value="5">5 人</option>
-            <option value="6">6 人</option>
-          </select></label>
-          <button class="primary" id="createRoomButton" type="button">创建房间</button>
-        </div>
-        <div class="panel setup-card hidden" id="guestSetup">
-          <div><p class="eyebrow">JOIN A TABLE</p><h2>加入好友房间</h2></div>
-          <label>你的昵称<input id="guestNameInput" maxlength="12" autocomplete="off" value="玩家"></label>
-          <label>四位房间号<input id="roomCodeInput" maxlength="4" autocomplete="off" placeholder="例如 A7K2"></label>
-          <fieldset id="joinIntentField" class="join-intent hidden">
-            <legend>加入身份</legend>
-            <label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时进入玩家席；满员后自动旁观</small></span></label>
-            <label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>查看公开骰子和计分表，不参与操作</small></span></label>
-          </fieldset>
-          <button class="primary" id="joinRoomButton" type="button">加入房间</button>
-        </div>
+
+        <section class="score-checkin" aria-labelledby="scoreCheckinTitle">
+          <div class="clipboard-clip" aria-hidden="true"><span></span></div>
+          <header class="checkin-heading">
+            <div>
+              <p>PLAYER SCORE SHEET</p>
+              <h2 id="scoreCheckinTitle">计分员登记台</h2>
+            </div>
+            <div class="entry-dice" aria-hidden="true"><i>⚁</i><i>⚃</i><i>⚄</i></div>
+          </header>
+
+          <div class="mode-grid">
+            <button class="mode-card active" id="hostModeButton" type="button">
+              <span class="mode-check" aria-hidden="true"></span>
+              <span class="mode-copy"><strong>开一桌比赛</strong><small>设定人数并担任计分主持</small></span>
+            </button>
+            <button class="mode-card" id="guestModeButton" type="button">
+              <span class="mode-check" aria-hidden="true"></span>
+              <span class="mode-copy"><strong>加入这张牌桌</strong><small>使用四位房间号与好友会合</small></span>
+            </button>
+          </div>
+
+          <div class="panel setup-card score-form" id="hostSetup">
+            <div class="form-heading"><p>NEW TABLE</p><h2>建立本场计分表</h2></div>
+            <label>你的昵称<input id="hostNameInput" maxlength="12" autocomplete="off" value="房主"></label>
+            <label>参与人数<select id="playerCountSelect">
+              <option value="2">2 人</option><option value="3">3 人</option>
+              <option value="4" selected>4 人</option><option value="5">5 人</option>
+              <option value="6">6 人</option>
+            </select></label>
+            <button class="primary score-submit" id="createRoomButton" type="button"><b>开一桌比赛</b><small>生成房间号</small></button>
+          </div>
+          <div class="panel setup-card score-form hidden" id="guestSetup">
+            <div class="form-heading"><p>JOIN TABLE</p><h2>登记到好友牌桌</h2></div>
+            <label>你的昵称<input id="guestNameInput" maxlength="12" autocomplete="off" value="玩家"></label>
+            <label>四位房间号<input id="roomCodeInput" maxlength="4" autocomplete="off" placeholder="例如 A7K2"></label>
+            <fieldset id="joinIntentField" class="join-intent hidden">
+              <legend>加入身份</legend>
+              <label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时进入玩家席；满员后自动旁观</small></span></label>
+              <label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>查看公开骰子和计分表，不参与操作</small></span></label>
+            </fieldset>
+            <button class="primary score-submit" id="joinRoomButton" type="button"><b>加入这张牌桌</b><small>读取当前比赛</small></button>
+          </div>
+
+          <p class="checkin-footnote">骰子结果、保留状态与每一格分数均由服务器记录。</p>
+        </section>
       </section>
 
       <section class="room-layout hidden" id="roomPanel">

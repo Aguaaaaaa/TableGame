@@ -61,3 +61,15 @@ test("game3 partitions authoritative views without replacing unrelated interacti
   assert.doesNotMatch(script,/playerList\.innerHTML\s*=/);
   assert.doesNotMatch(script,/function renderLegacy/);
 });
+
+test("game3 arrival shell presents a bright dice club without changing room contracts",() => {
+  assert.match(html,/class="dice-club-arrival" id="setupPanel"/);
+  assert.match(html,/YACHT DICE CLUB/);
+  assert.match(html,/计分员登记台/);
+  assert.match(html,/摇出组合，<br>填满你的十三格计分表/);
+  for (const id of ["hostModeButton","guestModeButton","hostSetup","guestSetup","hostNameInput","playerCountSelect","createRoomButton","guestNameInput","roomCodeInput","joinIntentField","joinRoomButton"]) {
+    assert.match(html,new RegExp(`id="${id}"`));
+  }
+  assert.match(styles,/url\("assets\/sunlit-dice-club-v1\.png"\)/);
+  assert.match(styles,/@media \(max-width: 760px\)[\s\S]*?\.dice-club-arrival \{ display: block;/);
+});

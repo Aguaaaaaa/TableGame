@@ -130,6 +130,82 @@ test("authoritative client sends every role action to the server with a state ve
   assert.deepEqual(requests[2].data.action, { type: "challenge", reactionId: "reaction_1" });
 });
 
+test("quick reactions use a separate transient channel without submitting a game action", async () => {
+  let source=null;
+  class FakeEventSource {
+    constructor(){this.listeners=new Map();source=this;queueMicrotask(()=>this.listeners.get("open")?.({type:"open"}));}
+    addEventListener(type,listener){this.listeners.set(type,listener);}
+    close(){}
+  }
+  const requests=[];
+  async function fetchImpl(path,options={}){
+    if(path==="/api/config")return new Response(JSON.stringify({authorityMode:"server",protocolVersion:3,serverNow:Date.now()}),{status:200,headers:{"Content-Type":"application/json"}});
+    const data=JSON.parse(options.body);requests.push({path,data});
+    const payload=path==="/api/rooms"
+      ? {roomCode:"REAC",hostId:"host",clientId:"host",resumeToken:"token",role:"host",memberRole:"player",version:4,view:{phase:"lobby"},protocolVersion:3,serverNow:Date.now()}
+      : {ok:true,version:4,protocolVersion:3,serverNow:Date.now()};
+    return new Response(JSON.stringify(payload),{status:200,headers:{"Content-Type":"application/json"}});
+  }
+  const client=createAuthoritativeRoomClient({
+    protocolVersion:3,
+    sessionStore:createSessionStore({gameId:"reaction-client",storage:memoryStorage()}),
+    fetchImpl,EventSourceImpl:FakeEventSource,clockRefreshMs:0,initialClockSamples:1,reconnectClockSamples:1
+  });
+  await client.createRoom({name:"Host",capacity:3,id:"host"});
+  const received=[];
+  const unsubscribe=client.subscribeReactions((reaction)=>received.push(reaction));
+  source.listeners.get("signal")({data:JSON.stringify({payload:{kind:"reaction",reaction:{id:"agree",senderId:"p2"}}})});
+  await client.sendReaction("wow");
+  assert.deepEqual(received,[{id:"agree",senderId:"p2"}]);
+  assert.equal(requests.at(-1).path,"/api/reactions");
+  assert.equal(requests.at(-1).data.reactionId,"wow");
+  assert.equal(requests.some(({path})=>path==="/api/actions"),false);
+  unsubscribe();client.close();
+});
+
+test("public member statuses use their own endpoint and SSE subscription",async()=>{
+  let source=null;
+  class FakeEventSource{
+    constructor(){this.listeners=new Map();source=this;queueMicrotask(()=>this.listeners.get("open")?.({type:"open"}));}
+    addEventListener(type,listener){this.listeners.set(type,listener);}
+    close(){}
+  }
+  const requests=[];
+  async function fetchImpl(path,options={}){
+    if(path==="/api/config")return new Response(JSON.stringify({authorityMode:"server",protocolVersion:3,serverNow:Date.now()}),{status:200,headers:{"Content-Type":"application/json"}});
+    const data=JSON.parse(options.body);requests.push({path,data});
+    const payload=path==="/api/rooms"
+      ? {roomCode:"STAT",hostId:"host",clientId:"host",resumeToken:"token",role:"host",memberRole:"player",version:7,view:{phase:"lobby",memberStatuses:[{id:"host",status:"present"}]},protocolVersion:3,serverNow:Date.now()}
+      : {ok:true,version:7,memberStatus:{id:"host",status:data.status},protocolVersion:3,serverNow:Date.now()};
+    return new Response(JSON.stringify(payload),{status:200,headers:{"Content-Type":"application/json"}});
+  }
+  const client=createAuthoritativeRoomClient({protocolVersion:3,sessionStore:createSessionStore({gameId:"status-client",storage:memoryStorage()}),fetchImpl,EventSourceImpl:FakeEventSource,clockRefreshMs:0,initialClockSamples:1,reconnectClockSamples:1});
+  await client.createRoom({name:"Host",capacity:3,id:"host"});
+  const received=[];const unsubscribe=client.subscribeMemberStatuses((status)=>received.push(status));
+  source.listeners.get("signal")({data:JSON.stringify({payload:{kind:"member_status",memberStatus:{id:"p2",status:"away",updatedAt:9}}})});
+  await client.setMemberStatus("thinking");
+  assert.deepEqual(received,[{id:"p2",status:"away",updatedAt:9}]);
+  assert.equal(requests.at(-1).path,"/api/member-status");
+  assert.equal(requests.at(-1).data.status,"thinking");
+  assert.equal(requests.at(-1).data.expectedVersion,undefined);
+  unsubscribe();client.close();
+});
+
+test("lobby readiness uses a dedicated authoritative endpoint and event",async()=>{
+  let source=null;
+  class FakeEventSource{constructor(){this.listeners=new Map();source=this;queueMicrotask(()=>this.listeners.get("open")?.({type:"open"}));}addEventListener(type,listener){this.listeners.set(type,listener);}close(){}}
+  const requests=[];
+  async function fetchImpl(path,options={}){
+    if(path==="/api/config")return new Response(JSON.stringify({authorityMode:"server",protocolVersion:3,serverNow:Date.now()}),{status:200,headers:{"Content-Type":"application/json"}});
+    const data=JSON.parse(options.body);requests.push({path,data});const readiness={active:true,readyCount:2,total:2,allReady:true,members:[{id:"host",isHost:true,connected:true,ready:true},{id:"guest",isHost:false,connected:true,ready:true}]};
+    const payload=path==="/api/join"?{roomCode:"RDY1",hostId:"host",clientId:"guest",resumeToken:"token",role:"guest",memberRole:"player",version:3,view:{phase:"lobby",lobbyReadiness:readiness},protocolVersion:3,serverNow:Date.now()}:{ok:true,version:3,lobbyReadiness:readiness,protocolVersion:3,serverNow:Date.now()};
+    return new Response(JSON.stringify(payload),{status:200,headers:{"Content-Type":"application/json"}});
+  }
+  const client=createAuthoritativeRoomClient({protocolVersion:3,sessionStore:createSessionStore({gameId:"ready-client",storage:memoryStorage()}),fetchImpl,EventSourceImpl:FakeEventSource,clockRefreshMs:0,initialClockSamples:1,reconnectClockSamples:1});
+  await client.joinRoom({code:"RDY1",name:"Guest",id:"guest"});const received=[];const unsubscribe=client.subscribeLobbyReadiness((value)=>received.push(value));const eventValue={active:true,readyCount:1,total:2,allReady:false,members:[]};source.listeners.get("signal")({data:JSON.stringify({payload:{kind:"lobby_readiness",lobbyReadiness:eventValue}})});await client.setLobbyReady(true);
+  assert.deepEqual(received,[eventValue]);assert.equal(requests.at(-1).path,"/api/lobby-ready");assert.equal(requests.at(-1).data.ready,true);assert.equal(requests.at(-1).data.expectedVersion,undefined);unsubscribe();client.close();
+});
+
 test("authoritative client sends join intent and persists role changes returned by the seat API", async () => {
   class FakeEventSource {
     constructor() {

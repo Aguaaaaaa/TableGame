@@ -2,6 +2,10 @@
 
 import { setHidden } from "./ui.js";
 import { createSharedPlayerAdminMenu } from "./player-admin-menu.js";
+import { createLobbyReadinessLayer } from "./lobby-readiness.js";
+import { createQuickReactionLayer } from "./quick-reactions.js";
+import { createPublicMemberStatusLayer } from "./public-member-status.js";
+import { createTurnAttentionLayer } from "./turn-attention.js";
 
 export const SPECTATOR_ERROR_MESSAGES = Object.freeze({
   spectators_unavailable: "当前游戏尚未开放旁观功能。",
@@ -79,7 +83,11 @@ export function createSpectatorUi({
   getView = () => null,
   notify = (message) => globalThis.alert?.(message),
   confirmAction = (message) => globalThis.confirm?.(message) ?? true,
-  onSessionEnded = () => {}
+  onSessionEnded = () => {},
+  attentionOptions = {},
+  reactionOptions = {},
+  memberStatusOptions = {},
+  lobbyReadinessOptions = {}
 } = {}) {
   if (!room?.snapshot || !room?.changeSeat || !room?.setRoomSettings || !room?.kick) {
     throw new TypeError("spectator UI requires an authoritative room client");
@@ -87,6 +95,10 @@ export function createSpectatorUi({
   let config = { spectatorsEnabled: false, spectatorLimit: 10 };
   let lastModel = null;
   const playerAdminMenu=createSharedPlayerAdminMenu({room,getView,notify,confirmAction});
+  const turnAttention=createTurnAttentionLayer(attentionOptions);
+  const quickReactions=createQuickReactionLayer({...reactionOptions,room,notify});
+  const publicMemberStatus=createPublicMemberStatusLayer({...memberStatusOptions,room,notify});
+  const lobbyReadiness=createLobbyReadinessLayer({...lobbyReadinessOptions,room,notify});
 
   function applyConfig(nextConfig = {}) {
     config = { ...config, ...nextConfig };
@@ -157,6 +169,7 @@ export function createSpectatorUi({
     const nodes = model.spectators.map((spectator) => {
       const item = documentRef.createElement("article");
       item.className = `spectator-item${spectator.connected ? "" : " spectator-offline"}`;
+      item.dataset.spectatorId = String(spectator.id);
       const identity = documentRef.createElement("div");
       const dot = documentRef.createElement("span");
       dot.className = "spectator-status-dot";
@@ -205,12 +218,18 @@ export function createSpectatorUi({
       elements.spectatorCountBadge.textContent = `${model.spectatorCount} / ${model.spectatorLimit}`;
     }
     renderSpectatorList(model, Boolean(view.permissions?.canManage));
+    lobbyReadiness.sync(view,room.snapshot());
+    publicMemberStatus.sync(view,room.snapshot());
+    turnAttention.sync(view,room.snapshot());
     queueMicrotask(()=>playerAdminMenu.refresh());
     return model;
   }
 
   function handleSessionEnded(kind) {
     playerAdminMenu.close();
+    turnAttention.reset();
+    quickReactions.close();
+    publicMemberStatus.close();
     const message = kind === "room_expired"
       ? SPECTATOR_ERROR_MESSAGES.room_expired
       : SPECTATOR_ERROR_MESSAGES.kicked;
@@ -235,6 +254,10 @@ export function createSpectatorUi({
     bind,
     changeSeat,
     toggleSetting,
+    turnAttention,
+    quickReactions,
+    publicMemberStatus,
+    lobbyReadiness,
     snapshot: () => lastModel
   });
 }

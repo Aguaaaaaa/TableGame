@@ -33,6 +33,9 @@ export function createAuthoritativeRoomClient({
   let autoSpectated = false;
   let clockSyncPromise = null;
   let clockRefreshTimer = null;
+  const reactionListeners = new Set();
+  const memberStatusListeners = new Set();
+  const lobbyReadinessListeners = new Set();
 
   async function timedRequest(request) {
     const wallStart = wallNow();
@@ -105,6 +108,15 @@ export function createAuthoritativeRoomClient({
       const payload = message?.payload;
       if (payload?.kind === MESSAGE_KINDS.VIEW) {
         acceptView(payload.view, payload.version);
+      } else if (payload?.kind === MESSAGE_KINDS.REACTION) {
+        handlers.onReaction?.(payload.reaction, message);
+        for (const listener of reactionListeners) listener(payload.reaction, message);
+      } else if (payload?.kind === MESSAGE_KINDS.MEMBER_STATUS) {
+        handlers.onMemberStatus?.(payload.memberStatus, message);
+        for (const listener of memberStatusListeners) listener(payload.memberStatus, message);
+      } else if (payload?.kind === MESSAGE_KINDS.LOBBY_READINESS) {
+        handlers.onLobbyReadiness?.(payload.lobbyReadiness, message);
+        for (const listener of lobbyReadinessListeners) listener(payload.lobbyReadiness, message);
       } else if (payload?.kind === MESSAGE_KINDS.KICKED) {
         sessionStore?.clear(roomCode);
         channel.close();
@@ -214,6 +226,44 @@ export function createAuthoritativeRoomClient({
     });
   }
 
+  function sendReaction(reactionId) {
+    if (!roomCode || !playerId || !resumeToken) throw new Error("尚未建立房间会话");
+    return post("/api/reactions", {
+      roomCode,
+      playerId,
+      resumeToken,
+      reactionId
+    });
+  }
+
+  function subscribeReactions(listener) {
+    if (typeof listener !== "function") throw new TypeError("reaction listener must be a function");
+    reactionListeners.add(listener);
+    return () => reactionListeners.delete(listener);
+  }
+
+  function setMemberStatus(status) {
+    if (!roomCode || !playerId || !resumeToken) throw new Error("尚未建立房间会话");
+    return post("/api/member-status", { roomCode, playerId, resumeToken, status });
+  }
+
+  function subscribeMemberStatuses(listener) {
+    if (typeof listener !== "function") throw new TypeError("member status listener must be a function");
+    memberStatusListeners.add(listener);
+    return () => memberStatusListeners.delete(listener);
+  }
+
+  function setLobbyReady(ready) {
+    if (!roomCode || !playerId || !resumeToken) throw new Error("尚未建立房间会话");
+    return post("/api/lobby-ready", { roomCode, playerId, resumeToken, ready: Boolean(ready) });
+  }
+
+  function subscribeLobbyReadiness(listener) {
+    if (typeof listener !== "function") throw new TypeError("lobby readiness listener must be a function");
+    lobbyReadinessListeners.add(listener);
+    return () => lobbyReadinessListeners.delete(listener);
+  }
+
   function kick(targetPlayerId) {
     if (role !== "host") throw new Error("只有房主可以移出玩家");
     return post("/api/kick", {
@@ -263,7 +313,10 @@ export function createAuthoritativeRoomClient({
   function close() { stopClockRefresh(); channel.close(); }
 
   return Object.freeze({
-    checkServer, createRoom, joinRoom, submitAction, kick, changeSeat, setRoomSettings,
+    checkServer, createRoom, joinRoom, submitAction, sendReaction, subscribeReactions,
+    setMemberStatus, subscribeMemberStatuses,
+    setLobbyReady, subscribeLobbyReadiness,
+    kick, changeSeat, setRoomSettings,
     resyncClock: () => synchronizeClock(initialClockSamples, true), close, snapshot
   });
 }

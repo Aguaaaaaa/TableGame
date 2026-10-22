@@ -12,6 +12,23 @@ const MEMBER_ROLES = Object.freeze({
   PLAYER: "player",
   SPECTATOR: "spectator"
 });
+const QUICK_REACTIONS = Object.freeze({
+  agree: Object.freeze({ emoji: "👍", label: "赞同" }),
+  applaud: Object.freeze({ emoji: "👏", label: "漂亮" }),
+  laugh: Object.freeze({ emoji: "😄", label: "哈哈" }),
+  wow: Object.freeze({ emoji: "😮", label: "震惊" }),
+  thinking: Object.freeze({ emoji: "🤔", label: "让我想想" }),
+  question: Object.freeze({ emoji: "❓", label: "等等" })
+});
+const REACTION_WINDOW_MS = 10_000;
+const REACTION_MIN_INTERVAL_MS = 750;
+const REACTION_MAX_PER_WINDOW = 6;
+const PUBLIC_MEMBER_STATUSES = Object.freeze({
+  present: Object.freeze({ icon: "●", label: "在桌边" }),
+  thinking: Object.freeze({ icon: "💭", label: "思考中" }),
+  away: Object.freeze({ icon: "☕", label: "暂时离开" }),
+  help: Object.freeze({ icon: "🙋", label: "需要说明" })
+});
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -71,12 +88,16 @@ module.exports = function startAuthoritativeGameServer({
       schemaVersion: Number(store.schemaVersion) || SCHEMA_VERSION,
       protocolVersion,
       hostId: room.hostId,
-      members: [...room.members.entries()].map(([id, member]) => ({
-        id,
-        ...structuredClone(member),
-        role: playerIds.has(String(id)) ? MEMBER_ROLES.PLAYER : MEMBER_ROLES.SPECTATOR,
-        connected: false
-      })),
+      members: [...room.members.entries()].map(([id, member]) => {
+        const storedMember = structuredClone(member);
+        delete storedMember.reactionTimestamps;
+        return {
+          id,
+          ...storedMember,
+          role: playerIds.has(String(id)) ? MEMBER_ROLES.PLAYER : MEMBER_ROLES.SPECTATOR,
+          connected: false
+        };
+      }),
       state,
       version: room.version,
       createdAt: room.createdAt,
@@ -109,7 +130,7 @@ module.exports = function startAuthoritativeGameServer({
     }
     for (const player of state.players) player.connected = false;
     const playerIds = new Set(state.players.map((player) => String(player.id)));
-    const members = new Map(snapshot.members.map(({ id, ...member }) => [String(id), {
+    const members = new Map(snapshot.members.map(({ id, reactionTimestamps: _ignoredReactionTimestamps, ...member }) => [String(id), {
       ...member,
       role: playerIds.has(String(id)) ? MEMBER_ROLES.PLAYER : MEMBER_ROLES.SPECTATOR,
       connected: false,
@@ -198,6 +219,39 @@ module.exports = function startAuthoritativeGameServer({
     return [...room.members.entries()]
       .filter(([, member]) => isSpectator(member) && !member.kicked)
       .map(([id, member]) => ({ id, name: member.name, connected: Boolean(member.connected) }));
+  }
+
+  function publicMemberStatuses(room) {
+    return [...room.members.entries()]
+      .filter(([, member]) => !member.kicked)
+      .map(([id, member]) => ({
+        id,
+        status: PUBLIC_MEMBER_STATUSES[member.publicStatus] ? member.publicStatus : "present",
+        updatedAt: Number(member.publicStatusUpdatedAt) || 0
+      }));
+  }
+
+  function publicLobbyReadiness(room) {
+    const active = room.state?.phase === "lobby";
+    const members = (room.state?.players || []).map((player) => {
+      const id = String(player.id);
+      const member = getMember(room, id);
+      const isHost = id === String(room.hostId);
+      return {
+        id,
+        isHost,
+        connected: Boolean(member?.connected),
+        ready: active && Boolean(member?.connected) && (isHost || member?.lobbyReady === true)
+      };
+    });
+    const readyCount = members.filter((member) => member.ready).length;
+    return {
+      active,
+      readyCount,
+      total: members.length,
+      allReady: active && members.length > 0 && readyCount === members.length,
+      members
+    };
   }
 
   function normalizeMemberName(name, fallback = "旁观者") {
@@ -298,7 +352,9 @@ module.exports = function startAuthoritativeGameServer({
       spectatorCount: spectators.length,
       spectatorLimit: resolvedSpectatorLimit,
       allowSpectators: roomAllowsSpectators(room),
-      canChangeSeats: canChangeSeats(room)
+      canChangeSeats: canChangeSeats(room),
+      memberStatuses: publicMemberStatuses(room),
+      lobbyReadiness: publicLobbyReadiness(room)
     };
   }
 
@@ -407,7 +463,10 @@ module.exports = function startAuthoritativeGameServer({
         schemaVersion: Number(store.schemaVersion) || SCHEMA_VERSION,
         spectatorsSupported,
         spectatorsEnabled: spectatorsActive,
-        spectatorLimit: resolvedSpectatorLimit
+        spectatorLimit: resolvedSpectatorLimit,
+        quickReactionsSupported: true,
+        publicMemberStatusesSupported: true,
+        lobbyReadinessSupported: true
       });
     }
 
@@ -470,6 +529,10 @@ module.exports = function startAuthoritativeGameServer({
         const closingMember = getMember(room, playerId);
         if (!closingMember?.connected) return;
         closingMember.connected = false;
+        if (room.state?.phase === "lobby" && playerId !== String(room.hostId)) {
+          closingMember.lobbyReady = false;
+          closingMember.lobbyReadyUpdatedAt = Date.now();
+        }
         if (shuttingDown) return;
         const now = Date.now();
         const presenceChanged = isPlayer(closingMember)
@@ -647,6 +710,161 @@ module.exports = function startAuthoritativeGameServer({
       });
     }
 
+    if (request.method === "POST" && url.pathname === "/api/reactions") {
+      const data = await readBody(request);
+      const roomCode = String(data.roomCode || "").toUpperCase();
+      const room = rooms.get(roomCode);
+      if (!room) {
+        const error = new Error("房间不存在或已经失效。");
+        error.status = 404;
+        error.code = "room_not_found";
+        throw error;
+      }
+      const memberId = String(data.playerId || "");
+      const member = authenticate(room, memberId, data.resumeToken || "");
+      const reactionId = String(data.reactionId || "");
+      const definition = QUICK_REACTIONS[reactionId];
+      if (!definition) {
+        const error = new Error("不支持该快捷反应。");
+        error.status = 400;
+        error.code = "invalid_reaction";
+        throw error;
+      }
+      const now = Date.now();
+      const recent = (member.reactionTimestamps || []).filter((timestamp) => now - timestamp < REACTION_WINDOW_MS);
+      if ((recent.length && now - recent[recent.length - 1] < REACTION_MIN_INTERVAL_MS)
+        || recent.length >= REACTION_MAX_PER_WINDOW) {
+        const error = new Error("快捷反应发送得太快，请稍后再试。");
+        error.status = 429;
+        error.code = "reaction_rate_limited";
+        throw error;
+      }
+      member.reactionTimestamps = [...recent, now];
+      room.reactionSequence = (Number(room.reactionSequence) || 0) + 1;
+      const reaction = {
+        sequence: room.reactionSequence,
+        id: reactionId,
+        emoji: definition.emoji,
+        label: definition.label,
+        senderId: memberId,
+        senderName: member.name,
+        senderRole: member.role,
+        createdAt: now
+      };
+      for (const [targetId, target] of room.members) {
+        if (!target.kicked) push(roomCode, targetId, { kind: "reaction", reaction });
+      }
+      return sendJson(response, 200, { ok: true, reaction, version: room.version, protocolVersion });
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/member-status") {
+      const data = await readBody(request);
+      const roomCode = String(data.roomCode || "").toUpperCase();
+      const room = rooms.get(roomCode);
+      if (!room) {
+        const error = new Error("房间不存在或已经失效。");
+        error.status = 404;
+        error.code = "room_not_found";
+        throw error;
+      }
+      const memberId = String(data.playerId || "");
+      const member = authenticate(room, memberId, data.resumeToken || "");
+      const status = String(data.status || "");
+      if (!PUBLIC_MEMBER_STATUSES[status]) {
+        const error = new Error("不支持该公开玩家状态。");
+        error.status = 400;
+        error.code = "invalid_member_status";
+        throw error;
+      }
+      const currentStatus = PUBLIC_MEMBER_STATUSES[member.publicStatus] ? member.publicStatus : "present";
+      if (currentStatus === status) {
+        return sendJson(response, 200, {
+          ok: true,
+          unchanged: true,
+          memberStatus: { id: memberId, status, updatedAt: Number(member.publicStatusUpdatedAt) || 0 },
+          version: room.version,
+          protocolVersion
+        });
+      }
+      const now = Date.now();
+      const nextMembers = new Map(room.members);
+      nextMembers.set(memberId, { ...member, publicStatus: status, publicStatusUpdatedAt: now });
+      const candidate = {
+        ...room,
+        members: nextMembers,
+        updatedAt: now,
+        lastPlayerActivityAt: isPlayer(member) ? now : room.lastPlayerActivityAt
+      };
+      persistRoom(roomCode, candidate);
+      room.members = nextMembers;
+      room.updatedAt = now;
+      if (isPlayer(member)) room.lastPlayerActivityAt = now;
+      const memberStatus = { id: memberId, status, updatedAt: now };
+      for (const [targetId, target] of room.members) {
+        if (!target.kicked) push(roomCode, targetId, { kind: "member_status", memberStatus });
+      }
+      return sendJson(response, 200, { ok: true, memberStatus, version: room.version, protocolVersion });
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/lobby-ready") {
+      const data = await readBody(request);
+      const roomCode = String(data.roomCode || "").toUpperCase();
+      const room = rooms.get(roomCode);
+      if (!room) {
+        const error = new Error("房间不存在或已经失效。");
+        error.status = 404;
+        error.code = "room_not_found";
+        throw error;
+      }
+      const memberId = String(data.playerId || "");
+      const member = authenticate(room, memberId, data.resumeToken || "");
+      if (!isPlayer(member)) {
+        const error = new Error("旁观者不参与准备确认。");
+        error.status = 403;
+        error.code = "spectator_cannot_ready";
+        throw error;
+      }
+      if (room.state?.phase !== "lobby") {
+        const error = new Error("只有准备大厅可以修改准备状态。");
+        error.status = 409;
+        error.code = "lobby_ready_unavailable";
+        throw error;
+      }
+      if (memberId === String(room.hostId)) {
+        const error = new Error("房主通过开始游戏确认自己已经准备。");
+        error.status = 409;
+        error.code = "host_ready_implicit";
+        throw error;
+      }
+      if (typeof data.ready !== "boolean") {
+        const error = new Error("ready 必须是布尔值。");
+        error.status = 400;
+        error.code = "invalid_lobby_ready";
+        throw error;
+      }
+      if (data.ready && !member.connected) {
+        const error = new Error("连接恢复后才能确认准备。");
+        error.status = 409;
+        error.code = "member_offline";
+        throw error;
+      }
+      if (Boolean(member.lobbyReady) === data.ready) {
+        return sendJson(response, 200, { ok: true, unchanged: true, lobbyReadiness: publicLobbyReadiness(room), version: room.version, protocolVersion });
+      }
+      const now = Date.now();
+      const nextMembers = new Map(room.members);
+      nextMembers.set(memberId, { ...member, lobbyReady: data.ready, lobbyReadyUpdatedAt: now });
+      const candidate = { ...room, members: nextMembers, updatedAt: now, lastPlayerActivityAt: now };
+      persistRoom(roomCode, candidate);
+      room.members = nextMembers;
+      markPlayerActivity(room, now);
+      const lobbyReadiness = publicLobbyReadiness(room);
+      for (const [targetId, target] of room.members) {
+        if (!target.kicked) push(roomCode, targetId, { kind: "lobby_readiness", lobbyReadiness });
+      }
+      return sendJson(response, 200, { ok: true, lobbyReadiness, version: room.version, protocolVersion });
+    }
+
     if (request.method === "POST" && url.pathname === "/api/actions") {
       const data = await readBody(request);
       const roomCode = String(data.roomCode || "").toUpperCase();
@@ -686,8 +904,15 @@ module.exports = function startAuthoritativeGameServer({
       const nextState = structuredClone(room.state);
       engine.applyAction(nextState, playerId, data.action, { now });
       const nextActionIds = [...member.actionIds, actionId].slice(-100);
-      const nextMembers = new Map(room.members);
+      let nextMembers = new Map(room.members);
       nextMembers.set(playerId, { ...member, actionIds: nextActionIds });
+      if (room.state?.phase !== "lobby" && nextState?.phase === "lobby") {
+        nextMembers = new Map([...nextMembers].map(([id, nextMember]) => [id, {
+          ...nextMember,
+          lobbyReady: false,
+          lobbyReadyUpdatedAt: now
+        }]));
+      }
       const candidate = {
         ...room,
         members: nextMembers,
@@ -698,7 +923,7 @@ module.exports = function startAuthoritativeGameServer({
       };
       persistRoom(roomCode, candidate);
       room.state = nextState;
-      member.actionIds = nextActionIds;
+      room.members = nextMembers;
       room.version = candidate.version;
       markPlayerActivity(room, now);
       scheduleRoomTimer(roomCode, room);
@@ -768,7 +993,7 @@ module.exports = function startAuthoritativeGameServer({
         }, { now });
       }
       const nextMembers = new Map(room.members);
-      nextMembers.set(memberId, { ...member, role: desiredRole, actionIds: [] });
+      nextMembers.set(memberId, { ...member, role: desiredRole, actionIds: [], lobbyReady: false });
       const candidate = {
         ...room,
         state: nextState,

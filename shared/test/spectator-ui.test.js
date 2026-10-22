@@ -121,6 +121,7 @@ test("shared spectator list renders names as text and delegates host removal", a
     constructor(ownerDocument = null) {
       this.ownerDocument = ownerDocument;
       this.children = [];
+      this.dataset = {};
       this.className = "";
       this.textContent = "";
       this.classList = { toggle() {} };

@@ -5,6 +5,9 @@ export const MESSAGE_KINDS = Object.freeze({
   PRESENCE: "presence",
   ACTION: "action",
   VIEW: "view",
+  REACTION: "reaction",
+  MEMBER_STATUS: "member_status",
+  LOBBY_READINESS: "lobby_readiness",
   REJECTED: "rejected",
   KICKED: "kicked",
   ROOM_EXPIRED: "room_expired"

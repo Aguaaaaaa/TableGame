@@ -46,14 +46,16 @@ test("status badges reconcile independently and stale events cannot overwrite ne
   layer.sync({selfId:"p1",players:[{id:"p1",connected:true}],memberStatuses:[{id:"p1",status:"thinking",updatedAt:10}]},{playerId:"p1"});
   await Promise.resolve();
   assert.equal(layer.currentStatus(),"thinking");
-  assert.equal(anchor.children.at(-1).dataset.status,"thinking");
-  const firstBadge=anchor.children.at(-1);
+  assert.equal(documentRef.querySelectorAll(".shared-member-status-badge").at(-1).dataset.status,"thinking");
+  const firstBadge=documentRef.querySelectorAll(".shared-member-status-badge").at(-1);
   layer.receive({id:"p1",status:"away",updatedAt:9});
   assert.equal(layer.currentStatus(),"thinking");
-  assert.equal(anchor.children.at(-1),firstBadge);
+  assert.equal(documentRef.querySelectorAll(".shared-member-status-badge").at(-1),firstBadge);
   layer.receive({id:"p1",status:"present",updatedAt:11});
   assert.equal(layer.currentStatus(),"present");
-  assert.equal(documentRef.querySelectorAll(".shared-member-status-badge").length,0);
+  assert.equal(documentRef.querySelectorAll(".shared-member-status-badge").length,1);
+  assert.equal(documentRef.querySelectorAll(".shared-member-status-badge")[0].dataset.status,"present");
+  assert.equal(anchor.children.length,0,"status overlay must not be destroyed by a game re-rendering its player card");
   layer.destroy();
 });
 

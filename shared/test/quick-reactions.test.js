@@ -18,14 +18,14 @@ test("quick reactions accept only the shared allowlist and ignore spoofed artwor
 
 class FakeClassList{add(){}remove(){}}
 class FakeNode{
-  constructor(){this.children=[];this.dataset={};this.style={};this.classList=new FakeClassList();this.hidden=false;this.offsetWidth=280;this.offsetHeight=130;}
-  append(...nodes){this.children.push(...nodes);}
+  constructor(){this.children=[];this.dataset={};this.style={};this.className="";this.classList=new FakeClassList();this.hidden=false;this.offsetWidth=280;this.offsetHeight=130;}
+  append(...nodes){for(const node of nodes){node.parentNode=this;this.children.push(node);}}
   insertAdjacentElement(_where,node){this.inserted=node;}
   setAttribute(){}
   addEventListener(){}
   contains(node){return node===this||this.children.includes(node);}
   getBoundingClientRect(){return{left:10,right:40,top:10,bottom:40,width:30,height:30};}
-  remove(){this.removed=true;}
+  remove(){if(this.parentNode)this.parentNode.children=this.parentNode.children.filter((child)=>child!==this);this.removed=true;}
 }
 class FakeDocument{
   constructor(){this.body=new FakeNode();this.head=new FakeNode();this.status=new FakeNode();}
@@ -52,6 +52,8 @@ test("the reaction layer replaces a sender's prior bubble and caps concurrent pr
   layer.receive({id:"agree",senderId:"p6",senderName:"P6"});
   assert.equal(layer.activeCount(),5);
   assert.equal(timers.size,timerCount);
+  const stage=documentRef.body.children.find((node)=>node.className==="shared-quick-reaction-stage");
+  assert.ok(stage.children.every((pop)=>pop.children.length===1&&pop.children[0].className==="emoji"),"a reaction bubble only renders the emoji");
   layer.destroy();
   assert.equal(layer.activeCount(),0);
 });

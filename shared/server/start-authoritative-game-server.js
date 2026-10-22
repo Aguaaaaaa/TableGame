@@ -254,6 +254,15 @@ module.exports = function startAuthoritativeGameServer({
     };
   }
 
+  function lobbyReadinessIsEnforced(room) {
+    const playerIds = new Set((room.state?.players || []).map((player) => String(player.id)));
+    return [...room.members.entries()].some(([id, member]) => (
+      playerIds.has(String(id))
+      && String(id) !== String(room.hostId)
+      && member.lobbyReadinessParticipating === true
+    ));
+  }
+
   function normalizeMemberName(name, fallback = "旁观者") {
     const normalized = String(name || "").trim().replace(/\s+/g, " ").slice(0, 20);
     return normalized || fallback;
@@ -848,12 +857,12 @@ module.exports = function startAuthoritativeGameServer({
         error.code = "member_offline";
         throw error;
       }
-      if (Boolean(member.lobbyReady) === data.ready) {
+      if (Boolean(member.lobbyReady) === data.ready && member.lobbyReadinessParticipating === true) {
         return sendJson(response, 200, { ok: true, unchanged: true, lobbyReadiness: publicLobbyReadiness(room), version: room.version, protocolVersion });
       }
       const now = Date.now();
       const nextMembers = new Map(room.members);
-      nextMembers.set(memberId, { ...member, lobbyReady: data.ready, lobbyReadyUpdatedAt: now });
+      nextMembers.set(memberId, { ...member, lobbyReady: data.ready, lobbyReadyUpdatedAt: now, lobbyReadinessParticipating: true });
       const candidate = { ...room, members: nextMembers, updatedAt: now, lastPlayerActivityAt: now };
       persistRoom(roomCode, candidate);
       room.members = nextMembers;
@@ -899,6 +908,17 @@ module.exports = function startAuthoritativeGameServer({
         error.status = 409;
         error.code = "version_conflict";
         throw error;
+      }
+      if (room.state?.phase === "lobby" && data.action?.type === "start" && lobbyReadinessIsEnforced(room)) {
+        const readiness = publicLobbyReadiness(room);
+        if (!readiness.allReady) {
+          const waitingIds = readiness.members.filter((item) => !item.ready).map((item) => item.id);
+          const waitingNames = waitingIds.map((id) => getMember(room, id)?.name || id);
+          const error = new Error(`仍有玩家未准备：${waitingNames.join("、") || "未知玩家"}`);
+          error.status = 409;
+          error.code = "lobby_not_ready";
+          throw error;
+        }
       }
       const now = Date.now();
       const nextState = structuredClone(room.state);

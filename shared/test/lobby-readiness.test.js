@@ -35,9 +35,11 @@ test("the lobby layer marks stable player anchors and lets a guest confirm readi
   const waiting={active:true,members:[{id:"host",isHost:true,connected:true,ready:true},{id:"guest",isHost:false,connected:true,ready:false}]};
   layer.sync({selfId:"guest",roomRole:"player",lobbyReadiness:waiting},{playerId:"guest"});await Promise.resolve();
   assert.equal(hostAnchor.children.at(-1).dataset.ready,"true");assert.equal(guestAnchor.children.at(-1).dataset.ready,"false");assert.equal(documentRef.start.classList.contains("shared-lobby-all-ready"),false);
-  await documentRef.connection.inserted.click();assert.deepEqual(calls,[true]);
+  assert.equal(hostAnchor.classList.contains("shared-lobby-player-ready"),true);assert.equal(guestAnchor.classList.contains("shared-lobby-player-waiting"),true);assert.equal(documentRef.start.attributes.get("aria-disabled"),"true");
+  await Promise.resolve();assert.deepEqual(calls,[false],"a real lobby client registers readiness enforcement even before clicking ready");
+  await documentRef.connection.inserted.click();assert.deepEqual(calls,[false,true]);
   layer.receive({active:true,members:[{id:"host",isHost:true,connected:true,ready:true},{id:"guest",isHost:false,connected:true,ready:true}]});
-  assert.equal(layer.snapshot().allReady,true);assert.equal(documentRef.start.classList.contains("shared-lobby-all-ready"),true);assert.equal(documentRef.start.title,"所有正式玩家都已准备");layer.destroy();
+  assert.equal(layer.snapshot().allReady,true);assert.equal(documentRef.start.classList.contains("shared-lobby-all-ready"),true);assert.equal(guestAnchor.classList.contains("shared-lobby-player-ready"),true);assert.equal(documentRef.start.attributes.get("aria-disabled"),"false");assert.equal(documentRef.start.title,"所有正式玩家都已准备");layer.destroy();
 });
 
 test("spectators can see readiness but never receive a ready control",async()=>{

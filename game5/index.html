@@ -30,36 +30,58 @@
                 </div>
             </div>
         </header>
-        <section id="setupPanel">
-            <div class="modes"><button class="mode active"
-                    id="hostModeButton"><b>创建房间</b><span>担任房主与规则裁判</span></button><button class="mode"
-                    id="guestModeButton"><b>加入房间</b><span>输入四位好友房间号</span></button></div>
-            <div class="panel setup" id="hostSetup">
-                <div>
-                    <p class="eyebrow">HOST A GAME</p>
-                    <h2>建立单轮牌局</h2>
-                </div><label>昵称<input id="hostNameInput" maxlength="12" value="房主"></label><label>人数<select
-                        id="playerCountSelect">
-                        <option>2</option>
-                        <option>3</option>
-                        <option selected>4</option>
-                        <option>5</option>
-                        <option>6</option>
-                    </select></label><button class="primary" id="createRoomButton">创建房间</button>
+        <section class="color-table-arrival" id="setupPanel">
+            <div class="card-party-briefing">
+                <p class="arrival-kicker">COLOR CARD NIGHT · 好友牌桌</p>
+                <h2>跟上颜色，<br>把最后一张牌打出去。</h2>
+                <p class="arrival-lead">观察场上的颜色与功能，打断对手的节奏，也别忘了在只剩一张时喊出 UNO。</p>
+                <ol class="card-route" aria-label="游戏流程">
+                    <li><span class="route-color red"></span><div><b>匹配颜色或数字</b><small>从手中打出符合当前牌面的卡牌</small></div></li>
+                    <li><span class="route-color yellow"></span><div><b>改变牌桌节奏</b><small>反转、跳过与罚牌链随时改变局势</small></div></li>
+                    <li><span class="route-color blue"></span><div><b>最后一张喊 UNO</b><small>率先清空手牌，赢下这轮聚会</small></div></li>
+                </ol>
+                <p class="party-note"><span aria-hidden="true">●</span> 2—6 人 · 单局对抗 · 私人手牌由服务器保护</p>
             </div>
-            <div class="panel setup hidden" id="guestSetup">
-                <div>
-                    <p class="eyebrow">JOIN A GAME</p>
-                    <h2>加入好友房间</h2>
-                </div><label>昵称<input id="guestNameInput" maxlength="12" value="玩家"></label><label>房间号<input
-                        id="roomCodeInput" maxlength="4" placeholder="例如 A7K2"></label>
-                <fieldset id="joinIntentField" class="join-intent hidden">
-                    <legend>加入身份</legend>
-                    <label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时参与牌局；满员后自动旁观</small></span></label>
-                    <label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>查看公共牌桌与手牌数量，不查看牌面</small></span></label>
-                </fieldset><button class="primary"
-                    id="joinRoomButton">加入房间</button>
-            </div>
+
+            <section class="card-checkin" aria-labelledby="cardCheckinTitle">
+                <div class="deck-ribbon" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                <header class="checkin-heading">
+                    <div><p>TABLE INVITATION</p><h2 id="cardCheckinTitle">今晚的好友牌局</h2></div>
+                    <div class="card-fan" aria-hidden="true"><i></i><i></i><i></i></div>
+                </header>
+
+                <div class="modes">
+                    <button class="mode active" id="hostModeButton">
+                        <span class="mode-card-mark host" aria-hidden="true">＋</span>
+                        <span class="mode-copy"><b>创建牌局</b><small>邀请朋友围坐到这张牌桌</small></span>
+                    </button>
+                    <button class="mode" id="guestModeButton">
+                        <span class="mode-card-mark guest" aria-hidden="true">→</span>
+                        <span class="mode-copy"><b>加入牌局</b><small>凭房间号接入好友对局</small></span>
+                    </button>
+                </div>
+
+                <div class="panel setup entry-form" id="hostSetup">
+                    <div class="form-heading"><p>HOST A GAME</p><h2>摆好一桌新牌</h2></div>
+                    <label>你的昵称<input id="hostNameInput" maxlength="12" value="房主"></label>
+                    <label>本桌人数<select id="playerCountSelect">
+                            <option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option>
+                        </select></label>
+                    <button class="primary entry-submit" id="createRoomButton"><b>邀请朋友入座</b><small>创建四位房间号</small></button>
+                </div>
+                <div class="panel setup entry-form hidden" id="guestSetup">
+                    <div class="form-heading"><p>JOIN A GAME</p><h2>接过好友的邀请</h2></div>
+                    <label>你的昵称<input id="guestNameInput" maxlength="12" value="玩家"></label>
+                    <label>四位房间号<input id="roomCodeInput" maxlength="4" placeholder="例如 A7K2"></label>
+                    <fieldset id="joinIntentField" class="join-intent hidden">
+                        <legend>加入身份</legend>
+                        <label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>有空位时参与牌局；满员后自动旁观</small></span></label>
+                        <label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>查看公共牌桌与手牌数量，不查看牌面</small></span></label>
+                    </fieldset>
+                    <button class="primary entry-submit" id="joinRoomButton"><b>加入这张牌桌</b><small>读取当前牌局</small></button>
+                </div>
+                <p class="checkin-footnote">每个人只会看见自己的手牌；牌堆、罚牌链与胜负均由服务器判定。</p>
+            </section>
         </section>
         <section class="layout hidden" id="roomPanel">
             <aside>

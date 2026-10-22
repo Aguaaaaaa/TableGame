@@ -687,6 +687,154 @@ select {
         grid-template-columns: 1fr 1fr
     }
 }
+
+/* Arrival shell: a bright friends' card night with a custom deck check-in. */
+.color-table-arrival {
+    border: 1px solid #ffffff55;
+    border-radius: 30px;
+    box-shadow: 0 30px 80px #0007;
+    display: grid;
+    grid-template-columns: minmax(0,1.08fr) minmax(370px,.82fr);
+    isolation: isolate;
+    min-height: min(760px,calc(100vh - 108px));
+    overflow: hidden;
+    position: relative
+}
+.color-table-arrival::before,
+.color-table-arrival::after { content: ""; inset: 0; pointer-events: none; position: absolute }
+.color-table-arrival::before {
+    background: linear-gradient(90deg,#171824d9 0%,#24222a73 48%,#151720a8 100%),url("assets/sunlit-color-card-table-v1.png") center/cover no-repeat;
+    z-index: -2
+}
+.color-table-arrival::after {
+    background: radial-gradient(circle at 44% 53%,transparent 20%,#0b0e184f 100%),linear-gradient(180deg,#0d101625,#0d101675);
+    z-index: -1
+}
+.card-party-briefing {
+    align-content: center;
+    color: #fff9e9;
+    display: grid;
+    gap: 21px;
+    padding: clamp(38px,6vw,84px);
+    text-shadow: 0 2px 18px #090a10d9
+}
+.arrival-kicker,
+.checkin-heading p,
+.form-heading p { font-size: 10px; font-weight: 900; letter-spacing: .18em }
+.arrival-kicker { color: #ffd64f }
+.card-party-briefing h2 {
+    font-family: "STKaiti","KaiTi","Microsoft YaHei",sans-serif;
+    font-size: clamp(38px,4.8vw,66px);
+    letter-spacing: .02em;
+    line-height: 1.14;
+    max-width: 730px
+}
+.arrival-lead { color: #fff9e9d9; font-size: clamp(14px,1.45vw,18px); line-height: 1.8; max-width: 610px }
+.card-route { display: grid; gap: 8px; list-style: none; margin: 3px 0 0; max-width: 575px; padding: 0 }
+.card-route li {
+    align-items: center;
+    backdrop-filter: blur(8px);
+    background: linear-gradient(90deg,#161a27c7,#161a2747);
+    border: 1px solid #ffffff17;
+    border-radius: 13px;
+    display: grid;
+    gap: 13px;
+    grid-template-columns: 18px minmax(0,1fr);
+    padding: 10px 14px
+}
+.route-color { border: 2px solid #ffffffb8; border-radius: 5px; box-shadow: 0 4px 10px #0005; height: 25px; transform: rotate(-5deg); width: 18px }
+.route-color.red { background: var(--red) }.route-color.yellow { background: var(--yellow); transform: rotate(4deg) }.route-color.blue { background: var(--blue) }
+.card-route li div { display: grid; gap: 2px }.card-route b { font-size: 14px }.card-route small { color: #fff9e9ad; font-size: 11px }
+.party-note { color: #fff9e9bf; font-size: 12px; font-weight: 800 }.party-note span { color: #56cf78; margin-right: 5px }
+.card-checkin {
+    align-self: center;
+    backdrop-filter: blur(20px) saturate(115%);
+    background: linear-gradient(150deg,#fffdf5f2,#f8f1e8e8);
+    border: 1px solid #ffffffd9;
+    border-radius: 24px;
+    box-shadow: 0 24px 58px #090a1069,inset 0 1px 0 #fff;
+    color: var(--ink);
+    margin: clamp(22px,3.2vw,46px);
+    overflow: hidden;
+    padding: 31px clamp(20px,3vw,32px) 25px;
+    position: relative
+}
+.deck-ribbon { display: grid; grid-template-columns: repeat(4,1fr); height: 7px; left: 0; position: absolute; right: 0; top: 0 }
+.deck-ribbon i:nth-child(1) { background: var(--red) }.deck-ribbon i:nth-child(2) { background: var(--yellow) }.deck-ribbon i:nth-child(3) { background: var(--green) }.deck-ribbon i:nth-child(4) { background: var(--blue) }
+.checkin-heading { align-items: center; display: flex; gap: 13px; justify-content: space-between; margin-bottom: 19px }
+.checkin-heading p { color: #75469c; margin-bottom: 4px }.checkin-heading h2 { font-size: clamp(21px,2vw,28px) }
+.card-fan { height: 47px; position: relative; width: 64px }
+.card-fan i { background: var(--red); border: 2px solid #fff; border-radius: 6px; box-shadow: 0 5px 9px #0003; height: 43px; left: 18px; position: absolute; top: 2px; transform: rotate(-15deg); width: 29px }
+.card-fan i:nth-child(2) { background: var(--yellow); left: 22px; transform: rotate(0deg); z-index: 2 }.card-fan i:nth-child(3) { background: var(--blue); left: 27px; transform: rotate(15deg); z-index: 3 }
+.card-checkin .modes { gap: 8px; margin-bottom: 13px }
+.card-checkin .mode {
+    align-items: center;
+    background: #ffffffb8;
+    border-color: #d9d0c5;
+    border-radius: 13px;
+    display: grid;
+    gap: 9px;
+    grid-template-columns: 31px minmax(0,1fr);
+    min-height: 74px;
+    padding: 11px
+}
+.card-checkin .mode.active { background: #fff5e9; border-color: #d74a40; box-shadow: inset 0 0 0 1px #d74a40,0 7px 18px #74352b1f }
+.mode-card-mark { align-items: center; border: 2px solid #fff; border-radius: 7px; box-shadow: 0 5px 9px #0002; color: #fff !important; display: flex; font-size: 19px !important; height: 37px; justify-content: center; transform: rotate(-5deg); width: 28px }
+.mode-card-mark.host { background: var(--red) }.mode-card-mark.guest { background: var(--blue); transform: rotate(5deg) }
+.card-checkin .mode-copy { display: grid; gap: 3px; min-width: 0 }.card-checkin .mode-copy b { font-size: 13px }.card-checkin .mode-copy small { color: #7b737a; font-size: 10px }
+.card-checkin .entry-form {
+    align-items: end;
+    background: #fffcf8eb;
+    border-color: #ddd3c7;
+    box-shadow: 0 11px 25px #412b3117;
+    display: grid;
+    gap: 13px;
+    grid-template-columns: 1fr 1fr;
+    padding: 17px
+}
+.card-checkin .form-heading { border-bottom: 1px solid #e0d7cd; grid-column: 1/-1; padding-bottom: 11px }.card-checkin .form-heading p { color: #c3443d; margin-bottom: 3px }.card-checkin .form-heading h2 { font-size: 16px }
+.card-checkin .entry-form label { color: #6c6870; font-size: 11px; letter-spacing: .04em }
+.card-checkin .entry-form input,
+.card-checkin .entry-form select { background: #fff; border-color: #d5cdc4; min-height: 45px }
+.card-checkin .entry-form input:focus,
+.card-checkin .entry-form select:focus { border-color: #7443a0; box-shadow: 0 0 0 3px #7443a01f }
+.entry-submit {
+    background: linear-gradient(135deg,#653594,#8b49b8);
+    border: 0;
+    border-radius: 11px;
+    box-shadow: 0 9px 21px #52277736;
+    display: grid;
+    gap: 2px;
+    grid-column: 1/-1;
+    min-height: 54px;
+    padding: 8px 14px
+}
+.entry-submit:hover { background: linear-gradient(135deg,#54267f,#7737a5); transform: translateY(-1px) }.entry-submit b { font-size: 14px }.entry-submit small { color: #ffffffbd; font-size: 10px; font-weight: 600 }
+.card-checkin .join-intent { border: 1px solid #ddd3c7; border-radius: 10px; grid-column: 1/-1; margin: 0; padding: 10px }
+.card-checkin .join-intent legend { color: #706b72; font-size: 11px; font-weight: 900 }.card-checkin .join-intent label { align-items: flex-start; display: flex; gap: 7px }.card-checkin .join-intent input { flex: none; min-height: 0; width: auto }.card-checkin .join-intent span { display: grid; gap: 2px }.card-checkin .join-intent small { color: #817b81; font-size: 10px; line-height: 1.45 }
+.checkin-footnote { color: #7c747a; font-size: 10px; line-height: 1.6; margin-top: 13px; text-align: center }
+
+@media(max-width:980px) {
+    .color-table-arrival { grid-template-columns: minmax(0,.9fr) minmax(350px,1.1fr) }
+    .card-party-briefing { padding: 40px 30px }.card-party-briefing h2 { font-size: clamp(34px,5vw,48px) }
+}
+@media(max-width:760px) {
+    .shell { padding: 12px }
+    #siteHeader:not(.in-room) { margin-bottom: 10px }
+    .color-table-arrival { display: block; min-height: 0 }
+    .color-table-arrival::before { background-position: 43% center }
+    .card-party-briefing { gap: 15px; min-height: 440px; padding: 34px 24px 45px }
+    .card-party-briefing h2 { font-size: clamp(35px,10vw,48px) }.arrival-lead { font-size: 14px; line-height: 1.7 }
+    .card-checkin { margin: -20px 12px 14px; padding: 29px 20px 22px; position: relative }
+}
+@media(max-width:460px) {
+    .color-table-arrival { border-radius: 20px }.card-party-briefing { min-height: 400px; padding: 28px 18px 40px }
+    .arrival-kicker { font-size: 9px; letter-spacing: .12em }.card-route li { grid-template-columns: 17px minmax(0,1fr); padding: 8px 10px }.card-route small { display: none }
+    .card-checkin { margin-left: 7px; margin-right: 7px; padding-left: 15px; padding-right: 15px }
+    .card-fan { transform: scale(.86); transform-origin: right center }
+    .card-checkin .mode { gap: 7px; grid-template-columns: 27px minmax(0,1fr); min-height: 65px; padding: 8px }.mode-card-mark { font-size: 16px !important; height: 33px; width: 24px }.card-checkin .mode-copy b { font-size: 12px }.card-checkin .mode-copy small { display: none }
+    .card-checkin .entry-form { grid-template-columns: 1fr; padding: 14px }.card-checkin .form-heading,.card-checkin .join-intent,.entry-submit { grid-column: 1 }
+}
 .spectator-action-note{line-height:1.6}
 
 /* Compact room chrome: room management stays beside the UNO title. */

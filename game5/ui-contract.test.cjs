@@ -97,3 +97,15 @@ test("game5 authoritative broadcasts update stable UNO partitions",()=>{
   assert.match(script,/existing=new Map\(\[\.\.\.E\.hand\.querySelectorAll/);
   assert.match(partitions,/"room","status","players","table","decision","decisionFacts","hand","log","countdown"/);
 });
+
+test("game5 arrival shell presents a bright friends card table without changing room contracts",()=>{
+  assert.match(html,/class="color-table-arrival" id="setupPanel"/);
+  assert.match(html,/COLOR CARD NIGHT/);
+  assert.match(html,/今晚的好友牌局/);
+  assert.match(html,/跟上颜色，<br>把最后一张牌打出去/);
+  for(const id of["hostModeButton","guestModeButton","hostSetup","guestSetup","hostNameInput","playerCountSelect","createRoomButton","guestNameInput","roomCodeInput","joinIntentField","joinRoomButton"]){
+    assert.match(html,new RegExp(`id="${id}"`));
+  }
+  assert.match(styles,/url\("assets\/sunlit-color-card-table-v1\.png"\)/);
+  assert.match(styles,/@media\(max-width:760px\)[\s\S]*?\.color-table-arrival \{ display: block;/);
+});

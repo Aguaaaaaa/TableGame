@@ -46,6 +46,9 @@ test("the reaction layer replaces a sender's prior bubble and caps concurrent pr
     setTimeoutImpl(callback){const id=++nextTimer;timers.set(id,callback);return id;},
     clearTimeoutImpl(id){timers.delete(id);}
   });
+  const menuStyle=documentRef.head.children.find((node)=>Object.hasOwn(node.dataset,"quickReactionsStyle"));
+  assert.match(menuStyle.textContent,/--quick-reaction-menu-text,#182128/);
+  assert.match(menuStyle.textContent,/--quick-reaction-menu-bg,#fffaf2/);
   for(let index=1;index<=6;index+=1)layer.receive({id:"wow",senderId:`p${index}`,senderName:`P${index}`});
   assert.equal(layer.activeCount(),5);
   const timerCount=timers.size;

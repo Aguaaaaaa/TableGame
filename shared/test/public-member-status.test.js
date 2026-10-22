@@ -43,6 +43,9 @@ test("status badges reconcile independently and stale events cannot overwrite ne
   const documentRef=new FakeDocument(),anchor=documentRef.addAnchor("p1");
   const room={setMemberStatus:async()=>{},subscribeMemberStatuses(listener){this.listener=listener;return()=>{};}};
   const layer=createPublicMemberStatusLayer({room,documentRef,windowRef:{innerWidth:800,innerHeight:600,addEventListener(){},removeEventListener(){}}});
+  const menuStyle=documentRef.head.children.find((node)=>Object.hasOwn(node.dataset,"publicMemberStatusStyle"));
+  assert.match(menuStyle.textContent,/--member-status-menu-text,#182128/);
+  assert.match(menuStyle.textContent,/--member-status-menu-bg,#fffaf2/);
   layer.sync({selfId:"p1",players:[{id:"p1",connected:true}],memberStatuses:[{id:"p1",status:"thinking",updatedAt:10}]},{playerId:"p1"});
   await Promise.resolve();
   assert.equal(layer.currentStatus(),"thinking");
@@ -55,7 +58,8 @@ test("status badges reconcile independently and stale events cannot overwrite ne
   assert.equal(layer.currentStatus(),"present");
   assert.equal(documentRef.querySelectorAll(".shared-member-status-badge").length,1);
   assert.equal(documentRef.querySelectorAll(".shared-member-status-badge")[0].dataset.status,"present");
-  assert.equal(anchor.children.length,0,"status overlay must not be destroyed by a game re-rendering its player card");
+  assert.equal(anchor.children.length,1,"status uses one reserved player presence rail");
+  assert.equal(anchor.children[0].dataset.sharedPlayerPresenceRail,"true");
   layer.destroy();
 });
 

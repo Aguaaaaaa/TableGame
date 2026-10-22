@@ -34,7 +34,7 @@ test("the lobby layer marks stable player anchors and lets a guest confirm readi
   const layer=createLobbyReadinessLayer({room,documentRef});
   const waiting={active:true,members:[{id:"host",isHost:true,connected:true,ready:true},{id:"guest",isHost:false,connected:true,ready:false}]};
   layer.sync({selfId:"guest",roomRole:"player",lobbyReadiness:waiting},{playerId:"guest"});await Promise.resolve();
-  assert.equal(hostAnchor.children.at(-1).dataset.ready,"true");assert.equal(guestAnchor.children.at(-1).dataset.ready,"false");assert.equal(documentRef.start.classList.contains("shared-lobby-all-ready"),false);
+  assert.equal(hostAnchor.children.at(-1).children[0].dataset.ready,"true");assert.equal(guestAnchor.children.at(-1).children[0].dataset.ready,"false");assert.equal(documentRef.start.classList.contains("shared-lobby-all-ready"),false);
   assert.equal(hostAnchor.classList.contains("shared-lobby-player-ready"),true);assert.equal(guestAnchor.classList.contains("shared-lobby-player-waiting"),true);assert.equal(documentRef.start.attributes.get("aria-disabled"),"true");
   await Promise.resolve();assert.deepEqual(calls,[false],"a real lobby client registers readiness enforcement even before clicking ready");
   await documentRef.connection.inserted.children[0].click();assert.deepEqual(calls,[false,true]);

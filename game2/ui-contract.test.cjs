@@ -63,3 +63,15 @@ test("game2 uses text-safe render partitions and stable delegated controls",()=>
   assert.match(script,/elements\.playerList\.addEventListener\("click"/);
   assert.doesNotMatch(script,/playerList\.innerHTML\s*=/);
 });
+
+test("game2 arrival shell presents a themed show briefing without changing setup contracts",()=>{
+  assert.match(html,/class="setup-panel word-show-arrival" id="setupPanel"/);
+  assert.match(html,/THE GREAT IDIOM SHOW/);
+  assert.match(html,/参赛队伍登记台/);
+  assert.match(html,/一句提示，<br>让队友猜中同一个答案/);
+  for(const id of["hostModeButton","guestModeButton","hostSetup","guestSetup","hostNameInput","playerCountSelect","createRoomButton","guestNameInput","roomCodeInput","joinIntentField","joinRoomButton"]){
+    assert.match(html,new RegExp(`id="${id}"`));
+  }
+  assert.match(styles,/url\("assets\/word-show-arrival-v1\.png"\)/);
+  assert.match(styles,/@media \(max-width: 760px\)[\s\S]*?\.word-show-arrival \{ display: block;/);
+});

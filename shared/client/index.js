@@ -11,6 +11,7 @@ export * from "./server-clock.js";
 export * from "./session-store.js";
 export * from "./sse-channel.js";
 export * from "./spectator-ui.js";
+export * from "./table-presence-toolbar.js";
 export * from "./turn-attention.js";
 export * from "./ui.js";
 export * from "./utils.js";

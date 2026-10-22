@@ -1,5 +1,7 @@
 "use strict";
 
+import { mountTablePresenceTool } from "./table-presence-toolbar.js";
+
 export function normalizeLobbyReadiness(value={}){
   const members=Array.isArray(value.members)?value.members.map((member)=>Object.freeze({
     id:String(member?.id||""),
@@ -31,7 +33,7 @@ export function createLobbyReadinessLayer({
     @media(max-width:520px){.shared-lobby-ready-control{min-width:30px!important;padding:5px 8px!important}.shared-lobby-ready-badge{left:4px;bottom:4px;padding:3px 5px;font-size:10px}.shared-lobby-ready-badge .ready-label{display:none}}@media(prefers-reduced-motion:reduce){.shared-lobby-player-waiting{animation:none}}
   `;documentRef.head?.append(style);
   const control=documentRef.createElement("button");control.type="button";control.className="shared-lobby-ready-control";control.hidden=true;control.setAttribute("aria-label","准备状态");
-  const statusNode=documentRef.getElementById?.("connectionStatus");if(statusNode?.insertAdjacentElement)statusNode.insertAdjacentElement("afterend",control);else documentRef.body.append(control);
+  mountTablePresenceTool(control,"readiness",{documentRef});
   let model=normalizeLobbyReadiness(),selfId="",role="",sending=false;const registrations=new Set();
   function findAnchor(memberId){if(!memberId)return null;const escaped=globalThis.CSS?.escape?globalThis.CSS.escape(memberId):memberId.replace(/["\\]/g,"\\$&");return documentRef.querySelector?.(`[data-player-anchor="${escaped}"]`)||documentRef.querySelector?.(`[data-player-id="${escaped}"]`)||null;}
   function clearBadges(){for(const badge of documentRef.querySelectorAll?.(".shared-lobby-ready-badge")||[]){const host=badge.parentNode;host?.classList?.remove("shared-lobby-ready-host");host?.classList?.remove("shared-lobby-player-ready");host?.classList?.remove("shared-lobby-player-waiting");badge.remove();}}

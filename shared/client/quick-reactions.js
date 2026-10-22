@@ -1,5 +1,7 @@
 "use strict";
 
+import { mountTablePresenceTool } from "./table-presence-toolbar.js";
+
 export const QUICK_REACTIONS=Object.freeze([
   Object.freeze({id:"agree",emoji:"👍",label:"赞同"}),
   Object.freeze({id:"applaud",emoji:"👏",label:"漂亮"}),
@@ -51,8 +53,7 @@ export function createQuickReactionLayer({
   const button=documentRef.createElement("button");
   button.type="button";button.className="shared-quick-reaction-button";button.textContent="☺";
   button.title="发送快捷反应";button.setAttribute("aria-label","发送快捷反应");button.setAttribute("aria-expanded","false");
-  const statusNode=documentRef.getElementById?.("connectionStatus");
-  if(statusNode?.insertAdjacentElement)statusNode.insertAdjacentElement("afterend",button);else documentRef.body.append(button);
+  mountTablePresenceTool(button,"reaction",{documentRef});
 
   const panel=documentRef.createElement("section");
   panel.className="shared-quick-reaction-panel";panel.hidden=true;panel.setAttribute("aria-label","快捷反应");

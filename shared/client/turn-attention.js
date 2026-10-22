@@ -1,5 +1,7 @@
 "use strict";
 
+import { mountTablePresenceTool } from "./table-presence-toolbar.js";
+
 const STORAGE_KEY="tablegame.turn-attention.v1";
 const PASSIVE_PERMISSIONS=new Set([
   "canConfigure","canEnd","canKick","canManage","canNextGame","canNextMatch","canNextRound",
@@ -87,7 +89,7 @@ export function createTurnAttentionLayer({
   `;documentRef.head?.append(style);
 
   const button=documentRef.createElement("button");button.type="button";button.className="shared-turn-attention-button";button.textContent="🔔";button.title="行动提醒设置";button.setAttribute("aria-label","行动提醒设置");button.setAttribute("aria-expanded","false");button.dataset.active="false";
-  const statusNode=documentRef.getElementById?.("connectionStatus");if(statusNode?.insertAdjacentElement)statusNode.insertAdjacentElement("afterend",button);else documentRef.body.append(button);
+  mountTablePresenceTool(button,"attention",{documentRef});
   const panel=documentRef.createElement("section");panel.className="shared-turn-attention-panel";panel.hidden=true;panel.setAttribute("aria-label","行动提醒设置");
   const heading=documentRef.createElement("strong");heading.textContent="行动提醒";
   const note=documentRef.createElement("small");note.textContent="页面标题与行动高亮始终启用，以下设备提醒可以单独选择。";

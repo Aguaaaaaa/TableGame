@@ -1,5 +1,7 @@
 "use strict";
 
+import { mountTablePresenceTool } from "./table-presence-toolbar.js";
+
 export const PUBLIC_MEMBER_STATUSES=Object.freeze([
   Object.freeze({id:"present",icon:"●",label:"在桌边"}),
   Object.freeze({id:"thinking",icon:"💭",label:"思考中"}),
@@ -36,7 +38,7 @@ export function createPublicMemberStatusLayer({
     @media(max-width:520px){.shared-member-status-badge{padding:3px 5px;font-size:10px}.shared-member-status-badge .status-label{display:none}}
   `;documentRef.head?.append(style);
   const button=documentRef.createElement("button");button.type="button";button.className="shared-member-status-button";button.title="设置公开状态";button.setAttribute("aria-label","设置公开状态");button.setAttribute("aria-expanded","false");button.textContent="●";
-  const statusNode=documentRef.getElementById?.("connectionStatus");if(statusNode?.insertAdjacentElement)statusNode.insertAdjacentElement("afterend",button);else documentRef.body.append(button);
+  mountTablePresenceTool(button,"status",{documentRef});
   const panel=documentRef.createElement("section");panel.className="shared-member-status-panel";panel.hidden=true;panel.setAttribute("aria-label","公开玩家状态");const heading=documentRef.createElement("strong");heading.textContent="我的公开状态";panel.append(heading);
   const choices=new Map();
   for(const status of PUBLIC_MEMBER_STATUSES){const choice=documentRef.createElement("button");choice.type="button";choice.className="shared-member-status-choice";choice.dataset.status=status.id;choice.setAttribute("role","menuitemradio");const icon=documentRef.createElement("span"),label=documentRef.createElement("span");icon.className="status-icon";icon.textContent=status.icon;label.textContent=status.label;choice.append(icon,label);panel.append(choice);choices.set(status.id,choice);}

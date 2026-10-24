@@ -20,11 +20,11 @@ const E = Object.fromEntries([
 ].map((id) => [id, $(id)]));
 
 const ROLE_META = {
-  duke: { label: "公爵", icon: "♜", ability: "征税 +3 · 阻挡外援" },
-  assassin: { label: "刺客", icon: "◆", ability: "支付 3 刺杀" },
-  captain: { label: "船长", icon: "⚓", ability: "偷取最多 2 枚金币" },
-  ambassador: { label: "大使", icon: "✦", ability: "与宫廷交换角色" },
-  contessa: { label: "女伯爵", icon: "♕", ability: "阻挡刺杀" }
+  duke: { label: "公爵", icon: "♜", ability: "征税 +3 · 阻挡外援", art: "assets/roles/duke-v1.png" },
+  assassin: { label: "刺客", icon: "◆", ability: "支付 3 刺杀", art: "assets/roles/assassin-v1.png" },
+  captain: { label: "船长", icon: "⚓", ability: "偷取最多 2 枚金币", art: "assets/roles/captain-v1.png" },
+  ambassador: { label: "大使", icon: "✦", ability: "与宫廷交换角色", art: "assets/roles/ambassador-v1.png" },
+  contessa: { label: "女伯爵", icon: "♕", ability: "阻挡刺杀", art: "assets/roles/contessa-v1.png" }
 };
 const ACTION_META = {
   income: { label: "收入", note: "获得 1 枚金币", target: false },
@@ -134,10 +134,16 @@ async function kickPlayer(playerId) {
 
 function roleCard(card, { own = false, selectable = false, selected = false, dataKind = "", slotIndex = null } = {}) {
   const known = Boolean(card.role); const meta = ROLE_META[card.role];
+  const label = known ? meta.label : card.revealed ? "已失去" : "隐藏身份";
+  const detail = known ? meta.ability : own ? "只有你知道这张牌" : "仍保有影响力";
+  const portrait = known
+    ? `<span class="role-art" aria-hidden="true"><img src="${meta.art}" alt="" loading="lazy" decoding="async" draggable="false"></span>`
+    : `<span class="role-back-mark" aria-hidden="true">♛</span>`;
   return `<button type="button" class="influence-card ${known ? `role-${card.role}` : "hidden-role"} ${card.revealed ? "revealed" : ""} ${selectable ? "selectable" : ""} ${selected ? "selected" : ""}"
+    aria-label="${escapeHtml(label)}${card.revealed ? "，已公开" : ""}"
     ${slotIndex === null ? "" : `data-influence-slot="${slotIndex}"`} ${selectable ? `data-${dataKind}="${escapeHtml(card.id)}"` : "disabled"}>
-    <span class="role-icon">${known ? meta.icon : "?"}</span><b>${known ? meta.label : card.revealed ? "已失去" : "隐藏身份"}</b>
-    <small>${known ? meta.ability : own ? "只有你知道这张牌" : "仍保有影响力"}</small>
+    ${portrait}<span class="role-icon">${known ? meta.icon : "?"}</span>
+    <span class="role-copy"><b>${label}</b><small>${detail}</small></span>
   </button>`;
 }
 

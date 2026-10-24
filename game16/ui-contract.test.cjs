@@ -54,6 +54,25 @@ test("普通权威广播不会清空仍合法的行动与换牌选择", () => {
   assert.doesNotMatch(script, /view = nextView; selectedAction = null; exchangeSelection = new Set/);
 });
 
+test("宫廷入场外壳与角色画像保持主题完整且不泄露隐藏身份", () => {
+  const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+  const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  const styles = fs.readFileSync(path.join(__dirname, "styles.css"), "utf8");
+  assert.match(html, /data-entry-story/);
+  assert.match(html, /data-entry-access/);
+  assert.match(html, /王座属于最后仍握有/);
+  assert.match(styles, /assets\/court-conspiracy-entry-v1\.png/);
+  assert.match(styles, /\.role-art img/);
+  assert.match(styles, /\.hidden-role \.role-icon \{ display: none/);
+  for (const role of ["duke", "assassin", "captain", "ambassador", "contessa"]) {
+    assert.match(script, new RegExp(`assets/roles/${role}-v1\\.png`));
+    assert.ok(fs.existsSync(path.join(__dirname, "assets", "roles", `${role}-v1.png`)), `${role} portrait exists`);
+  }
+  assert.ok(fs.existsSync(path.join(__dirname, "assets", "court-conspiracy-entry-v1.png")), "entry background exists");
+  assert.match(script, /const portrait = known\s*\? `<span class="role-art"/);
+  assert.match(script, /: `<span class="role-back-mark"/);
+});
+
 test("政变权威视图按圆桌、私人身份、响应窗口和倒计时分区更新", () => {
   const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
   const partitions = fs.readFileSync(path.join(__dirname, "render-partitions.mjs"), "utf8");

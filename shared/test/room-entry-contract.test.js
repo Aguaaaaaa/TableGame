@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
 const migrated=["game","game2","game3","game5","game6","game7","game8","game9","game10","game11","game13","game14","game15","game16","game17","game18","game19","game20","game21","game22","game23"];
-const showcase=["game","game2","game7","game17","game21","game22","game23"];
+const showcase=["game","game2","game7","game16","game17","game21","game22","game23"];
 const requiredIds=["setupPanel","hostModeButton","guestModeButton","hostSetup","guestSetup","hostNameInput","guestNameInput","roomCodeInput","createRoomButton","joinRoomButton"];
 
 function read(...parts){return fs.readFileSync(path.join(root,...parts),"utf8");}

@@ -29,25 +29,49 @@
     </div>
   </header>
 
-  <section id="setupPanel" class="setup-wrap" data-room-entry>
-    <div class="mode-tabs" data-entry-modes><button id="hostModeButton" class="active">创建房间</button><button id="guestModeButton">加入房间</button></div>
-    <div id="hostSetup" class="panel setup-card" data-entry-form="host">
-      <div><p class="eyebrow">CREATE A COURT</p><h2>召集秘密议会</h2></div>
-      <label>昵称<input id="hostNameInput" maxlength="12" value="房主"></label>
-      <label>人数<select id="playerCountSelect"><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
-      <button id="createRoomButton" class="primary">创建房间</button>
-    </div>
-    <div id="guestSetup" class="panel setup-card hidden" data-entry-form="guest">
-      <div><p class="eyebrow">JOIN THE COURT</p><h2>进入朋友的议会</h2></div>
-      <label>昵称<input id="guestNameInput" maxlength="12" value="玩家"></label>
-      <label>房间号<input id="roomCodeInput" maxlength="4" placeholder="例如 C0UP"></label>
-      <fieldset id="joinIntentField" class="join-intent hidden">
-        <legend>加入身份</legend>
-        <label><input type="radio" name="joinIntent" value="play" checked><span><b>作为玩家加入</b><small>满员或已开局时自动进入旁观席</small></span></label>
-        <label><input type="radio" name="joinIntent" value="spectate"><span><b>作为旁观者加入</b><small>只能看到公开的宫廷信息</small></span></label>
-      </fieldset>
-      <button id="joinRoomButton" class="primary">加入房间</button>
-    </div>
+  <section id="setupPanel" class="setup-wrap" data-room-entry data-entry-layout="split">
+    <section class="entry-story" data-entry-story aria-labelledby="entryStoryTitle">
+      <div class="entry-story-copy">
+        <p class="entry-kicker">THE THRONE IS UNGUARDED</p>
+        <h2 id="entryStoryTitle">王座属于最后仍握有<br>影响力的人。</h2>
+        <p class="entry-lead">宫门已经落锁。谎言、质疑与交易正在烛影里发生——保住你的两张身份牌，也让对手相信你想让他们相信的一切。</p>
+        <ol class="entry-ritual" aria-label="政变流程概览">
+          <li><span>Ⅰ</span><div><b>隐藏影响</b><small>两张角色牌，就是你在宫廷中仅有的筹码。</small></div></li>
+          <li><span>Ⅱ</span><div><b>宣称身份</b><small>你可以说真话，也可以借任何身份行事。</small></div></li>
+          <li><span>Ⅲ</span><div><b>质疑夺权</b><small>识破谎言，让最后一名对手失去影响力。</small></div></li>
+        </ol>
+      </div>
+      <div class="entry-royal-seal" aria-hidden="true"><span>COUP</span><i>秘密议会</i></div>
+    </section>
+
+    <section class="entry-access panel" data-entry-access aria-label="进入秘密议会">
+      <div class="entry-access-head">
+        <span class="entry-crest" aria-hidden="true">♛</span>
+        <div><p class="eyebrow">ROYAL COUNCIL</p><h2>宫廷通行令</h2><small>以你的称号进入这场权力游戏</small></div>
+      </div>
+      <div class="mode-tabs" data-entry-modes>
+        <button id="hostModeButton" class="active" type="button"><span>召集议会</span><small>创建新房间</small></button>
+        <button id="guestModeButton" type="button"><span>接受密令</span><small>加入已有房间</small></button>
+      </div>
+      <div id="hostSetup" class="setup-card" data-entry-form="host">
+        <div class="setup-heading"><p class="eyebrow">CREATE A COURT</p><h3>召集秘密议会</h3></div>
+        <label><span>你的宫廷称号</span><input id="hostNameInput" maxlength="12" value="房主" autocomplete="nickname"></label>
+        <label><span>议会人数</span><select id="playerCountSelect"><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
+        <button id="createRoomButton" class="primary">盖印并创建房间</button>
+      </div>
+      <div id="guestSetup" class="setup-card hidden" data-entry-form="guest">
+        <div class="setup-heading"><p class="eyebrow">JOIN THE COURT</p><h3>凭密令进入议会</h3></div>
+        <label><span>你的宫廷称号</span><input id="guestNameInput" maxlength="12" value="玩家" autocomplete="nickname"></label>
+        <label><span>四位密令编号</span><input id="roomCodeInput" maxlength="4" placeholder="例如 C0UP" autocomplete="off" inputmode="text"></label>
+        <fieldset id="joinIntentField" class="join-intent hidden">
+          <legend>入席身份</legend>
+          <label><input type="radio" name="joinIntent" value="play" checked><span><b>正式参与议会</b><small>满员或已开局时自动进入旁观席</small></span></label>
+          <label><input type="radio" name="joinIntent" value="spectate"><span><b>在长廊旁观</b><small>只能看到公开的宫廷信息</small></span></label>
+        </fieldset>
+        <button id="joinRoomButton" class="primary">验证密令并入席</button>
+      </div>
+      <p class="entry-footnote"><span aria-hidden="true">◆</span> 所有角色身份均由服务器密封保管</p>
+    </section>
   </section>
 
   <section id="roomPanel" class="room-layout hidden">

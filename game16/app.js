@@ -1,7 +1,7 @@
 "use strict";
 
 import {
-  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown,
+  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown, createRoomEntryController,
   createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus,
   renderCountdown, setHidden, setModeVisibility
 } from "/shared/client/index.js";
@@ -110,6 +110,8 @@ function reconcileLocalSelection() {
   }
   exchangeSelection = new Set([...exchangeSelection].filter((id) => legalIds.has(id)).slice(0,view.exchange.keepCount));
 }
+const roomEntry=createRoomEntryController({room,spectatorUi,elements:{root:E.setupPanel,hostModeButton:E.hostModeButton,guestModeButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools,hostNameInput:E.hostNameInput,guestNameInput:E.guestNameInput,roomCodeInput:E.roomCodeInput,createRoomButton:E.createRoomButton,joinRoomButton:E.joinRoomButton,connectionStatus:E.connectionStatus},buildCreatePayload:()=>({capacity:Number(E.playerCountSelect.value)}),formatError:(kind,error)=>kind==="create"?`创建失败：${error.message}\n请确认已启动 game16 服务。`:`加入失败：${error.message}`});
+
 async function createGameRoom() {
   E.createRoomButton.disabled = true;
   try { await room.createRoom({ name: cleanPlayerName(E.hostNameInput.value, "房主"), capacity: Number(E.playerCountSelect.value) }); }
@@ -440,8 +442,7 @@ function render() {
 
 function selectMode(nextMode) { mode = nextMode; setModeVisibility(mode, { hostButton: E.hostModeButton, guestButton: E.guestModeButton, hostSetup: E.hostSetup, guestSetup: E.guestSetup, hostTools: E.hostTools }); }
 async function init() {
-  bindRoomCodeInput(E.roomCodeInput); E.hostModeButton.onclick = () => selectMode("host"); E.guestModeButton.onclick = () => selectMode("guest");
-  E.createRoomButton.onclick = createGameRoom; E.joinRoomButton.onclick = joinGameRoom; spectatorUi.bind();
+  roomEntry.bind(); spectatorUi.bind();
   E.roomPlayerCountSelect.onchange = () => submit({ type: "setCapacity", capacity: Number(E.roomPlayerCountSelect.value) });
   E.startGameButton.onclick = () => submit({ type: "start" }); E.restartGameButton.onclick = () => submit({ type: "restart" });
   E.endGameButton.onclick = () => { if (confirm("确定结束当前牌局并返回大厅吗？")) submit({ type: "end" }); };

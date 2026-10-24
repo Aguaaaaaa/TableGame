@@ -6,6 +6,7 @@ import {
   createAuthoritativeRoomClient,
   createCountdown,
   createPresentationTimeline,
+  createRoomEntryController,
   createSessionStore,
   createSpectatorUi,
   escapeHtml,
@@ -111,6 +112,8 @@ function enterRoom() {
   E.hero.classList.add("in-room");
   E.roomCodeDisplay.textContent = room.snapshot().roomCode;
 }
+
+const roomEntry=createRoomEntryController({room,spectatorUi,elements:{root:E.setupPanel,hostModeButton:E.hostModeButton,guestModeButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools,hostNameInput:E.hostNameInput,guestNameInput:E.guestNameInput,roomCodeInput:E.roomCodeInput,createRoomButton:E.createRoomButton,joinRoomButton:E.joinRoomButton,connectionStatus:E.connectionStatus},buildCreatePayload:()=>({capacity:Number(E.playerCountSelect.value)}),formatError:(kind,error)=>kind==="create"?`创建失败：${error.message}\n请确认已通过 node game14/signal-server.js 启动服务。`:`加入失败：${error.message}`});
 
 async function createGameRoom() {
   E.createRoomButton.disabled = true;
@@ -455,11 +458,7 @@ function selectMode(nextMode) {
 }
 
 async function init() {
-  bindRoomCodeInput(E.roomCodeInput);
-  E.hostModeButton.addEventListener("click", () => selectMode("host"));
-  E.guestModeButton.addEventListener("click", () => selectMode("guest"));
-  E.createRoomButton.addEventListener("click", createGameRoom);
-  E.joinRoomButton.addEventListener("click", joinGameRoom);
+  roomEntry.bind();
   spectatorUi.bind();
   E.roomPlayerCountSelect.addEventListener("change", () => submit({ type: "setCapacity", capacity: Number(E.roomPlayerCountSelect.value) }));
   E.startGameButton.addEventListener("click", () => submit({ type: "start" }));

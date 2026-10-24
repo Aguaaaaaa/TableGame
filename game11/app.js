@@ -1,7 +1,7 @@
 "use strict";
 
 import {
-  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown,
+  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown, createRoomEntryController,
   createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus, renderCountdown, setHidden,
   setModeVisibility
 } from "/shared/client/index.js";
@@ -50,6 +50,7 @@ spectatorUi = createSpectatorUi({
   confirmAction: (message) => confirm(message),
   onSessionEnded: () => location.reload()
 });
+const roomEntry=createRoomEntryController({room,spectatorUi,elements:{root:E.setupPanel,hostModeButton:E.hostModeButton,guestModeButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools,hostNameInput:E.hostNameInput,guestNameInput:E.guestNameInput,roomCodeInput:E.roomCodeInput,createRoomButton:E.createRoomButton,joinRoomButton:E.joinRoomButton,connectionStatus:E.connectionStatus},hostFallbackName:"情报主管",guestFallbackName:"译码员",buildCreatePayload:()=>({capacity:Number(E.playerCountSelect.value)}),formatError:(kind,error)=>kind==="create"?`创建失败：${error.message}\n请确认已运行 node game11/signal-server.js`:`加入失败：${error.message}`});
 
 const currentView = () => view;
 const sortedTeam = (players, team) => players.filter((player) => player.team === team).sort((a, b) => a.seat - b.seat);
@@ -278,10 +279,7 @@ function saveGuessDraft() {
   submit({type:"guessDraft",code});
 }
 
-E.hostModeButton.onclick = () => { mode="host"; setModeVisibility(mode,{...E,hostButton:E.hostModeButton,guestButton:E.guestModeButton}); };
-E.guestModeButton.onclick = () => { mode="guest"; setModeVisibility(mode,{...E,hostButton:E.hostModeButton,guestButton:E.guestModeButton}); };
-E.createRoomButton.onclick = createGameRoom;
-E.joinRoomButton.onclick = joinGameRoom;
+roomEntry.bind();
 spectatorUi.bind();
 E.startGameButton.onclick = startGame;
 E.endGameButton.onclick = endGameEarly;
@@ -303,7 +301,5 @@ E.submitGuessButton.onclick = () => {
   if (!isValidCode(code)) return alert("三位密码不能包含重复数字。");
   submit({type:"guess",code});
 };
-bindRoomCodeInput(E.roomCodeInput);
 populateCodeSelects();
-setModeVisibility(mode,{...E,hostButton:E.hostModeButton,guestButton:E.guestModeButton});
 room.checkServer().then((config) => spectatorUi.applyConfig(config)).catch(()=>{});

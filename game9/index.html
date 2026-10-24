@@ -6,6 +6,7 @@
   <title>No Thanks! · 联机版</title>
   <link rel="stylesheet" href="/shared/styles/base.css">
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -33,7 +34,7 @@
   </header>
 
   <main>
-    <section id="setupPanel" class="setup-shell">
+    <section id="setupPanel" class="setup-shell" data-room-entry>
       <article class="intro-card">
         <div class="mini-card c17">17</div>
         <div class="mini-card c23">23</div>
@@ -42,12 +43,12 @@
       </article>
 
       <article class="setup-card">
-        <div class="mode-switch" role="tablist" aria-label="进入方式">
+        <div class="mode-switch" data-entry-modes role="tablist" aria-label="进入方式">
           <button id="hostModeButton" class="active" type="button">创建房间</button>
           <button id="guestModeButton" type="button">加入房间</button>
         </div>
 
-        <div id="hostSetup" class="setup-form">
+        <div id="hostSetup" class="setup-form" data-entry-form="host">
           <label>你的名字<input id="hostNameInput" maxlength="12" placeholder="房主"></label>
           <label>游戏人数
             <select id="playerCountSelect">
@@ -58,7 +59,7 @@
           <button id="createRoomButton" class="primary" type="button">创建游戏</button>
         </div>
 
-        <div id="guestSetup" class="setup-form hidden">
+        <div id="guestSetup" class="setup-form hidden" data-entry-form="guest">
           <label>你的名字<input id="guestNameInput" maxlength="12" placeholder="玩家"></label>
           <label>四位房间号<input id="roomCodeInput" maxlength="4" autocomplete="off" placeholder="ABCD"></label>
           <fieldset id="joinIntentField" class="join-intent hidden">

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>我话你猜</title>
     <link rel="stylesheet" href="/shared/styles/spectator.css">
+    <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -32,8 +33,8 @@
         </div>
       </header>
 
-      <section class="setup-panel word-show-arrival" id="setupPanel">
-        <div class="show-briefing">
+      <section class="setup-panel word-show-arrival" id="setupPanel" data-room-entry data-entry-layout="split">
+        <div class="show-briefing" data-entry-story>
           <p class="arrival-kicker">THE GREAT IDIOM SHOW · 默契开场</p>
           <h2>一句提示，<br>让队友猜中同一个答案。</h2>
           <p class="arrival-lead">这里没有单打独斗。和身旁的搭档组成队伍，在有限线索里听懂彼此的默契。</p>
@@ -47,7 +48,7 @@
           <p class="show-note"><span aria-hidden="true">●</span> 2—8 人 · 双人组队 · 语音交流体验更佳</p>
         </div>
 
-        <section class="show-checkin" aria-labelledby="checkinTitle">
+        <section class="show-checkin" data-entry-access aria-labelledby="checkinTitle">
           <header class="checkin-heading">
             <span class="checkin-light" aria-hidden="true"></span>
             <div>
@@ -56,7 +57,7 @@
             </div>
           </header>
 
-          <div class="mode-grid">
+          <div class="mode-grid" data-entry-modes>
             <button class="mode-card active" id="hostModeButton" type="button">
               <span class="mode-mark" aria-hidden="true">+</span>
               <span class="mode-copy"><b>创建比赛</b><small>设定人数，邀请搭档入场</small></span>
@@ -68,7 +69,7 @@
           </div>
 
           <div class="setup-grid">
-            <div class="panel setup-form" id="hostSetup">
+            <div class="panel setup-form" id="hostSetup" data-entry-form="host">
               <div class="form-heading"><span>NEW SHOW</span><h2>登记新赛场</h2></div>
               <label>
                 你的昵称
@@ -86,7 +87,7 @@
               <button class="primary full-width show-submit" id="createRoomButton" type="button"><b>点亮演播厅</b><small>创建房间并等待搭档</small></button>
             </div>
 
-            <div class="panel setup-form hidden" id="guestSetup">
+            <div class="panel setup-form hidden" id="guestSetup" data-entry-form="guest">
               <div class="form-heading"><span>JOIN A TEAM</span><h2>加入正在进行的比赛</h2></div>
               <label>
                 你的昵称

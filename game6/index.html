@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>牛头王联机版</title>
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -37,8 +38,8 @@
       </div>
     </header>
 
-    <section id="setupPanel">
-      <div class="mode-grid">
+    <section id="setupPanel" data-room-entry>
+      <div class="mode-grid" data-entry-modes>
         <button class="mode active" id="hostModeButton" type="button">
           <b>创建房间</b><span>担任房主与规则裁判</span>
         </button>
@@ -47,7 +48,7 @@
         </button>
       </div>
 
-      <div class="panel setup-card" id="hostSetup">
+      <div class="panel setup-card" id="hostSetup" data-entry-form="host">
         <div><p class="eyebrow">HOST A GAME</p><h2>建立牛头王牌桌</h2></div>
         <label>昵称<input id="hostNameInput" maxlength="12" autocomplete="off" value="房主"></label>
         <label>玩家人数
@@ -62,7 +63,7 @@
         <button class="primary" id="createRoomButton" type="button">创建房间</button>
       </div>
 
-      <div class="panel setup-card hidden" id="guestSetup">
+      <div class="panel setup-card hidden" id="guestSetup" data-entry-form="guest">
         <div><p class="eyebrow">JOIN A GAME</p><h2>加入好友房间</h2></div>
         <label>昵称<input id="guestNameInput" maxlength="12" autocomplete="off" value="玩家"></label>
         <label>房间号<input id="roomCodeInput" maxlength="4" autocomplete="off" placeholder="例如 A7K2"></label>

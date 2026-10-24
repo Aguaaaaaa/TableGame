@@ -6,6 +6,7 @@
   <title>拉密 · 服务器权威联机版</title>
   <link rel="stylesheet" href="/shared/styles/base.css">
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -29,15 +30,15 @@
     </div>
   </header>
 
-  <section id="setupPanel" class="setup-wrap">
-    <div class="mode-tabs"><button id="hostModeButton" class="active">创建房间</button><button id="guestModeButton">加入房间</button></div>
-    <div id="hostSetup" class="panel setup-card">
+  <section id="setupPanel" class="setup-wrap" data-room-entry>
+    <div class="mode-tabs" data-entry-modes><button id="hostModeButton" class="active">创建房间</button><button id="guestModeButton">加入房间</button></div>
+    <div id="hostSetup" class="panel setup-card" data-entry-form="host">
       <div><p class="eyebrow">CREATE A TABLE</p><h2>建立拉密比赛</h2></div>
       <label>昵称<input id="hostNameInput" maxlength="12" value="房主"></label>
       <label>人数<select id="playerCountSelect"><option>2</option><option>3</option><option selected>4</option></select></label>
       <button id="createRoomButton" class="primary">创建房间</button>
     </div>
-    <div id="guestSetup" class="panel setup-card hidden">
+    <div id="guestSetup" class="panel setup-card hidden" data-entry-form="guest">
       <div><p class="eyebrow">JOIN A TABLE</p><h2>加入朋友的牌桌</h2></div>
       <label>昵称<input id="guestNameInput" maxlength="12" value="玩家"></label>
       <label>房间号<input id="roomCodeInput" maxlength="4" placeholder="例如 R8K2"></label>

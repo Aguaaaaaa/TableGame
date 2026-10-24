@@ -6,6 +6,7 @@
   <title>CABO 联机版</title>
   <link rel="stylesheet" href="/shared/styles/base.css">
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,7 +28,7 @@
     </div>
   </header>
 
-  <section id="setupPanel" class="setup-wrap cabo-arrival">
+  <section id="setupPanel" class="setup-wrap cabo-arrival" data-room-entry>
     <section class="cabo-briefing">
       <p class="arrival-kicker">INTO THE MOONLIT WOODS · 月下寻踪</p>
       <h2>记住雾里闪过的数字，在精怪发现你之前找到 CABO。</h2>
@@ -48,19 +49,19 @@
         <small>点亮一张新的月下牌桌，或凭四位路标进入好友的寻踪故事。</small>
       </header>
 
-      <div class="mode-tabs" aria-label="选择进入CABO牌局的方式">
+      <div class="mode-tabs" data-entry-modes aria-label="选择进入CABO牌局的方式">
         <button id="hostModeButton" class="active"><b>创建房间</b><small>点亮新的林间牌桌</small></button>
         <button id="guestModeButton"><b>加入房间</b><small>沿路标寻找好友</small></button>
       </div>
 
       <div class="lodge-form-shell">
-        <div id="hostSetup" class="panel setup-card fae-form">
+        <div id="hostSetup" class="panel setup-card fae-form" data-entry-form="host">
           <div class="form-heading"><span>MOON PATH / NEW</span><b>登记新的寻梦队伍</b></div>
           <div class="fae-fields"><label><span>旅人昵称</span><input id="hostNameInput" maxlength="12" value="房主"></label><label><span>同行人数</span><select id="playerCountSelect"><option>2</option><option>3</option><option selected>4</option></select></label></div>
           <button id="createRoomButton" class="primary fae-submit"><b>开启月下牌局</b><small>生成四位林间路标</small></button>
         </div>
 
-        <div id="guestSetup" class="panel setup-card fae-form hidden">
+        <div id="guestSetup" class="panel setup-card fae-form hidden" data-entry-form="guest">
           <div class="form-heading"><span>MOON PATH / FOLLOW</span><b>核对林间路标</b></div>
           <div class="fae-fields"><label><span>旅人昵称</span><input id="guestNameInput" maxlength="12" value="玩家"></label><label><span>四位房间号</span><input id="roomCodeInput" maxlength="4" placeholder="例如 A7K2" inputmode="text"></label></div>
           <fieldset id="joinIntentField" class="join-intent hidden">

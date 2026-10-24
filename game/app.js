@@ -1,16 +1,14 @@
 "use strict";
 
 import {
-  bindRoomCodeInput,
-  cleanPlayerName,
   createAuthoritativeRoomClient,
   createPresentationTimeline,
+  createRoomEntryController,
   createSessionStore,
   createSpectatorUi,
   escapeHtml,
   renderConnectionStatus,
-  setHidden,
-  setModeVisibility
+  setHidden
 } from "/shared/client/index.js";
 import { TOPICS, normalizeWord } from "./rules.mjs";
 import { createGame1PartitionRenderer, createGame1RenderModel } from "./render-partitions.mjs";
@@ -29,7 +27,6 @@ const elements = Object.fromEntries([
   "presentationLabel", "presentationText"
 ].map((id) => [id, $(id)]));
 
-let mode = "host";
 let view = null;
 let logPlayerFilter = "all";
 let configuringRoom = false;
@@ -77,6 +74,14 @@ spectatorUi = createSpectatorUi({
   },
   notify:(message) => alert(message),confirmAction:(message) => confirm(message),onSessionEnded:() => location.reload()
 });
+const roomEntry = createRoomEntryController({
+  room,spectatorUi,
+  elements:{root:elements.setupPanel,hostModeButton:elements.hostModeButton,guestModeButton:elements.guestModeButton,hostSetup:elements.hostSetup,guestSetup:elements.guestSetup,hostTools:elements.hostTools,hostNameInput:elements.hostNameInput,guestNameInput:elements.guestNameInput,roomCodeInput:elements.roomCodeInput,createRoomButton:elements.createRoomButton,joinRoomButton:elements.joinRoomButton,connectionStatus:elements.connectionStatus},
+  buildCreatePayload(){configuringRoom=true;return{capacity:ROOM_CAPACITY};},
+  async onCreateSuccess(){try{await configureCreatedRoom({type:"configure",gameMode:elements.gameModeSelect.value,topic:elements.topicSelect.value,wordExtraMode:elements.wordExtraModeSelect.value,playerWordMode:elements.playerWordModeSelect.value});}finally{configuringRoom=false;if(view)render();}},
+  onError(){configuringRoom=false;if(view)render();},
+  formatError:(kind,error)=>kind==="create"?`创建房间失败：${error.message}\n请确认已通过 node game/signal-server.js 启动。`:`加入房间失败：${error.message}`
+});
 
 function waitForNewerView(previousVersion, timeoutMs = 2_000) {
   if (room.snapshot().version > previousVersion) return Promise.resolve();
@@ -119,57 +124,6 @@ function enterRoom() {
   elements.siteHeader.classList.add("in-room");
   setHidden(elements.hostTools, !view?.permissions?.canManage);
   elements.roomCodeDisplay.textContent = room.snapshot().roomCode;
-}
-
-function selectMode(nextMode) {
-  mode = nextMode;
-  setModeVisibility(mode, {
-    hostSetup: elements.hostSetup,
-    guestSetup: elements.guestSetup,
-    hostTools: elements.hostTools,
-    hostButton: elements.hostModeButton,
-    guestButton: elements.guestModeButton
-  });
-}
-
-async function createGameRoom() {
-  elements.createRoomButton.disabled = true;
-  configuringRoom = true;
-  try {
-    await room.createRoom({
-      name: cleanPlayerName(elements.hostNameInput.value, "房主"),
-      capacity: ROOM_CAPACITY
-    });
-    await configureCreatedRoom({
-      type: "configure",
-      gameMode: elements.gameModeSelect.value,
-      topic: elements.topicSelect.value,
-      wordExtraMode: elements.wordExtraModeSelect.value,
-      playerWordMode: elements.playerWordModeSelect.value
-    });
-  } catch (error) {
-    alert(`创建房间失败：${error.message}\n请确认已通过 node game/signal-server.js 启动。`);
-  } finally {
-    configuringRoom = false;
-    if (view) render();
-    elements.createRoomButton.disabled = false;
-  }
-}
-
-async function joinGameRoom() {
-  elements.joinRoomButton.disabled = true;
-  try {
-    const result = await room.joinRoom({
-      code: elements.roomCodeInput.value,
-      name: cleanPlayerName(elements.guestNameInput.value, "玩家"),
-      intent:spectatorUi.getJoinIntent()
-    });
-    elements.connectionStatus.textContent = spectatorUi.handleJoinResult(result).statusText;
-  } catch (error) {
-    alert(`加入房间失败：${error.message}`);
-  } finally {
-    elements.joinRoomButton.disabled = false;
-  }
 }
 
 function submitAction(action) {
@@ -629,7 +583,7 @@ function playPresentationObject(event) {
 }
 
 async function init() {
-  bindRoomCodeInput(elements.roomCodeInput);
+  roomEntry.bind();
   spectatorUi.bind();
   for (const topic of Object.keys(TOPICS)) {
     const option = document.createElement("option");
@@ -637,10 +591,6 @@ async function init() {
     option.textContent = topic;
     elements.topicSelect.appendChild(option);
   }
-  elements.hostModeButton.addEventListener("click", () => selectMode("host"));
-  elements.guestModeButton.addEventListener("click", () => selectMode("guest"));
-  elements.createRoomButton.addEventListener("click", createGameRoom);
-  elements.joinRoomButton.addEventListener("click", joinGameRoom);
   elements.startGameButton.addEventListener("click", startGame);
   elements.endGameButton.addEventListener("click", endCurrentGame);
   elements.gameModeSelect.addEventListener("change", syncPlayerWordSettings);

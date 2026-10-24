@@ -7,6 +7,7 @@ export * from "./presentation-events.js";
 export * from "./player-admin-menu.js";
 export * from "./quick-reactions.js";
 export * from "./room-client.js";
+export * from "./room-entry-controller.js";
 export * from "./server-clock.js";
 export * from "./session-store.js";
 export * from "./sse-channel.js";

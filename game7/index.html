@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>马尼拉 · 港口大亨</title>
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,8 +15,8 @@
   </header>
 
   <main>
-    <section id="setupPanel" class="setup harbor-gate">
-      <div class="arrival-copy">
+    <section id="setupPanel" class="setup harbor-gate" data-room-entry data-entry-layout="split">
+      <div class="arrival-copy" data-entry-story>
         <p class="eyebrow">MANILA BAY · 1821</p>
         <h2>驶入财富交汇的海湾</h2>
         <p class="arrival-lead">海风把商船送进马尼拉。竞得港务长、安排三艘货船，在风险与收益之间写下你的航运传奇。</p>
@@ -25,22 +26,22 @@
         <div class="arrival-seal"><strong>4–5</strong><span>位商人</span><em></em><strong>3</strong><span>艘货船</span></div>
       </div>
 
-      <div class="harbor-office">
+      <div class="harbor-office" data-entry-access>
         <div class="office-heading">
           <span class="office-mark" aria-hidden="true">⚓</span>
           <div><p class="eyebrow">HARBOR OFFICE</p><h2>港务处登记</h2><small>选择你的入港方式</small></div>
         </div>
-        <div class="mode-grid">
+        <div class="mode-grid" data-entry-modes>
           <button id="hostModeButton" class="mode active" type="button"><span class="mode-icon">✦</span><span><b>签发新航证</b><small>创建房间并主持本次航运</small></span></button>
           <button id="guestModeButton" class="mode" type="button"><span class="mode-icon">⌁</span><span><b>凭航证入港</b><small>输入好友的四位房间码</small></span></button>
         </div>
-        <div class="setup-card" id="hostSetup">
+        <div class="setup-card" id="hostSetup" data-entry-form="host">
           <div class="form-heading"><span>NEW VOYAGE</span><h3>建立航运商会</h3></div>
           <label>商人署名<input id="hostNameInput" maxlength="12" value="港务商人" autocomplete="nickname"></label>
           <label>商会席位<select id="playerCountSelect"><option value="4">4 位商人</option><option value="5">5 位商人</option></select></label>
           <button id="createRoomButton" class="primary embark-button" type="button"><span>创建房间</span><small>领取新的航运代码</small></button>
         </div>
-        <div class="setup-card hidden" id="guestSetup">
+        <div class="setup-card hidden" id="guestSetup" data-entry-form="guest">
           <div class="form-heading"><span>ARRIVAL PERMIT</span><h3>加入航运商会</h3></div>
           <label>商人署名<input id="guestNameInput" maxlength="12" value="远洋商人" autocomplete="nickname"></label>
           <label>航运代码<input id="roomCodeInput" maxlength="4" placeholder="A7K2" inputmode="text" autocomplete="off"></label>

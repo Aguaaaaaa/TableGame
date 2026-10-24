@@ -1,15 +1,13 @@
 "use strict";
 
 import {
-  bindRoomCodeInput,
-  cleanPlayerName,
   createAuthoritativeRoomClient,
+  createRoomEntryController,
   createSessionStore,
   createSpectatorUi,
   escapeHtml,
   renderConnectionStatus,
-  setHidden,
-  setModeVisibility
+  setHidden
 } from "/shared/client/index.js";
 import { createGame2PartitionRenderer, createGame2RenderModel } from "./render-partitions.mjs";
 
@@ -27,7 +25,6 @@ const elements = Object.fromEntries([
   "wordBadge","scoreBoard","seatBoard","idiomValue","turnTitle","teamBadge","actionArea","logList"
 ].map((id) => [id,$(id)]));
 
-let mode = "host";
 let view = null;
 let spectatorUi = null;
 let actionDraft = null;
@@ -67,6 +64,7 @@ spectatorUi = createSpectatorUi({
   confirmAction:(message) => confirm(message),
   onSessionEnded:() => location.reload()
 });
+const roomEntry = createRoomEntryController({room,spectatorUi,elements:{root:elements.setupPanel,hostModeButton:elements.hostModeButton,guestModeButton:elements.guestModeButton,hostSetup:elements.hostSetup,guestSetup:elements.guestSetup,hostTools:elements.hostTools,hostNameInput:elements.hostNameInput,guestNameInput:elements.guestNameInput,roomCodeInput:elements.roomCodeInput,createRoomButton:elements.createRoomButton,joinRoomButton:elements.joinRoomButton,connectionStatus:elements.connectionStatus},buildCreatePayload:()=>({capacity:Number(elements.playerCountSelect.value)}),formatError:(kind,error)=>kind==="create"?`创建房间失败：${error.message}\n请确认已通过 node game2/signal-server.js 启动。`:`加入房间失败：${error.message}`});
 
 function enterRoom() {
   setHidden(elements.setupPanel,true);
@@ -75,47 +73,6 @@ function enterRoom() {
   elements.siteHeader.classList.add("in-room");
   setHidden(elements.hostTools,!view?.permissions?.canManage);
   elements.roomCodeDisplay.textContent = room.snapshot().roomCode;
-}
-
-function selectMode(nextMode) {
-  mode = nextMode;
-  setModeVisibility(mode,{
-    hostSetup:elements.hostSetup,
-    guestSetup:elements.guestSetup,
-    hostTools:elements.hostTools,
-    hostButton:elements.hostModeButton,
-    guestButton:elements.guestModeButton
-  });
-}
-
-async function createGameRoom() {
-  elements.createRoomButton.disabled = true;
-  try {
-    await room.createRoom({
-      name:cleanPlayerName(elements.hostNameInput.value,"房主"),
-      capacity:Number(elements.playerCountSelect.value)
-    });
-  } catch (error) {
-    alert(`创建房间失败：${error.message}\n请确认已通过 node game2/signal-server.js 启动。`);
-  } finally {
-    elements.createRoomButton.disabled = false;
-  }
-}
-
-async function joinGameRoom() {
-  elements.joinRoomButton.disabled = true;
-  try {
-    const result = await room.joinRoom({
-      code:elements.roomCodeInput.value,
-      name:cleanPlayerName(elements.guestNameInput.value,"玩家"),
-      intent:spectatorUi.getJoinIntent()
-    });
-    elements.connectionStatus.textContent = spectatorUi.handleJoinResult(result).statusText;
-  } catch (error) {
-    alert(`加入房间失败：${error.message}`);
-  } finally {
-    elements.joinRoomButton.disabled = false;
-  }
 }
 
 function submit(action) {
@@ -340,11 +297,7 @@ function render() {
 }
 
 async function init() {
-  bindRoomCodeInput(elements.roomCodeInput);
-  elements.hostModeButton.addEventListener("click",() => selectMode("host"));
-  elements.guestModeButton.addEventListener("click",() => selectMode("guest"));
-  elements.createRoomButton.addEventListener("click",createGameRoom);
-  elements.joinRoomButton.addEventListener("click",joinGameRoom);
+  roomEntry.bind();
   spectatorUi.bind();
   elements.roomPlayerCountSelect.addEventListener("change",changeCapacity);
   elements.startGameButton.addEventListener("click",startGame);

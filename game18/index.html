@@ -6,6 +6,7 @@
   <title>犯人在跳舞 · 服务器权威联机版</title>
   <link rel="stylesheet" href="/shared/styles/base.css">
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -29,16 +30,16 @@
     </div>
   </header>
 
-  <section id="setupPanel" class="setup-wrap">
-    <div class="mode-tabs"><button id="hostModeButton" class="active">创建案件</button><button id="guestModeButton">加入案件</button></div>
-    <div id="hostSetup" class="panel setup-card">
+  <section id="setupPanel" class="setup-wrap" data-room-entry>
+    <div class="mode-tabs" data-entry-modes><button id="hostModeButton" class="active">创建案件</button><button id="guestModeButton">加入案件</button></div>
+    <div id="hostSetup" class="panel setup-card" data-entry-form="host">
       <div><p class="eyebrow">OPEN A CASE</p><h2>召集调查小队</h2></div>
       <label>昵称<input id="hostNameInput" maxlength="12" value="房主"></label>
       <label>玩家人数<select id="playerCountSelect"><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
       <label>比赛目标<select id="targetScoreSelect"><option value="5" selected>先到5分</option><option value="10">先到10分</option></select></label>
       <button id="createRoomButton" class="primary">创建房间</button>
     </div>
-    <div id="guestSetup" class="panel setup-card hidden">
+    <div id="guestSetup" class="panel setup-card hidden" data-entry-form="guest">
       <div><p class="eyebrow">JOIN THE CASE</p><h2>进入朋友的案件</h2></div>
       <label>昵称<input id="guestNameInput" maxlength="12" value="玩家"></label>
       <label>房间号<input id="roomCodeInput" maxlength="4" placeholder="例如 D4NC"></label>

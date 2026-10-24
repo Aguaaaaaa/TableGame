@@ -1,7 +1,7 @@
 "use strict";
 
 import {
-  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown,
+  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown, createRoomEntryController,
   createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus,
   renderCountdown, serverNow, setHidden, setModeVisibility
 } from "/shared/client/index.js";
@@ -52,6 +52,8 @@ function currentView() { return view; }
 function isHost() { return room.snapshot().role === "host"; }
 function renderEntryMode() { setModeVisibility(mode, { ...E, hostButton: E.hostModeButton, guestButton: E.guestModeButton }); }
 function enterRoom() { setHidden(E.setupPanel, true); setHidden(E.roomPanel, false); setHidden(E.roomHeaderTools, false); E.siteHeader.classList.add("in-room"); setHidden(E.hostTools, !isHost()); E.roomCodeDisplay.textContent = room.snapshot().roomCode; }
+
+const roomEntry=createRoomEntryController({room,spectatorUi,elements:{root:E.setupPanel,hostModeButton:E.hostModeButton,guestModeButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools,hostNameInput:E.hostNameInput,guestNameInput:E.guestNameInput,roomCodeInput:E.roomCodeInput,createRoomButton:E.createRoomButton,joinRoomButton:E.joinRoomButton,connectionStatus:E.connectionStatus},buildCreatePayload:()=>({capacity:Number(E.playerCountSelect.value)}),formatError:(kind,error)=>kind==="create"?`创建房间失败：${error.message}\n请确认已通过 node game10/signal-server.js 启动。`:`加入房间失败：${error.message}`});
 
 async function createGameRoom() {
   const name = cleanPlayerName(E.hostNameInput.value, "房主");
@@ -350,11 +352,10 @@ presentation = createPresentationTimeline({
 });
 
 async function init() {
-  bindRoomCodeInput(E.roomCodeInput); E.hostModeButton.onclick = () => { mode = "host"; renderEntryMode(); }; E.guestModeButton.onclick = () => { mode = "guest"; renderEntryMode(); };
+  roomEntry.bind();
   spectatorUi.bind();
-  E.createRoomButton.onclick = createGameRoom; E.joinRoomButton.onclick = joinGameRoom; E.roomPlayerCountSelect.onchange = changeCapacity; E.startGameButton.onclick = startGame; E.endGameButton.onclick = endGameEarly; E.playAgainButton.onclick = playAgain;
+  E.roomPlayerCountSelect.onchange = changeCapacity; E.startGameButton.onclick = startGame; E.endGameButton.onclick = endGameEarly; E.playAgainButton.onclick = playAgain;
   E.toggleLogButton.onclick = () => { E.logList.classList.toggle("collapsed"); E.toggleLogButton.textContent = E.logList.classList.contains("collapsed") ? "展开" : "收起"; };
-  renderEntryMode();
   try { spectatorUi.applyConfig(await room.checkServer()); } catch { E.connectionStatus.title = "请运行 node game10/signal-server.js"; }
 }
 init();

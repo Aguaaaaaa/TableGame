@@ -1,7 +1,7 @@
 "use strict";
 
 import {
-  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown,
+  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown, createRoomEntryController,
   createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus,
   renderCountdown, setHidden, setModeVisibility
 } from "/shared/client/index.js";
@@ -153,7 +153,8 @@ presentation=createPresentationTimeline({
   urgentPriority:4,
   retainPriority:3
 });
+const roomEntry=createRoomEntryController({room,spectatorUi,elements:{root:E.setupPanel,hostModeButton:E.hostModeButton,guestModeButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools,hostNameInput:E.hostNameInput,guestNameInput:E.guestNameInput,roomCodeInput:E.roomCodeInput,createRoomButton:E.createRoomButton,joinRoomButton:E.joinRoomButton,connectionStatus:E.connectionStatus},buildCreatePayload:()=>({capacity:Number(E.playerCountSelect.value)}),formatError:(kind,error)=>kind==="create"?`创建失败：${error.message}\n请确认已启动 game19 服务。`:`加入失败：${error.message}`});
 async function createRoom(){E.createRoomButton.disabled=true;try{await room.createRoom({name:cleanPlayerName(E.hostNameInput.value,"房主"),capacity:Number(E.playerCountSelect.value)});}catch(error){alert(`创建失败：${error.message}\n请确认已启动 game19 服务。`);}finally{E.createRoomButton.disabled=false;}}
 async function joinRoom(){E.joinRoomButton.disabled=true;try{const result=await room.joinRoom({code:E.roomCodeInput.value,name:cleanPlayerName(E.guestNameInput.value,"玩家"),intent:spectatorUi.getJoinIntent()});E.connectionStatus.textContent=spectatorUi.handleJoinResult(result).statusText;}catch(error){alert(`加入失败：${error.message}`);}finally{E.joinRoomButton.disabled=false;}}
-function init(){bindRoomCodeInput(E.roomCodeInput);E.hostModeButton.onclick=()=>setModeVisibility("host",{hostButton:E.hostModeButton,guestButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools});E.guestModeButton.onclick=()=>setModeVisibility("guest",{hostButton:E.hostModeButton,guestButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools});E.createRoomButton.onclick=createRoom;E.joinRoomButton.onclick=joinRoom;spectatorUi.bind();E.roomPlayerCountSelect.onchange=()=>submit({type:"setCapacity",capacity:Number(E.roomPlayerCountSelect.value)});E.startGameButton.onclick=()=>submit({type:"start"});E.restartGameButton.onclick=()=>submit({type:"restart"});E.endGameButton.onclick=()=>confirm("确定结束牌局吗？")&&submit({type:"end"});E.toggleLogButton.onclick=()=>{const hidden=E.logList.classList.toggle("collapsed");E.toggleLogButton.textContent=hidden?"展开":"收起";};room.checkServer().then((config)=>spectatorUi.applyConfig(config)).catch(()=>{});}
+function init(){roomEntry.bind();spectatorUi.bind();E.roomPlayerCountSelect.onchange=()=>submit({type:"setCapacity",capacity:Number(E.roomPlayerCountSelect.value)});E.startGameButton.onclick=()=>submit({type:"start"});E.restartGameButton.onclick=()=>submit({type:"restart"});E.endGameButton.onclick=()=>confirm("确定结束牌局吗？")&&submit({type:"end"});E.toggleLogButton.onclick=()=>{const hidden=E.logList.classList.toggle("collapsed");E.toggleLogButton.textContent=hidden?"展开":"收起";};room.checkServer().then((config)=>spectatorUi.applyConfig(config)).catch(()=>{});}
 init();

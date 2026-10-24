@@ -6,6 +6,7 @@
   <title>只言片语 · 梦境画廊</title>
   <link rel="stylesheet" href="/shared/styles/base.css">
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-theme="dream-gallery"><main class="shell">
@@ -14,11 +15,11 @@
     <div class="hero-meta"><div id="connectionStatus" class="connection-status">准备连接</div><section id="roomHeaderTools" class="room-tools hidden"><span>画廊印记 <b id="roomCodeDisplay">----</b></span><div id="hostTools" class="host-tools hidden"><label>旅人数<select id="roomPlayerCountSelect"></select></label><button id="spectatorSettingButton" class="small hidden" type="button">旁观：开放</button><button id="startGameButton" class="primary" type="button">开启画廊</button><button id="nextMatchButton" class="primary hidden" type="button">再入一梦</button><button id="endGameButton" class="danger hidden" type="button">结束并返回大厅</button></div><button id="seatActionButton" class="small hidden" type="button"></button></section></div>
   </header>
 
-  <section id="setupPanel" class="arrival">
-    <div class="arrival-copy"><p class="arrival-kicker">AN INVITATION TO IMAGINE</p><h2>不要把答案说得太清楚。<br>也不要让它无人抵达。</h2><p>选一幅只属于你的梦，留下一句若即若离的话。其他旅人会带来相似的画面，直到真正的入口被重新找到。</p><ol><li><span>Ⅰ</span><b>选择梦境</b><small>从六幅私人画面中挑选一扇门</small></li><li><span>Ⅱ</span><b>留下一句话</b><small>让一些人理解，但不要让所有人猜中</small></li><li><span>Ⅲ</span><b>辨认与误导</b><small>秘密投票，兔子足迹记录共同的联想</small></li></ol></div>
-    <div class="arrival-access"><header><span class="moon-mark" aria-hidden="true">◌</span><p>DREAM REGISTRY · 梦境登记处</p><h2>进入漂浮画廊</h2><small>创建一段新的旅程，或凭四位画廊印记与朋友会合。</small></header><div class="mode-tabs"><button id="hostModeButton" class="active" type="button"><b>创建画廊</b><small>成为第一位引路人</small></button><button id="guestModeButton" type="button"><b>加入画廊</b><small>循着朋友留下的印记</small></button></div>
-      <section id="hostSetup" class="setup-card"><label><span>旅人称呼</span><input id="hostNameInput" maxlength="12" value="房主"></label><label><span>同行人数</span><select id="playerCountSelect"></select></label><button id="createRoomButton" class="primary arrival-submit" type="button">推开第一扇画门</button></section>
-      <section id="guestSetup" class="setup-card hidden"><label><span>旅人称呼</span><input id="guestNameInput" maxlength="12" value="玩家"></label><label><span>四位画廊印记</span><input id="roomCodeInput" maxlength="4" placeholder="例如 MUSE"></label><fieldset id="joinIntentField" class="join-intent hidden"><legend>进入方式</legend><label><input type="radio" name="joinIntent" value="play" checked><span><b>加入旅人席</b><small>满员或开局后自动旁观</small></span></label><label><input type="radio" name="joinIntent" value="spectate"><span><b>安静旁观</b><small>不会看见任何私人画面</small></span></label></fieldset><button id="joinRoomButton" class="primary arrival-submit" type="button">循着印记进入</button></section>
+  <section id="setupPanel" class="arrival" data-room-entry data-entry-layout="split">
+    <div class="arrival-copy" data-entry-story><p class="arrival-kicker">AN INVITATION TO IMAGINE</p><h2>不要把答案说得太清楚。<br>也不要让它无人抵达。</h2><p>选一幅只属于你的梦，留下一句若即若离的话。其他旅人会带来相似的画面，直到真正的入口被重新找到。</p><ol><li><span>Ⅰ</span><b>选择梦境</b><small>从六幅私人画面中挑选一扇门</small></li><li><span>Ⅱ</span><b>留下一句话</b><small>让一些人理解，但不要让所有人猜中</small></li><li><span>Ⅲ</span><b>辨认与误导</b><small>秘密投票，兔子足迹记录共同的联想</small></li></ol></div>
+    <div class="arrival-access" data-entry-access><header><span class="moon-mark" aria-hidden="true">◌</span><p>DREAM REGISTRY · 梦境登记处</p><h2>进入漂浮画廊</h2><small>创建一段新的旅程，或凭四位画廊印记与朋友会合。</small></header><div class="mode-tabs" data-entry-modes><button id="hostModeButton" class="active" type="button"><b>创建画廊</b><small>成为第一位引路人</small></button><button id="guestModeButton" type="button"><b>加入画廊</b><small>循着朋友留下的印记</small></button></div>
+      <section id="hostSetup" class="setup-card" data-entry-form="host"><label><span>旅人称呼</span><input id="hostNameInput" maxlength="12" value="房主"></label><label><span>同行人数</span><select id="playerCountSelect"></select></label><button id="createRoomButton" class="primary arrival-submit" type="button">推开第一扇画门</button></section>
+      <section id="guestSetup" class="setup-card hidden" data-entry-form="guest"><label><span>旅人称呼</span><input id="guestNameInput" maxlength="12" value="玩家"></label><label><span>四位画廊印记</span><input id="roomCodeInput" maxlength="4" placeholder="例如 MUSE"></label><fieldset id="joinIntentField" class="join-intent hidden"><legend>进入方式</legend><label><input type="radio" name="joinIntent" value="play" checked><span><b>加入旅人席</b><small>满员或开局后自动旁观</small></span></label><label><input type="radio" name="joinIntent" value="spectate"><span><b>安静旁观</b><small>不会看见任何私人画面</small></span></label></fieldset><button id="joinRoomButton" class="primary arrival-submit" type="button">循着印记进入</button></section>
       <p class="privacy-note">每个人的手牌、未公开选择与投票都由服务器分别保密</p>
     </div>
   </section>

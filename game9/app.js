@@ -7,6 +7,7 @@ import {
   createCountdown,
   createLogEntry,
   createPresentationTimeline,
+  createRoomEntryController,
   createSessionStore,
   createSpectatorUi,
   escapeHtml,
@@ -89,6 +90,8 @@ function enterRoom() {
   setHidden(E.hostTools, !view?.permissions?.canManage);
   E.roomCodeDisplay.textContent = room.snapshot().roomCode;
 }
+
+const roomEntry=createRoomEntryController({room,spectatorUi,elements:{root:E.setupPanel,hostModeButton:E.hostModeButton,guestModeButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools,hostNameInput:E.hostNameInput,guestNameInput:E.guestNameInput,roomCodeInput:E.roomCodeInput,createRoomButton:E.createRoomButton,joinRoomButton:E.joinRoomButton,connectionStatus:E.connectionStatus},buildCreatePayload:()=>({capacity:Number(E.playerCountSelect.value)}),formatError:(kind,error)=>kind==="create"?`创建房间失败：${error.message}\n请确认已通过 node game9/signal-server.js 启动。`:`加入房间失败：${error.message}`});
 
 async function createGameRoom() {
   const name = cleanPlayerName(E.hostNameInput.value, "房主");
@@ -461,17 +464,7 @@ presentation = createPresentationTimeline({
 });
 
 async function init() {
-  bindRoomCodeInput(E.roomCodeInput);
-  E.hostModeButton.onclick = () => {
-    mode = "host";
-    setModeVisibility(mode, E);
-  };
-  E.guestModeButton.onclick = () => {
-    mode = "guest";
-    setModeVisibility(mode, E);
-  };
-  E.createRoomButton.onclick = createGameRoom;
-  E.joinRoomButton.onclick = joinGameRoom;
+  roomEntry.bind();
   spectatorUi.bind();
   E.playerList.onclick = (event) => {
     const button = event.target.closest?.("[data-kick-player]");

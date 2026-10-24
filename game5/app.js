@@ -1,7 +1,7 @@
 "use strict";
 
 import {
-  bindRoomCodeInput,cleanPlayerName,createAuthoritativeRoomClient,createCountdown,
+  bindRoomCodeInput,cleanPlayerName,createAuthoritativeRoomClient,createCountdown,createRoomEntryController,
   createPresentationTimeline,createSessionStore,createSpectatorUi,escapeHtml,renderConnectionStatus,renderCountdown,setHidden,setModeVisibility
 } from "/shared/client/index.js";
 import {ACTION_SECONDS,COLOR_NAMES} from "./rules.mjs";
@@ -42,6 +42,7 @@ spectatorUi=createSpectatorUi({
   elements:{joinIntentField:E.joinIntentField,seatActionButton:E.seatActionButton,spectatorSettingButton:E.spectatorSettingButton,spectatorPanel:E.spectatorPanel,spectatorCountBadge:E.spectatorCountBadge,spectatorList:E.spectatorList},
   notify:(message)=>alert(message),confirmAction:(message)=>confirm(message),onSessionEnded:()=>location.reload()
 });
+const roomEntry=createRoomEntryController({room,spectatorUi,elements:{root:E.setupPanel,hostModeButton:E.hostModeButton,guestModeButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools,hostNameInput:E.hostNameInput,guestNameInput:E.guestNameInput,roomCodeInput:E.roomCodeInput,createRoomButton:E.createRoomButton,joinRoomButton:E.joinRoomButton,connectionStatus:E.connectionStatus},buildCreatePayload:()=>({capacity:Number(E.playerCountSelect.value)}),formatError:(kind,error)=>kind==="create"?`创建房间失败：${error.message}\n请确认已通过 node game5/signal-server.js 启动。`:`加入房间失败：${error.message}`});
 
 function enterRoom(){setHidden(E.setupPanel,true);setHidden(E.roomPanel,false);setHidden(E.roomHeaderTools,false);E.siteHeader.classList.add("in-room");setHidden(E.hostTools,!view?.permissions?.canManage);E.roomCodeDisplay.textContent=room.snapshot().roomCode;}
 function selectMode(nextMode){mode=nextMode;setModeVisibility(mode,{hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools,hostButton:E.hostModeButton,guestButton:E.guestModeButton});}
@@ -147,10 +148,8 @@ presentation=createPresentationTimeline({
 });
 function endGame(){if(confirm("确定结束当前游戏并返回准备阶段吗？本局进度将被清空。"))submit({type:"end"});}
 async function init(){
-  bindRoomCodeInput(E.roomCodeInput);
+  roomEntry.bind();
   spectatorUi.bind();
-  E.hostModeButton.addEventListener("click",()=>selectMode("host"));E.guestModeButton.addEventListener("click",()=>selectMode("guest"));
-  E.createRoomButton.addEventListener("click",createGameRoom);E.joinRoomButton.addEventListener("click",joinGameRoom);
   E.roomPlayerCountSelect.addEventListener("change",()=>submit({type:"setCapacity",capacity:Number(E.roomPlayerCountSelect.value)}));
   E.startGameButton.addEventListener("click",()=>submit({type:"start"}));E.endGameButton.addEventListener("click",endGame);
   E.rulesShortcutButton.addEventListener("click",()=>{E.rulesCard.open=true;E.rulesCard.scrollIntoView({behavior:"smooth",block:"start"});});

@@ -6,6 +6,7 @@
   <title>Can't Stop · 联机版</title>
   <link rel="stylesheet" href="/shared/styles/base.css">
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,20 +28,20 @@
   </header>
 
   <main>
-    <section id="setupPanel" class="setup-shell">
+    <section id="setupPanel" class="setup-shell" data-room-entry>
       <article class="intro-card">
         <div class="mountain-mark">▲</div>
         <h2>再掷一次，还是见好就收？</h2>
         <p>组合四颗骰子，派出三名登山者。只要一次无路可走，本回合的攀登就会全部归零。</p>
       </article>
       <article class="setup-card">
-        <div class="mode-switch"><button id="hostModeButton" class="active" type="button">创建房间</button><button id="guestModeButton" type="button">加入房间</button></div>
-        <div id="hostSetup" class="setup-form">
+        <div class="mode-switch" data-entry-modes><button id="hostModeButton" class="active" type="button">创建房间</button><button id="guestModeButton" type="button">加入房间</button></div>
+        <div id="hostSetup" class="setup-form" data-entry-form="host">
           <label>你的名字<input id="hostNameInput" maxlength="12" placeholder="房主"></label>
           <label>游戏人数<select id="playerCountSelect"><option value="2">2 人</option><option value="3" selected>3 人</option><option value="4">4 人</option></select></label>
           <button id="createRoomButton" class="primary" type="button">创建游戏</button>
         </div>
-        <div id="guestSetup" class="setup-form hidden">
+        <div id="guestSetup" class="setup-form hidden" data-entry-form="guest">
           <label>你的名字<input id="guestNameInput" maxlength="12" placeholder="玩家"></label>
           <label>四位房间号<input id="roomCodeInput" maxlength="4" autocomplete="off" placeholder="ABCD"></label>
           <fieldset id="joinIntentField" class="join-intent hidden">

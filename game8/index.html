@@ -6,6 +6,7 @@
   <title>璀璨宝石 · 宝可梦版</title>
   <link rel="stylesheet" href="/shared/styles/base.css">
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,7 +28,7 @@
       </div>
     </header>
 
-    <main id="setupPanel" class="setup-wrap trainer-arrival">
+    <main id="setupPanel" class="setup-wrap trainer-arrival" data-room-entry>
       <section class="trainer-briefing">
         <p class="arrival-kicker">A NEW JOURNEY · 训练师启程</p>
         <h2>带上精灵球，让每一次选择都成为新的相遇。</h2>
@@ -48,19 +49,19 @@
           <small>创建一支新的探险队，或使用四位房间号与伙伴会合。</small>
         </header>
 
-        <div class="mode-grid" aria-label="选择进入挑战的方式">
+        <div class="mode-grid" data-entry-modes aria-label="选择进入挑战的方式">
           <button id="hostModeButton" class="mode active"><b>创建房间</b><span>建立新的训练师队伍</span></button>
           <button id="guestModeButton" class="mode"><b>加入房间</b><span>前往好友所在的队伍</span></button>
         </div>
 
         <div class="terminal-form-shell">
-          <section id="hostSetup" class="panel setup-card trainer-form">
+          <section id="hostSetup" class="panel setup-card trainer-form" data-entry-form="host">
             <div class="form-heading"><span>EXPEDITION / NEW</span><b>登记新队伍</b></div>
             <div class="trainer-fields"><label><span>训练家名称</span><input id="hostNameInput" maxlength="12" value="小智"></label><label><span>队伍人数</span><select id="playerCountSelect"><option>2</option><option>3</option><option selected>4</option></select></label></div>
             <button id="createRoomButton" class="primary wide trainer-submit"><b>创建训练家房间</b><small>生成四位队伍编号</small></button>
           </section>
 
-          <section id="guestSetup" class="panel setup-card trainer-form hidden">
+          <section id="guestSetup" class="panel setup-card trainer-form hidden" data-entry-form="guest">
             <div class="form-heading"><span>EXPEDITION / JOIN</span><b>验证队伍编号</b></div>
             <div class="trainer-fields"><label><span>训练家名称</span><input id="guestNameInput" maxlength="12" value="训练家"></label><label><span>四位房间号</span><input id="roomCodeInput" maxlength="4" placeholder="ABCD" inputmode="text"></label></div>
             <fieldset id="joinIntentField" class="join-intent hidden">

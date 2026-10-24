@@ -1,7 +1,7 @@
 "use strict";
 
 import {
-  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown,
+  bindRoomCodeInput, cleanPlayerName, createAuthoritativeRoomClient, createCountdown, createRoomEntryController,
   createPresentationTimeline, createSessionStore, createSpectatorUi, escapeHtml, renderConnectionStatus,
   renderCountdown, setHidden, setModeVisibility
 } from "/shared/client/index.js";
@@ -102,6 +102,8 @@ function enterRoom() {
   E.hero.classList.add("in-room");
   E.roomCodeDisplay.textContent = room.snapshot().roomCode;
 }
+
+const roomEntry=createRoomEntryController({room,spectatorUi,elements:{root:E.setupPanel,hostModeButton:E.hostModeButton,guestModeButton:E.guestModeButton,hostSetup:E.hostSetup,guestSetup:E.guestSetup,hostTools:E.hostTools,hostNameInput:E.hostNameInput,guestNameInput:E.guestNameInput,roomCodeInput:E.roomCodeInput,createRoomButton:E.createRoomButton,joinRoomButton:E.joinRoomButton,connectionStatus:E.connectionStatus},buildCreatePayload(){pendingInitialTargetScore=Number(E.targetScoreSelect.value);return{capacity:Number(E.playerCountSelect.value)};},onError(){pendingInitialTargetScore=null;},formatError:(kind,error)=>kind==="create"?`创建失败：${error.message}\n请确认已启动 game18 服务。`:`加入失败：${error.message}`});
 
 async function createGameRoom() {
   E.createRoomButton.disabled = true;
@@ -513,11 +515,7 @@ function selectMode(nextMode) {
 }
 
 async function init() {
-  bindRoomCodeInput(E.roomCodeInput);
-  E.hostModeButton.onclick = () => selectMode("host");
-  E.guestModeButton.onclick = () => selectMode("guest");
-  E.createRoomButton.onclick = createGameRoom;
-  E.joinRoomButton.onclick = joinGameRoom;
+  roomEntry.bind();
   spectatorUi.bind();
   E.roomPlayerCountSelect.onchange = () => submit({ type: "setCapacity", capacity: Number(E.roomPlayerCountSelect.value) });
   E.roomTargetScoreSelect.onchange = () => submit({ type: "setTargetScore", targetScore: Number(E.roomTargetScoreSelect.value) });

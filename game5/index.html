@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>UNO 联机版</title>
     <link rel="stylesheet" href="/shared/styles/spectator.css">
+    <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -30,7 +31,7 @@
                 </div>
             </div>
         </header>
-        <section class="color-table-arrival" id="setupPanel">
+        <section class="color-table-arrival" id="setupPanel" data-room-entry>
             <div class="card-party-briefing">
                 <p class="arrival-kicker">COLOR CARD NIGHT · 好友牌桌</p>
                 <h2>跟上颜色，<br>把最后一张牌打出去。</h2>
@@ -50,7 +51,7 @@
                     <div class="card-fan" aria-hidden="true"><i></i><i></i><i></i></div>
                 </header>
 
-                <div class="modes">
+                <div class="modes" data-entry-modes>
                     <button class="mode active" id="hostModeButton">
                         <span class="mode-card-mark host" aria-hidden="true">＋</span>
                         <span class="mode-copy"><b>创建牌局</b><small>邀请朋友围坐到这张牌桌</small></span>
@@ -61,7 +62,7 @@
                     </button>
                 </div>
 
-                <div class="panel setup entry-form" id="hostSetup">
+                <div class="panel setup entry-form" id="hostSetup" data-entry-form="host">
                     <div class="form-heading"><p>HOST A GAME</p><h2>摆好一桌新牌</h2></div>
                     <label>你的昵称<input id="hostNameInput" maxlength="12" value="房主"></label>
                     <label>本桌人数<select id="playerCountSelect">
@@ -69,7 +70,7 @@
                         </select></label>
                     <button class="primary entry-submit" id="createRoomButton"><b>邀请朋友入座</b><small>创建四位房间号</small></button>
                 </div>
-                <div class="panel setup entry-form hidden" id="guestSetup">
+                <div class="panel setup entry-form hidden" id="guestSetup" data-entry-form="guest">
                     <div class="form-heading"><p>JOIN A GAME</p><h2>接过好友的邀请</h2></div>
                     <label>你的昵称<input id="guestNameInput" maxlength="12" value="玩家"></label>
                     <label>四位房间号<input id="roomCodeInput" maxlength="4" placeholder="例如 A7K2"></label>

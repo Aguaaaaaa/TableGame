@@ -4,6 +4,7 @@ import {
   bindRoomCodeInput,
   cleanPlayerName,
   createAuthoritativeRoomClient,
+  createRoomEntryController,
   createSessionStore,
   createSpectatorUi,
   escapeHtml,
@@ -69,6 +70,7 @@ spectatorUi = createSpectatorUi({
   confirmAction: (message) => confirm(message),
   onSessionEnded: () => location.reload()
 });
+const roomEntry=createRoomEntryController({room,spectatorUi,elements:{root:elements.setupPanel,hostModeButton:elements.hostModeButton,guestModeButton:elements.guestModeButton,hostSetup:elements.hostSetup,guestSetup:elements.guestSetup,hostTools:elements.hostTools,hostNameInput:elements.hostNameInput,guestNameInput:elements.guestNameInput,roomCodeInput:elements.roomCodeInput,createRoomButton:elements.createRoomButton,joinRoomButton:elements.joinRoomButton,connectionStatus:elements.connectionStatus},buildCreatePayload:()=>({capacity:Number(elements.playerCountSelect.value)}),formatError:(kind,error)=>kind==="create"?`无法创建房间：${error.message}\n请先运行 node game3/signal-server.js。`:`无法加入房间：${error.message}`});
 
 const roomInfo = () => room.snapshot();
 const isHost = () => roomInfo().role === "host";
@@ -338,12 +340,8 @@ function render() {
 }
 
 async function init() {
-  elements.hostModeButton.addEventListener("click", () => setMode("host"));
-  elements.guestModeButton.addEventListener("click", () => setMode("guest"));
-  elements.createRoomButton.addEventListener("click", createRoom);
-  elements.joinRoomButton.addEventListener("click", joinRoom);
+  roomEntry.bind();
   spectatorUi.bind();
-  bindRoomCodeInput(elements.roomCodeInput);
   elements.roomPlayerCountSelect.addEventListener("change", changePlayerCount);
   elements.startGameButton.addEventListener("click", startGame);
   elements.endGameButton.addEventListener("click", endGame);

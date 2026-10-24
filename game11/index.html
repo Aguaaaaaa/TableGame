@@ -6,6 +6,7 @@
   <title>截码战 · 联机版</title>
   <link rel="stylesheet" href="/shared/styles/base.css">
   <link rel="stylesheet" href="/shared/styles/spectator.css">
+  <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./spectator.css">
 </head>
@@ -27,7 +28,7 @@
       </div>
     </header>
 
-    <section id="setupPanel" class="panel setup-panel signal-arrival">
+    <section id="setupPanel" class="panel setup-panel signal-arrival" data-room-entry>
       <div class="signal-briefing">
         <p class="arrival-kicker">INTERCEPT DIRECTIVE · 截获密令</p>
         <h2>每一次发报，都是给队友的坐标，也是留给对手的破绽。</h2>
@@ -48,13 +49,13 @@
           <small>建立新的监听频道，或使用四位房间号调谐至已有行动。</small>
         </header>
 
-        <div class="mode-tabs" aria-label="选择接入方式">
+        <div class="mode-tabs" data-entry-modes aria-label="选择接入方式">
           <button id="hostModeButton" class="active"><b>创建行动室</b><small>建立新的加密频道</small></button>
           <button id="guestModeButton"><b>加入行动室</b><small>调谐至已有频道</small></button>
         </div>
 
         <div class="access-form-shell">
-          <div id="hostSetup" class="setup-form station-form">
+          <div id="hostSetup" class="setup-form station-form" data-entry-form="host">
             <div class="station-form-head"><span>CHANNEL / NEW</span><b>部署监听小组</b></div>
             <div class="station-fields">
               <label><span>行动代号</span><input id="hostNameInput" maxlength="12" value="情报主管"></label>
@@ -63,7 +64,7 @@
             <button id="createRoomButton" class="primary station-submit"><b>建立加密频道</b><small>生成四位行动室代码</small></button>
           </div>
 
-          <div id="guestSetup" class="setup-form station-form hidden">
+          <div id="guestSetup" class="setup-form station-form hidden" data-entry-form="guest">
             <div class="station-form-head"><span>CHANNEL / TUNE</span><b>接入现有频道</b></div>
             <div class="station-fields">
               <label><span>行动代号</span><input id="guestNameInput" maxlength="12" value="译码员"></label>

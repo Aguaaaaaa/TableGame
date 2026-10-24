@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>快艇骰子</title>
     <link rel="stylesheet" href="/shared/styles/spectator.css">
+    <link rel="stylesheet" href="/shared/styles/room-entry-shell.css">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -33,7 +34,7 @@
         </div>
       </header>
 
-      <section class="dice-club-arrival" id="setupPanel">
+      <section class="dice-club-arrival" id="setupPanel" data-room-entry>
         <div class="club-briefing">
           <p class="arrival-kicker">YACHT DICE CLUB · 今日牌桌</p>
           <h2>摇出组合，<br>填满你的十三格计分表。</h2>
@@ -58,7 +59,7 @@
             <div class="entry-dice" aria-hidden="true"><i>⚁</i><i>⚃</i><i>⚄</i></div>
           </header>
 
-          <div class="mode-grid">
+          <div class="mode-grid" data-entry-modes>
             <button class="mode-card active" id="hostModeButton" type="button">
               <span class="mode-check" aria-hidden="true"></span>
               <span class="mode-copy"><strong>开一桌比赛</strong><small>设定人数并担任计分主持</small></span>
@@ -69,7 +70,7 @@
             </button>
           </div>
 
-          <div class="panel setup-card score-form" id="hostSetup">
+          <div class="panel setup-card score-form" id="hostSetup" data-entry-form="host">
             <div class="form-heading"><p>NEW TABLE</p><h2>建立本场计分表</h2></div>
             <label>你的昵称<input id="hostNameInput" maxlength="12" autocomplete="off" value="房主"></label>
             <label>参与人数<select id="playerCountSelect">
@@ -79,7 +80,7 @@
             </select></label>
             <button class="primary score-submit" id="createRoomButton" type="button"><b>开一桌比赛</b><small>生成房间号</small></button>
           </div>
-          <div class="panel setup-card score-form hidden" id="guestSetup">
+          <div class="panel setup-card score-form hidden" id="guestSetup" data-entry-form="guest">
             <div class="form-heading"><p>JOIN TABLE</p><h2>登记到好友牌桌</h2></div>
             <label>你的昵称<input id="guestNameInput" maxlength="12" autocomplete="off" value="玩家"></label>
             <label>四位房间号<input id="roomCodeInput" maxlength="4" autocomplete="off" placeholder="例如 A7K2"></label>

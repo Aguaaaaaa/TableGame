@@ -1,5 +1,5 @@
 import {
-  CLUE_MODE, DECOY_SECONDS, MAX_PLAYERS, MIN_PLAYERS, RESOLUTION_SECONDS,
+  CLUE_MODE, DECOY_SECONDS, DISCUSSION_SECONDS, MAX_PLAYERS, MIN_PLAYERS, RESOLUTION_SECONDS,
   STORYTELLER_SECONDS, TARGET_SCORE, VOTE_SECONDS, assertCapacity, createDeck,
   decoyCount, handSize, normalizeClue, scoreRound, shuffle
 } from "../rules.mjs";
@@ -8,7 +8,7 @@ import { appendPresentationEvent, normalizePresentationState, validatePresentati
 export const STATE_VERSION = 1;
 export const SUPPORTS_SPECTATORS = true;
 export const ACTION_SECONDS = STORYTELLER_SECONDS;
-const PHASES = new Set(["lobby", "storytellerChoosing", "playersChoosing", "voting", "resolution", "ended"]);
+const PHASES = new Set(["lobby", "storytellerChoosing", "playersChoosing", "voting", "resolution", "discussion", "ended"]);
 const clone = (value) => structuredClone(value);
 const byId = (state, id) => state.players.find((player) => player.id === String(id)) || null;
 
@@ -135,8 +135,15 @@ function resolveRound(state, now) {
   present(state, "answer-reveal", `${outcome}`, now, { priority: 5, targetDisplayId: storytellerCard.displayId }, sid);
   present(state, "score-travel", "兔子沿星轨记录本轮得分", now, { priority: 4, gains: clone(scored.gains) }, sid);
 }
+function beginDiscussion(state, now) {
+  fail(state.phase !== "resolution", "wrong_phase", "当前没有可以进入讨论的结算。", 409);
+  state.phase = "discussion";
+  state.deadline = now + DISCUSSION_SECONDS * 1000;
+  addLog(state, `第${state.round}轮进入讨论时间，旅人可以交流各自的联想。`, now);
+  present(state, "discussion-open", "答案已经揭晓，旅人开始分享彼此的联想", now, { priority: 3, round: state.round });
+}
 function finishOrContinue(state, now, random) {
-  fail(state.phase !== "resolution", "wrong_phase", "当前没有可以继续的结算。", 409);
+  fail(state.phase !== "discussion", "wrong_phase", "当前不在讨论阶段。", 409);
   state.discard.push(...state.displayCards.map((entry) => entry.card)); state.storytellerSubmission = null; state.submissions = {}; fillHands(state, random);
   const leaders = state.players.filter((player) => player.score >= TARGET_SCORE);
   if (leaders.length) {
@@ -167,7 +174,12 @@ export function applyAction(state, actorId, action, { now = Date.now(), random =
     case "submitStory": submitStory(state, actorId, action.cardId, action.clueMode, action.clueText, now); break;
     case "submitDecoys": submitDecoys(state, actorId, action.cardIds, now, false, random); break;
     case "submitVote": submitVote(state, actorId, action.displayId, now); break;
-    case "continue": requireHost(state, actorId); finishOrContinue(state, now, random); break;
+    case "continue": {
+      requireHost(state, actorId);
+      if (state.phase === "resolution") beginDiscussion(state, now);
+      else finishOrContinue(state, now, random);
+      break;
+    }
     case "end": requireHost(state, actorId); fail(state.phase === "lobby", "game_not_started", "当前没有可结束的游戏。", 409); resetMatch(state); addLog(state, "房主结束了当前梦境旅程，所有旅人返回准备大厅。", now); break;
     case "nextMatch": requireHost(state, actorId); fail(state.phase !== "ended", "wrong_phase", "当前对局尚未结束。", 409); resetMatch(state); break;
     default: throw new GameRuleError("unknown_action", "未知操作。");
@@ -184,7 +196,8 @@ export function handleTimeout(state, { now = Date.now(), random = Math.random } 
     for (const player of state.players.filter((item) => item.id !== state.storytellerId && !state.submissions[item.id])) submitDecoys(state, player.id, shuffle(player.hand, random).slice(0, count).map((card) => card.id), now, true, random);
   } else if (state.phase === "voting") {
     for (const player of state.players.filter((item) => item.id !== state.storytellerId && !state.votes[item.id])) submitVote(state, player.id, randomChoice(legalVoteCards(state, player.id), random).displayId, now, true);
-  } else if (state.phase === "resolution") finishOrContinue(state, now, random);
+  } else if (state.phase === "resolution") beginDiscussion(state, now);
+  else if (state.phase === "discussion") finishOrContinue(state, now, random);
   else return false;
   validateState(state); return true;
 }
@@ -192,7 +205,7 @@ export function getDeadline(state) { return Number(state.deadline) || 0; }
 
 function publicPlayers(state, ended) { return state.players.map((player) => ({ id: player.id, name: player.name, isHost: player.isHost, connected: player.connected, score: player.score, handCount: player.hand.length })); }
 function buildPublicView(state, viewer = null) {
-  const reveal = ["voting", "resolution", "ended"].includes(state.phase); const resolved = ["resolution", "ended"].includes(state.phase);
+  const reveal = ["voting", "resolution", "discussion", "ended"].includes(state.phase); const resolved = ["resolution", "discussion", "ended"].includes(state.phase);
   const ownDisplayIds = viewer && reveal ? state.displayCards.filter((entry) => entry.ownerId === viewer.id).map((entry) => entry.displayId) : [];
   return {
     stateVersion: state.stateVersion, capacity: state.capacity, phase: state.phase, deadline: state.deadline, round: state.round, matchNumber: state.matchNumber,
@@ -209,7 +222,7 @@ function buildPublicView(state, viewer = null) {
       canTell: Boolean(viewer && state.phase === "storytellerChoosing" && viewer.id === state.storytellerId),
       canSubmitDecoys: Boolean(viewer && state.phase === "playersChoosing" && viewer.id !== state.storytellerId && !state.submissions[viewer.id]),
       canVote: Boolean(viewer && state.phase === "voting" && viewer.id !== state.storytellerId && !state.votes[viewer.id]),
-      canContinue: Boolean(viewer?.isHost && state.phase === "resolution"), canNextMatch: Boolean(viewer?.isHost && state.phase === "ended"),
+      canContinue: Boolean(viewer?.isHost && ["resolution", "discussion"].includes(state.phase)), canNextMatch: Boolean(viewer?.isHost && state.phase === "ended"),
       canEnd: Boolean(viewer?.isHost && state.phase !== "lobby")
     }
   };

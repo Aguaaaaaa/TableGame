@@ -15,7 +15,8 @@ export function game23DecisionContext(view, memberRole = view?.roomRole, roomCod
   else if (view.phase === "storytellerChoosing") mode = permissions.canTell ? "tell" : "wait-teller";
   else if (view.phase === "playersChoosing") mode = permissions.canSubmitDecoys ? "choose-decoys" : "decoys-sealed";
   else if (view.phase === "voting") mode = permissions.canVote ? "vote" : "vote-sealed";
-  else if (view.phase === "resolution") mode = permissions.canContinue ? "resolution:continue" : "resolution:wait";
+  else if (view.phase === "resolution") mode = permissions.canContinue ? "resolution:discussion" : "resolution:wait";
+  else if (view.phase === "discussion") mode = permissions.canContinue ? "discussion:continue" : "discussion:wait";
   return {
     mode,
     key: key([roomCode, view.selfId, view.matchNumber, view.round, view.storytellerId, mode])

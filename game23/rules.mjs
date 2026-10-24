@@ -5,6 +5,7 @@ export const STORYTELLER_SECONDS = 120;
 export const DECOY_SECONDS = 75;
 export const VOTE_SECONDS = 60;
 export const RESOLUTION_SECONDS = 10;
+export const DISCUSSION_SECONDS = 90;
 export const CLUE_MODE = Object.freeze({ TEXT: "text", VOICE: "voice" });
 
 export function assertCapacity(value) {

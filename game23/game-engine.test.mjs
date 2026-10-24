@@ -4,6 +4,7 @@ import {
   addPlayer, applyAction, buildSpectatorView, buildView, createLobby,
   handleTimeout, removePlayer, restoreState, serializeState
 } from "./server/game-engine.mjs";
+import { DISCUSSION_SECONDS, RESOLUTION_SECONDS } from "./rules.mjs";
 
 const fixedRandom = () => .314159;
 function setup(capacity = 4) {
@@ -78,6 +79,54 @@ test("timeouts authoritatively keep the dream moving", () => {
   assert.equal(state.phase, "voting");
   assert.equal(handleTimeout(state, { now: state.deadline + 1, random: fixedRandom }), true);
   assert.equal(state.phase, "resolution");
+});
+
+test("revealed results remain public during a 90-second authoritative discussion", () => {
+  const state = setup(4); const teller = submitStory(state);
+  const others = state.players.filter((player) => player.id !== teller.id);
+  others.forEach((player, index) => applyAction(state, player.id, {
+    type: "submitDecoys", cardIds: [player.hand[0].id]
+  }, { now: 3000 + index, random: fixedRandom }));
+  const answer = state.displayCards.find((entry) => entry.ownerId === teller.id).displayId;
+  others.forEach((player, index) => applyAction(state, player.id, {
+    type: "submitVote", displayId: answer
+  }, { now: 4000 + index, random: fixedRandom }));
+
+  assert.equal(state.phase, "resolution");
+  assert.equal(state.deadline, 4000 + others.length - 1 + RESOLUTION_SECONDS * 1000);
+  assert.equal(handleTimeout(state, { now: state.deadline + 1, random: fixedRandom }), true);
+  assert.equal(state.phase, "discussion");
+  assert.equal(state.deadline, 4000 + others.length + RESOLUTION_SECONDS * 1000 + DISCUSSION_SECONDS * 1000);
+
+  const discussionView = buildSpectatorView(state);
+  assert.ok(discussionView.roundResult);
+  assert.ok(discussionView.displayCards.every((entry) => entry.ownerId));
+  assert.equal(buildView(state, "p1").permissions.canContinue, true);
+  const guest = state.players.find((player) => !player.isHost);
+  assert.equal(buildView(state, guest.id).permissions.canContinue, false);
+
+  const previousRound = state.round;
+  applyAction(state, "p1", { type: "continue" }, { now: state.deadline - 1000, random: fixedRandom });
+  assert.equal(state.phase, "storytellerChoosing");
+  assert.equal(state.round, previousRound + 1);
+});
+
+test("the host cannot skip directly from result reveal to the next round", () => {
+  const state = setup(3); const teller = submitStory(state);
+  const others = state.players.filter((player) => player.id !== teller.id);
+  others.forEach((player, index) => applyAction(state, player.id, {
+    type: "submitDecoys", cardIds: [player.hand[0].id, player.hand[1].id]
+  }, { now: 3000 + index, random: fixedRandom }));
+  const answer = state.displayCards.find((entry) => entry.ownerId === teller.id).displayId;
+  others.forEach((player, index) => applyAction(state, player.id, {
+    type: "submitVote", displayId: answer
+  }, { now: 4000 + index, random: fixedRandom }));
+
+  const currentRound = state.round;
+  applyAction(state, "p1", { type: "continue" }, { now: 5000, random: fixedRandom });
+  assert.equal(state.phase, "discussion");
+  assert.equal(state.round, currentRound);
+  assert.equal(state.deadline, 5000 + DISCUSSION_SECONDS * 1000);
 });
 
 test("only the host can end an active match and return everyone to a clean lobby", () => {

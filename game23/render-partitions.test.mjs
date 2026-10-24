@@ -94,3 +94,19 @@ test("服务器接受动作并进入新阶段时才替换旧决策区", () => {
   next.storytellerId = "p1"; next.permissions.canTell = false; next.deadline = 8000;
   assert.ok(h.draw(next).includes("decision")); assert.notStrictEqual(h.decisionNode, node);
 });
+
+test("揭晓转入讨论时替换阶段操作但继续保留公开结果", () => {
+  const h = harness(), view = baseView();
+  view.phase = "resolution"; view.permissions.canTell = false; view.permissions.canContinue = true;
+  view.roundResult = { storytellerDisplayId: "d1", gains: { p1: 3 }, correctVoters: ["p2"], allOrNone: false, votes: { p2: "d1" }, owners: { d1: "p1" } };
+  view.displayCards = [{ displayId: "d1", card: card("c1", 1), ownerId: "p1" }];
+  h.draw(view); const node = h.decisionNode; h.clear();
+
+  const discussion = clone(view); discussion.phase = "discussion"; discussion.deadline = 95000;
+  const changed = h.draw(discussion);
+  assert.ok(changed.includes("decision"));
+  assert.ok(changed.includes("countdown"));
+  assert.notStrictEqual(h.decisionNode, node);
+  assert.deepEqual(discussion.roundResult, view.roundResult);
+  assert.deepEqual(discussion.displayCards, view.displayCards);
+});

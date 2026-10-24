@@ -61,6 +61,25 @@ test("间谍危机使用地点档案库与分布式情报网络外壳", () => {
   }
 });
 
+test("创建与加入页使用伦敦雨夜接头外壳并保留共享入场契约", () => {
+  const html = read("index.html"), css = read("styles.css");
+  assert.match(html, /id="setupPanel" class="setup-wrap" data-room-entry data-entry-layout="split"/);
+  assert.match(html, /class="entry-story" data-entry-story/);
+  assert.match(html, /class="entry-access panel" data-entry-access/);
+  assert.match(html, /data-entry-modes/);
+  assert.match(html, /data-entry-form="host"/);
+  assert.match(html, /data-entry-form="guest"/);
+  assert.match(html, /A RENDEZVOUS IN THE RAIN/);
+  assert.match(html, /所有人都知道目的地/);
+  assert.match(html, /接收身份/);
+  assert.match(html, /相互试探/);
+  assert.match(html, /做出指认/);
+  assert.match(css, /url\("assets\/london-rendezvous-entry-v1\.png"\)/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.setup-wrap \{ min-height: auto/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.setup-wrap::before/);
+  assert.equal(fs.existsSync(path.join(__dirname, "assets", "london-rendezvous-entry-v1.png")), true);
+});
+
 test("页面原生接入旁观系统并仅向正式玩家显示秘密档案", () => {
   const html = read("index.html"), script = read("app.js");
   assert.match(html, /name="joinIntent" value="spectate"/);

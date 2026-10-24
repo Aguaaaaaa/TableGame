@@ -29,24 +29,43 @@
     </div>
   </header>
 
-  <section id="setupPanel" class="setup-wrap" data-room-entry>
-    <div class="mode-tabs" data-entry-modes><button id="hostModeButton" class="active" type="button">创建行动组</button><button id="guestModeButton" type="button">加入行动组</button></div>
-    <section id="hostSetup" class="panel setup-card" data-entry-form="host">
-      <div><p class="eyebrow">OPEN A CASE</p><h2>建立秘密频道</h2></div>
-      <label>昵称<input id="hostNameInput" maxlength="12" value="房主"></label>
-      <label>玩家人数<select id="playerCountSelect"><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
-      <button id="createRoomButton" class="primary" type="button">创建房间</button>
+  <section id="setupPanel" class="setup-wrap" data-room-entry data-entry-layout="split">
+    <section class="entry-story" data-entry-story aria-labelledby="entryStoryTitle">
+      <p class="entry-kicker">A RENDEZVOUS IN THE RAIN</p>
+      <h2 id="entryStoryTitle">所有人都知道目的地。<br>除了一人。</h2>
+      <p class="entry-lead">冷雨覆盖城市，行动组通过秘密频道集结。听清每一句回答，也留意那些刻意避开的细节。</p>
+      <ol class="entry-briefing" aria-label="行动流程">
+        <li><span>01</span><div><b>接收身份</b><small>地点与伪装只交给应该知道的人</small></div></li>
+        <li><span>02</span><div><b>相互试探</b><small>在问答中寻找语言与身份的破绽</small></div></li>
+        <li><span>03</span><div><b>做出指认</b><small>锁定潜伏者，或猜出真正的地点</small></div></li>
+      </ol>
+      <div class="entry-evidence"><span aria-hidden="true"></span><p><b>FIELD NOTE</b><small>最危险的回答，往往听起来最合理。</small></p></div>
     </section>
-    <section id="guestSetup" class="panel setup-card hidden" data-entry-form="guest">
-      <div><p class="eyebrow">JOIN THE CASE</p><h2>接入秘密频道</h2></div>
-      <label>昵称<input id="guestNameInput" maxlength="12" value="玩家"></label>
-      <label>房间号<input id="roomCodeInput" maxlength="4" placeholder="例如 SPY8"></label>
-      <fieldset id="joinIntentField" class="join-intent hidden">
-        <legend>加入身份</legend>
-        <label><input type="radio" name="joinIntent" value="play" checked><span><b>加入玩家席</b><small>满员或开局后自动转为旁观</small></span></label>
-        <label><input type="radio" name="joinIntent" value="spectate"><span><b>只做旁观者</b><small>进行中不会获得地点和身份</small></span></label>
-      </fieldset>
-      <button id="joinRoomButton" class="primary" type="button">进入房间</button>
+
+    <section class="entry-access panel" data-entry-access aria-label="秘密频道接入面板">
+      <header class="access-heading">
+        <span class="umbrella-mark" aria-hidden="true">☂</span>
+        <div><p class="eyebrow">FIELD OFFICE · ACCESS DOSSIER</p><h2>接入秘密行动组</h2><small>使用行动代号登记，服务器将保管你的秘密身份。</small></div>
+      </header>
+      <div class="mode-tabs" data-entry-modes><button id="hostModeButton" class="active" type="button">建立行动组<small>签发新频道</small></button><button id="guestModeButton" type="button">输入接头暗号<small>接入已有频道</small></button></div>
+      <section id="hostSetup" class="setup-card" data-entry-form="host">
+        <div class="form-heading"><span>CASE / NEW</span><b>建立秘密频道</b></div>
+        <label><span>行动代号</span><input id="hostNameInput" maxlength="12" value="房主" autocomplete="nickname"></label>
+        <label><span>行动组人数</span><select id="playerCountSelect"><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
+        <button id="createRoomButton" class="primary entry-submit" type="button">建立安全频道</button>
+      </section>
+      <section id="guestSetup" class="setup-card hidden" data-entry-form="guest">
+        <div class="form-heading"><span>CASE / ACCESS</span><b>接入秘密频道</b></div>
+        <label><span>行动代号</span><input id="guestNameInput" maxlength="12" value="玩家" autocomplete="nickname"></label>
+        <label><span>接头暗号</span><input id="roomCodeInput" maxlength="4" placeholder="例如 SPY8" autocomplete="off" inputmode="text"></label>
+        <fieldset id="joinIntentField" class="join-intent hidden">
+          <legend>接入身份</legend>
+          <label><input type="radio" name="joinIntent" value="play" checked><span><b>进入行动组</b><small>满员或开局后自动转为旁观</small></span></label>
+          <label><input type="radio" name="joinIntent" value="spectate"><span><b>远程观察</b><small>进行中不会获得地点和身份</small></span></label>
+        </fieldset>
+        <button id="joinRoomButton" class="primary entry-submit" type="button">接入行动频道</button>
+      </section>
+      <p class="access-footnote"><span>ENCRYPTED</span> 房间暗号只用于本次行动，不会公开任何私人身份。</p>
     </section>
   </section>
 

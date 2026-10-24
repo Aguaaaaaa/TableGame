@@ -30,6 +30,27 @@ test("页面包含旁观、行情、私人区和移动端吸附操作结构", ()
   assert.match(styles, /\.presentation-effects/); assert.match(styles, /\.presentation-trail\.active/); assert.match(styles, /\.presentation-token/);
 });
 
+test("创建与加入页使用证券交易大厅外壳并保留共享入场契约", () => {
+  const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+  const styles = fs.readFileSync(path.join(__dirname, "styles.css"), "utf8");
+  assert.match(html, /id="setupPanel" class="setup-wrap" data-room-entry data-entry-layout="split"/);
+  assert.match(html, /class="entry-story" data-entry-story/);
+  assert.match(html, /class="entry-access panel" data-entry-access/);
+  assert.match(html, /data-entry-modes/);
+  assert.match(html, /data-entry-form="host"/);
+  assert.match(html, /data-entry-form="guest"/);
+  assert.match(html, /PRE-MARKET SESSION/);
+  assert.match(html, /掌握内幕/);
+  assert.match(html, /构造市场/);
+  assert.match(html, /公开竞价/);
+  assert.match(html, /class="entry-market-screen"/);
+  assert.match(html, /class="trend trend-a"/);
+  assert.match(styles, /url\("assets\/exchange-hall-entry-v1\.png"\)/);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*?\.setup-wrap \{ min-height: auto/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.equal(fs.existsSync(path.join(__dirname, "assets", "exchange-hall-entry-v1.png")), true);
+});
+
 test("权威视图刷新时保留当前合法的市场操作草稿", () => {
   const script = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
   assert.match(script, /onView\(nextView\) \{ captureActionDraft\(\); view = nextView; reconcileActionDraft\(\);/);
